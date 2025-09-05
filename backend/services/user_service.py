@@ -1,1 +1,227 @@
 # User management service
+from typing import Optional, Dict, Any
+from sqlalchemy.orm import Session
+from datetime import datetime
+
+from ..database.models import User, Wallet, Transaction, UserSettings
+from ..services.xrp_service import xrp_service
+from ..utils.encryption import encryption_service
+
+class UserService:
+    """Service for managing users and wallets"""
+    
+    @staticmethod
+    async def create_user(
+        db: Session,
+        telegram_id: str,
+        telegram_username: Optional[str] = None,
+        telegram_first_name: Optional[str] = None,
+        telegram_last_name: Optional[str] = None
+    ) -> User:
+        """
+        Create a new user with an XRP wallet
+        """
+        # Check if user already exists
+        existing_user = db.query(User).filter(
+            User.telegram_id == str(telegram_id)
+        ).first()
+        
+        if existing_user:
+            return existing_user
+        
+        # Create new user
+        user = User(
+            telegram_id=str(telegram_id),
+            telegram_username=telegram_username,
+            telegram_first_name=telegram_first_name,
+            telegram_last_name=telegram_last_name
+        )
+        
+        db.add(user)
+        db.flush()  # Get user ID without committing
+        
+        # Create XRP wallet
+        address, encrypted_secret = xrp_service.create_wallet()
+        
+        wallet = Wallet(
+            user_id=user.id,
+            xrp_address=address,
+            encrypted_secret=encrypted_secret,
+            balance=0.0
+        )
+        
+        db.add(wallet)
+        
+        # Create default settings
+        settings = UserSettings(
+            user_id=user.id
+        )
+        db.add(settings)
+        
+        db.commit()
+        db.refresh(user)
+        
+        # Fund wallet from faucet (async operation)
+        try:
+            print(f"🚀 Funding wallet for user {telegram_id}...")
+            funded = await xrp_service.fund_wallet_from_faucet(address)
+            if funded:
+                # Update balance
+                balance = await xrp_service.get_balance(address)
+                if balance is not None:
+                    wallet.balance = balance
+                    wallet.last_balance_update = datetime.utcnow()
+                    db.commit()
+                    print(f"✅ Wallet funded with {balance} XRP")
+        except Exception as e:
+            print(f"❌ Error funding wallet: {str(e)}")
+        
+        return user
+    
+    @staticmethod
+    def get_user_by_telegram_id(
+        db: Session,
+        telegram_id: str
+    ) -> Optional[User]:
+        """Get user by Telegram ID"""
+        return db.query(User).filter(
+            User.telegram_id == str(telegram_id)
+        ).first()
+    
+    @staticmethod
+    def get_user_by_xrp_address(
+        db: Session,
+        xrp_address: str
+    ) -> Optional[User]:
+        """Get user by XRP address"""
+        wallet = db.query(Wallet).filter(
+            Wallet.xrp_address == xrp_address
+        ).first()
+        
+        return wallet.user if wallet else None
+    
+    @staticmethod
+    async def update_balance(
+        db: Session,
+        user: User
+    ) -> float:
+        """
+        Update user's wallet balance from blockchain
+        """
+        if not user.wallet:
+            raise ValueError("User has no wallet")
+        
+        # Get balance from XRP Ledger
+        balance = await xrp_service.get_balance(user.wallet.xrp_address)
+        
+        if balance is not None:
+            user.wallet.balance = balance
+            user.wallet.last_balance_update = datetime.utcnow()
+            db.commit()
+        
+        return balance if balance is not None else user.wallet.balance
+    
+    @staticmethod
+    async def send_xrp(
+        db: Session,
+        sender: User,
+        recipient_address: str,
+        amount: float,
+        memo: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send XRP from user to another address
+        """
+        if not sender.wallet:
+            return {
+                "success": False,
+                "error": "Sender has no wallet"
+            }
+        
+        # Validate recipient address
+        if not xrp_service.validate_address(recipient_address):
+            return {
+                "success": False,
+                "error": "Invalid recipient address"
+            }
+        
+        # Check if recipient is internal user
+        recipient_wallet = db.query(Wallet).filter(
+            Wallet.xrp_address == recipient_address
+        ).first()
+        
+        # Send transaction
+        result = await xrp_service.send_xrp(
+            from_encrypted_secret=sender.wallet.encrypted_secret,
+            to_address=recipient_address,
+            amount=amount,
+            memo=memo
+        )
+        
+        if result["success"]:
+            # Record transaction
+            transaction = Transaction(
+                sender_id=sender.id,
+                sender_address=sender.wallet.xrp_address,
+                recipient_address=recipient_address,
+                amount=amount,
+                fee=result.get("fee", 0.00001),
+                tx_hash=result.get("tx_hash"),
+                ledger_index=result.get("ledger_index"),
+                status="confirmed",
+                confirmed_at=datetime.utcnow()
+            )
+            db.add(transaction)
+            
+            # Update balances
+            await UserService.update_balance(db, sender)
+            
+            # If internal transfer, update recipient balance too
+            if recipient_wallet:
+                recipient_user = recipient_wallet.user
+                await UserService.update_balance(db, recipient_user)
+            
+            db.commit()
+        else:
+            # Record failed transaction
+            transaction = Transaction(
+                sender_id=sender.id,
+                sender_address=sender.wallet.xrp_address,
+                recipient_address=recipient_address,
+                amount=amount,
+                status="failed",
+                error_message=result.get("error")
+            )
+            db.add(transaction)
+            db.commit()
+        
+        return result
+    
+    @staticmethod
+    def get_transaction_history(
+        db: Session,
+        user: User,
+        limit: int = 10
+    ) -> list:
+        """Get user's transaction history from database"""
+        transactions = db.query(Transaction).filter(
+            Transaction.sender_id == user.id
+        ).order_by(
+            Transaction.created_at.desc()
+        ).limit(limit).all()
+        
+        return [
+            {
+                "hash": tx.tx_hash,
+                "amount": tx.amount,
+                "fee": tx.fee,
+                "recipient": tx.recipient_address,
+                "status": tx.status,
+                "timestamp": tx.created_at.isoformat() if tx.created_at else None,
+                "error": tx.error_message
+            }
+            for tx in transactions
+        ]
+
+# Global user service instance
+user_service = UserService()
