@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -9,23 +9,22 @@ class User(Base):
     """User model storing Telegram user information"""
     __tablename__ = "users"
     
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     telegram_id = Column(String(50), unique=True, nullable=False, index=True)
     telegram_username = Column(String(255))
     telegram_first_name = Column(String(255))
     telegram_last_name = Column(String(255))
     
-    # Relationships
-    wallet = relationship("Wallet", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    sent_transactions = relationship("Transaction", 
-                                    foreign_keys="Transaction.sender_id",
-                                    back_populates="sender")
-    settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    wallet = relationship("Wallet", back_populates="user", uselist=False)
+    sent_transactions = relationship("Transaction", 
+                                    foreign_keys="Transaction.sender_id",
+                                    back_populates="sender")
     
     def __repr__(self):
         return f"<User(telegram_id={self.telegram_id}, username={self.telegram_username})>"
@@ -35,7 +34,7 @@ class Wallet(Base):
     """Wallet model storing XRP account information (Custodial Model)"""
     __tablename__ = "wallets"
     
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
     
     # XRP Account Details
@@ -46,15 +45,21 @@ class Wallet(Base):
     balance = Column(Float, default=0.0)
     last_balance_update = Column(DateTime)
     
-    # Relationships
-    user = relationship("User", back_populates="wallet")
-    
     # Security
     encryption_version = Column(Integer, default=1)  # Track encryption scheme
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="wallet")
+    
+    # Add index for faster lookups
+    __table_args__ = (
+        Index('idx_wallet_user_id', 'user_id'),
+        Index('idx_wallet_xrp_address', 'xrp_address'),
+    )
     
     def __repr__(self):
         return f"<Wallet(xrp_address={self.xrp_address}, balance={self.balance})>"
@@ -64,7 +69,7 @@ class Transaction(Base):
     """Transaction model storing XRP transfer history"""
     __tablename__ = "transactions"
     
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     
     # Transaction parties
     sender_id = Column(Integer, ForeignKey("users.id"))
@@ -80,15 +85,23 @@ class Transaction(Base):
     ledger_index = Column(Integer)
     
     # Status tracking
-    status = Column(String(50), default="pending")  # pending, confirmed, failed
+    status = Column(String(50), default="pending", index=True)  # pending, confirmed, failed
     error_message = Column(Text)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    confirmed_at = Column(DateTime)
     
     # Relationships
     sender = relationship("User", back_populates="sent_transactions")
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    confirmed_at = Column(DateTime)
+    # Add indexes for faster queries
+    __table_args__ = (
+        Index('idx_tx_sender_id', 'sender_id'),
+        Index('idx_tx_status', 'status'),
+        Index('idx_tx_created', 'created_at'),
+        Index('idx_tx_recipient', 'recipient_address'),
+    )
     
     def __repr__(self):
         return f"<Transaction(hash={self.tx_hash}, amount={self.amount}, status={self.status})>"
@@ -98,7 +111,7 @@ class PriceHistory(Base):
     """Price history for caching XRP price data"""
     __tablename__ = "price_history"
     
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     
     # Price data
     price_usd = Column(Float, nullable=False)
@@ -113,6 +126,11 @@ class PriceHistory(Base):
     # Timestamps
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     
+    # Add index for timestamp queries
+    __table_args__ = (
+        Index('idx_price_timestamp', 'timestamp'),
+    )
+    
     def __repr__(self):
         return f"<PriceHistory(price_usd={self.price_usd}, timestamp={self.timestamp})>"
 
@@ -121,7 +139,7 @@ class UserSettings(Base):
     """User preferences and settings"""
     __tablename__ = "user_settings"
     
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)
     
     # Notification preferences
@@ -132,13 +150,14 @@ class UserSettings(Base):
     currency_display = Column(String(10), default="USD")
     language = Column(String(10), default="en")
     
-    # Security
-    two_factor_enabled = Column(Boolean, default=False)
-    pin_code = Column(String(255))  # Hashed PIN
-    
-    # Relationships
-    user = relationship("User", back_populates="settings")
-    
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Add index for user lookups
+    __table_args__ = (
+        Index('idx_settings_user_id', 'user_id'),
+    )
+    
+    def __repr__(self):
+        return f"<UserSettings(user_id={self.user_id}, language={self.language})>"

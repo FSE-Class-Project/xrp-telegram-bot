@@ -6,20 +6,39 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
 from typing import Optional
 
 class EncryptionService:
-    """Service for encrypting/decrypting sensitive data"""
+    """Service for encrypting/decrypting sensitive data like wallet secrets"""
     
     def __init__(self, key: Optional[str] = None):
-        """Initialize with encryption key"""
+        """Initialize with encryption key from settings or generate new"""
         if key:
-            self.fernet = Fernet(key.encode() if isinstance(key, str) else key)
+            # Ensure key is properly formatted
+            if isinstance(key, str):
+                try:
+                    # Try to use the key directly if it's valid base64
+                    self.fernet = Fernet(key.encode() if len(key) == 44 else key)
+                except Exception:
+                    # If not valid, generate from the string
+                    self.fernet = Fernet(self._derive_key_from_string(key))
+            else:
+                self.fernet = Fernet(key)
         else:
-            # Generate key from environment variable or create new
-            key = os.getenv("ENCRYPTION_KEY")
-            if not key:
-                key = Fernet.generate_key().decode()
-                print(f"⚠️  Generated new encryption key: {key}")
-                print("Add this to your .env file as ENCRYPTION_KEY")
-            self.fernet = Fernet(key.encode() if isinstance(key, str) else key)
+            # Generate new key if none provided
+            key = Fernet.generate_key()
+            self.fernet = Fernet(key)
+            print(f"⚠️ Generated new encryption key: {key.decode()}")
+            print("Add this to your .env file as ENCRYPTION_KEY")
+    
+    def _derive_key_from_string(self, password: str) -> bytes:
+        """Derive a valid Fernet key from any string"""
+        salt = b'xrp-telegram-bot-salt'  # Fixed salt for consistency
+        kdf = PBKDF2(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+        return key
     
     def encrypt(self, data: str) -> str:
         """Encrypt a string and return base64 encoded result"""
@@ -45,21 +64,14 @@ class EncryptionService:
     def generate_key() -> str:
         """Generate a new Fernet encryption key"""
         return Fernet.generate_key().decode()
-    
-    @staticmethod
-    def derive_key_from_password(password: str, salt: bytes = None) -> bytes:
-        """Derive an encryption key from a password"""
-        if salt is None:
-            salt = os.urandom(16)
-        
-        kdf = PBKDF2(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
-        return key
 
-# Global encryption service instance
-encryption_service = EncryptionService()
+# Global encryption service instance will be initialized with settings
+encryption_service: Optional[EncryptionService] = None
+
+def get_encryption_service() -> EncryptionService:
+    """Get or create encryption service instance"""
+    global encryption_service
+    if encryption_service is None:
+        from ..config import settings
+        encryption_service = EncryptionService(settings.ENCRYPTION_KEY)
+    return encryption_service

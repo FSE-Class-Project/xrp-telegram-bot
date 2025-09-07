@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-=======
-databases:
-  - name: xrp-bot-db
-    plan: basic
-    databaseName: xrp_bot
-    user: xrp_bot_user
-    ipAllowList: []  # Allow connections from Render services
-
->>>>>>> origin/main
 services:
   # Backend API
   - type: web

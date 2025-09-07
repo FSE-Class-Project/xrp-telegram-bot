@@ -1,17 +1,70 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 import uvicorn
+import logging
 
 from .config import settings
-from .database.connection import init_database
+from .database.connection import init_database, engine
 from .api.routes import router
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO if not settings.DEBUG else logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle"""
+    # Startup
+    logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"🌍 Environment: {settings.ENVIRONMENT}")
+    logger.info(f"🐛 Debug mode: {settings.DEBUG}")
+    logger.info(f"🌐 API URL: {settings.api_url}")
+    logger.info(f"💾 Database: {settings.DATABASE_URL[:30]}...")
+    logger.info(f"🪙 XRP Network: {settings.XRP_NETWORK}")
+    
+    # Initialize database
+    try:
+        init_database()
+        logger.info("✅ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        raise
+    
+    # Initialize encryption service
+    try:
+        from .utils.encryption import get_encryption_service
+        encryption = get_encryption_service()
+        logger.info("✅ Encryption service initialized")
+    except Exception as e:
+        logger.error(f"❌ Encryption initialization failed: {e}")
+        if settings.is_production:
+            raise
+    
+    # Test XRP connection
+    try:
+        from .services.xrp_service import xrp_service
+        # Just create the service to test connection
+        logger.info(f"✅ XRP Service initialized for {settings.XRP_NETWORK}")
+    except Exception as e:
+        logger.error(f"⚠️ XRP Service initialization warning: {e}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("👋 Shutting down application...")
+    engine.dispose()
 
 # Create FastAPI app
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    debug=settings.DEBUG
+    debug=settings.DEBUG,
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -30,29 +83,13 @@ app.include_router(router)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler"""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
         content={
             "detail": str(exc) if settings.DEBUG else "Internal server error"
         }
     )
-
-# Startup event
-@app.on_event("startup")
-async def startup_event():
-    """Initialize application on startup"""
-    print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    print(f"📍 Environment: {settings.ENVIRONMENT}")
-    print(f"🐛 Debug mode: {settings.DEBUG}")
-    
-    # Initialize database
-    init_database()
-    print("✅ Database initialized")
-    
-    # Check encryption key
-    if not settings.ENCRYPTION_KEY:
-        print("⚠️  WARNING: No ENCRYPTION_KEY in .env file!")
-        print("⚠️  A new key will be generated. Add it to your .env file!")
 
 # Root endpoint
 @app.get("/")
@@ -62,14 +99,25 @@ async def root():
         "message": "XRP Telegram Bot API",
         "version": settings.APP_VERSION,
         "docs": "/docs",
-        "health": "/api/v1/health"
+        "health": "/api/v1/health",
+        "environment": settings.ENVIRONMENT,
+        "network": settings.XRP_NETWORK
     }
 
 # Run application
 if __name__ == "__main__":
-    uvicorn.run(
-        "backend.main:app",
-        host=settings.API_HOST,
-        port=settings.API_PORT,
-        reload=settings.DEBUG
-    )
+    # Determine if we're on Render
+    if settings.RENDER:
+        logger.info("🚀 Running on Render platform")
+        # Render will handle running the app
+        pass
+    else:
+        # Local development
+        logger.info("🏠 Running in local development mode")
+        uvicorn.run(
+            "backend.main:app",
+            host=settings.API_HOST,
+            port=settings.API_PORT,
+            reload=settings.DEBUG,
+            log_level="info" if not settings.DEBUG else "debug"
+        )

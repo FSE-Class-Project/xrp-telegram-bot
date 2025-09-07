@@ -1,4 +1,4 @@
-# Handler for wallet commands
+# bot/handlers/wallet.py
 from telegram import Update, ParseMode
 from telegram.ext import ContextTypes
 import httpx
@@ -16,9 +16,9 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 timeout=10.0
             )
             
-            if response.status_code == 200:
-                balance_data = response.json()
-                
+            data = response.json()
+            
+            if data.get("success"):
                 # Get current price for USD value
                 price_response = await client.get(
                     f"{context.bot_data['api_url']}/api/v1/price/current",
@@ -26,34 +26,38 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 
                 price_data = price_response.json() if price_response.status_code == 200 else {"price_usd": 0}
-                
-                usd_value = balance_data['balance'] * price_data.get('price_usd', 0)
+                usd_value = data['balance'] * price_data.get('price_usd', 0)
                 
                 message = (
-                    "💰 **Your Balance**\n\n"
-                    f"📬 **Address:** `{balance_data['address']}`\n"
-                    f"💵 **Balance:** {balance_data['balance']:.6f} XRP\n"
-                    f"📈 **USD Value:** ${usd_value:.2f}\n\n"
-                    f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                    "💰 *Your Balance*\n\n"
+                    f"📬 *Address:* `{data['address']}`\n"
+                    f"💵 *Balance:* {data['balance']:.6f} XRP\n"
+                    f"💲 *USD Value:* ${usd_value:.2f}\n\n"
+                    f"_Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}_"
                 )
                 
                 await update.message.reply_text(
                     message,
                     parse_mode=ParseMode.MARKDOWN
                 )
-            elif response.status_code == 404:
-                await update.message.reply_text(
-                    "❌ **Not Registered**\n\n"
-                    "You need to register first!\n"
-                    "Use /start to create your wallet.",
-                    parse_mode=ParseMode.MARKDOWN
-                )
             else:
-                raise Exception("Failed to get balance")
+                error = data.get("error", "Unknown error")
+                if "not found" in error.lower():
+                    await update.message.reply_text(
+                        "❌ *Not Registered*\n\n"
+                        "You need to register first!\n"
+                        "Use /start to create your wallet.",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                else:
+                    await update.message.reply_text(
+                        f"❌ *Error*\n\n{error}",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
                 
     except Exception as e:
         await update.message.reply_text(
-            f"❌ **Error**\n\nCould not retrieve balance: {str(e)}",
+            f"❌ *Error*\n\nCould not retrieve balance: {str(e)}",
             parse_mode=ParseMode.MARKDOWN
         )
 
@@ -65,30 +69,25 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async with httpx.AsyncClient() as client:
             # Get user data
             response = await client.get(
-                f"{context.bot_data['api_url']}/api/v1/wallet/balance/{user.id}",
+                f"{context.bot_data['api_url']}/api/v1/user/{user.id}",
                 timeout=10.0
             )
             
-            if response.status_code == 200:
-                wallet_data = response.json()
-                
-                # Get transaction count
-                tx_response = await client.get(
-                    f"{context.bot_data['api_url']}/api/v1/transaction/history/{user.id}",
-                    timeout=10.0
-                )
-                
-                tx_count = len(tx_response.json().get('transactions', [])) if tx_response.status_code == 200 else 0
+            data = response.json()
+            
+            if data.get("success"):
+                created_date = datetime.fromisoformat(data['created_at']).strftime('%Y-%m-%d')
                 
                 message = (
-                    "👤 **Your Profile**\n\n"
-                    f"**Telegram ID:** {user.id}\n"
-                    f"**Username:** @{user.username or 'Not set'}\n"
-                    f"**Name:** {user.first_name or ''} {user.last_name or ''}\n\n"
-                    "**XRP Wallet:**\n"
-                    f"📬 Address: `{wallet_data['address']}`\n"
-                    f"💰 Balance: {wallet_data['balance']:.6f} XRP\n"
-                    f"📊 Total Transactions: {tx_count}"
+                    "👤 *Your Profile*\n\n"
+                    f"*Telegram ID:* {data['telegram_id']}\n"
+                    f"*Username:* @{data.get('telegram_username') or 'Not set'}\n"
+                    f"*Registered:* {created_date}\n\n"
+                    "*XRP Wallet:*\n"
+                    f"📬 Address: `{data['xrp_address']}`\n"
+                    f"💰 Balance: {data['balance']:.6f} XRP\n"
+                    f"📊 Total Transactions: {data['transaction_count']}\n\n"
+                    "Use /settings to manage preferences."
                 )
                 
                 await update.message.reply_text(
@@ -97,7 +96,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             else:
                 await update.message.reply_text(
-                    "❌ **Not Registered**\n\n"
+                    "❌ *Not Registered*\n\n"
                     "You need to register first!\n"
                     "Use /start to create your wallet.",
                     parse_mode=ParseMode.MARKDOWN
@@ -105,7 +104,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
     except Exception as e:
         await update.message.reply_text(
-            f"❌ **Error**\n\nCould not retrieve profile: {str(e)}",
+            f"❌ *Error*\n\nCould not retrieve profile: {str(e)}",
             parse_mode=ParseMode.MARKDOWN
         )
 
@@ -121,49 +120,57 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 timeout=10.0
             )
             
-            if response.status_code == 200:
-                data = response.json()
+            data = response.json()
+            
+            if data.get("success"):
                 transactions = data.get('transactions', [])
                 
                 if not transactions:
                     await update.message.reply_text(
-                        "📜 **Transaction History**\n\n"
+                        "📜 *Transaction History*\n\n"
                         "No transactions found.",
                         parse_mode=ParseMode.MARKDOWN
                     )
                     return
                 
                 # Format transaction history
-                history_text = "📜 **Transaction History**\n\n"
+                history_text = "📜 *Transaction History*\n\n"
                 
                 for tx in transactions[:10]:
                     status_emoji = "✅" if tx['status'] == 'confirmed' else "❌"
-                    history_text += f"{status_emoji} **{tx['amount']:.6f} XRP**\n"
-                    history_text += f"To: `{tx['recipient'][:10]}...`\n"
+                    type_emoji = "📤" if tx['type'] == 'sent' else "📥"
+                    
+                    history_text += f"{type_emoji} {status_emoji} *{tx['amount']:.2f} XRP*\n"
+                    
+                    if tx['type'] == 'sent':
+                        history_text += f"To: `{tx['address'][:10]}...`\n"
+                    else:
+                        history_text += f"From: `{tx['address'][:10]}...`\n"
+                    
                     history_text += f"Status: {tx['status']}\n"
-                    if tx.get('timestamp'):
-                        history_text += f"Date: {tx['timestamp']}\n"
+                    
+                    # Parse and format timestamp
+                    tx_time = datetime.fromisoformat(tx['timestamp']).strftime('%Y-%m-%d %H:%M')
+                    history_text += f"Date: {tx_time}\n"
+                    
                     if tx.get('hash'):
                         history_text += f"Hash: `{tx['hash'][:10]}...`\n"
+                    
                     history_text += "\n"
                 
                 await update.message.reply_text(
                     history_text,
                     parse_mode=ParseMode.MARKDOWN
                 )
-                
-            elif response.status_code == 404:
+            else:
                 await update.message.reply_text(
-                    "❌ **Not Registered**\n\n"
-                    "You need to register first!\n"
-                    "Use /start to create your wallet.",
+                    "❌ *Error*\n\n" + data.get("error", "Could not retrieve history"),
                     parse_mode=ParseMode.MARKDOWN
                 )
-            else:
-                raise Exception("Failed to get history")
                 
     except Exception as e:
         await update.message.reply_text(
-            f"❌ **Error**\n\nCould not retrieve history: {str(e)}",
+            f"❌ *Error*\n\nCould not retrieve history: {str(e)}",
             parse_mode=ParseMode.MARKDOWN
         )
+
