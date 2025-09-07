@@ -11,13 +11,15 @@ services:
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: "3.11.0"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: xrp-bot-db
+          property: connectionString
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
-        value: false
+        value: "false"
       - key: ENCRYPTION_KEY
         generateValue: true
       - key: JWT_SECRET
@@ -28,21 +30,31 @@ services:
         value: wss://s.altnet.rippletest.net:51233
       - key: XRP_JSON_RPC_URL
         value: https://s.altnet.rippletest.net:51234
-    healthCheckPath: /health
-    autoDeploy: true  # Auto deploy on git push
+      - key: XRP_FAUCET_URL
+        value: https://faucet.altnet.rippletest.net/accounts
+      - key: API_HOST
+        value: "0.0.0.0"
+      - key: API_PORT
+        value: "8000"
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
 
   # Telegram Bot Worker
   - type: worker
     name: xrp-telegram-bot
     runtime: python
     plan: starter
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
     startCommand: python -m bot.main
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: "3.11.0"
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: xrp-bot-db
+          property: connectionString
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: API_URL
@@ -53,5 +65,12 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
-        value: false
+        value: "false"
     autoDeploy: true
+
+databases:
+  - name: xrp-bot-db
+    plan: starter
+    databaseName: xrp_bot
+    user: xrp_user
+    ipAllowList: []  # Allow connections from Render services only

@@ -1,99 +1,140 @@
-"""
-Production configuration with enhanced security and monitoring
-"""
+"""Configuration management with proper typing and validation."""
+from __future__ import annotations
 import os
-import secrets
-from typing import Optional, List
-from pydantic import validator
-from backend.config import Settings as BaseSettings
+from pydantic_settings import BaseSettings
+from pydantic import Field, validator
+from typing import Optional
 
-class ProductionSettings(BaseSettings):
-    """Production-specific configuration"""
+
+class Settings(BaseSettings):
+    """Application configuration using Pydantic with proper defaults."""
     
-    # Force production settings
-    ENVIRONMENT: str = "production"
-    DEBUG: bool = False
+    # Application
+    APP_NAME: str = "XRP Telegram Bot"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = Field(default=True, env="DEBUG")
+    ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
     
-    # Security enhancements
-    ALLOWED_HOSTS: List[str] = ["api.xrpbot.com", "localhost"]
-    CORS_ORIGINS: List[str] = ["https://api.xrpbot.com"]
-    SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+    # Database
+    DATABASE_URL: str = Field(
+        default="sqlite:///./xrp_bot.db",
+        env="DATABASE_URL"
+    )
     
-    # Rate limiting
-    RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_PER_MINUTE: int = 60
-    RATE_LIMIT_PER_HOUR: int = 1000
+    # Security - with validation for required fields
+    ENCRYPTION_KEY: str = Field(
+        default=...,  # Required field
+        env="ENCRYPTION_KEY",
+        description="32-byte Fernet encryption key"
+    )
+    JWT_SECRET: str = Field(
+        default="dev-jwt-secret-change-in-production",
+        env="JWT_SECRET"
+    )
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_HOURS: int = 24
     
-    # Monitoring
-    SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
-    LOG_LEVEL: str = "INFO"
+    # Telegram - with validation
+    TELEGRAM_BOT_TOKEN: str = Field(
+        default=...,  # Required field
+        env="TELEGRAM_BOT_TOKEN",
+        description="Telegram bot token from BotFather"
+    )
+    TELEGRAM_WEBHOOK_URL: Optional[str] = Field(
+        default=None,
+        env="TELEGRAM_WEBHOOK_URL"
+    )
     
-    # Database pool settings for production
-    DB_POOL_SIZE: int = 20
-    DB_MAX_OVERFLOW: int = 40
-    DB_POOL_TIMEOUT: int = 30
-    DB_POOL_RECYCLE: int = 3600
+    # XRP Ledger
+    XRP_NETWORK: str = Field(default="testnet", env="XRP_NETWORK")
+    XRP_WEBSOCKET_URL: str = Field(
+        default="wss://s.altnet.rippletest.net:51233",
+        env="XRP_WEBSOCKET_URL"
+    )
+    XRP_JSON_RPC_URL: str = Field(
+        default="https://s.altnet.rippletest.net:51234",
+        env="XRP_JSON_RPC_URL"
+    )
+    XRP_FAUCET_URL: str = Field(
+        default="https://faucet.altnet.rippletest.net/accounts",
+        env="XRP_FAUCET_URL"
+    )
     
-    # Telegram webhook for production
-    TELEGRAM_WEBHOOK_URL: str = os.getenv("TELEGRAM_WEBHOOK_URL", "")
-    TELEGRAM_WEBHOOK_PATH: str = "/webhook"
-    TELEGRAM_WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", secrets.token_urlsafe(32))
+    # API
+    API_HOST: str = Field(default="0.0.0.0", env="API_HOST")
+    API_PORT: int = Field(default=8000, env="API_PORT")
+    API_URL: str = Field(
+        default="http://localhost:8000",
+        env="API_URL"
+    )
+    API_PREFIX: str = "/api/v1"
     
-    # XRP Ledger MainNet settings (when ready)
-    XRP_MAINNET_ENABLED: bool = False
-    XRP_MAINNET_URL: str = "wss://xrplcluster.com"
+    # Redis (optional)
+    REDIS_URL: Optional[str] = Field(default=None, env="REDIS_URL")
+    CACHE_TTL: int = 300  # 5 minutes
     
-    # Backup and recovery
-    BACKUP_ENABLED: bool = True
-    BACKUP_INTERVAL_HOURS: int = 6
-    BACKUP_RETENTION_DAYS: int = 30
-    
-    # Security headers
-    SECURITY_HEADERS: dict = {
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "X-XSS-Protection": "1; mode=block",
-        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-        "Content-Security-Policy": "default-src 'self'",
-    }
-    
-    # API throttling per user
-    MAX_TRANSACTIONS_PER_DAY: int = 100
-    MAX_BALANCE_CHECKS_PER_HOUR: int = 60
-    
-    # Minimum balance requirements
-    MIN_XRP_BALANCE: float = 10.0  # Minimum XRP to keep in wallet
-    MAX_SEND_AMOUNT: float = 10000.0  # Maximum single transaction
+    # External APIs
+    PRICE_API_URL: str = Field(
+        default="https://api.coingecko.com/api/v3",
+        env="PRICE_API_URL"
+    )
+    PRICE_API_KEY: Optional[str] = Field(default=None, env="PRICE_API_KEY")
     
     @validator("ENCRYPTION_KEY", pre=True)
-    def validate_encryption_key(cls, v):
-        """Ensure encryption key is set in production"""
-        if not v:
-            raise ValueError("ENCRYPTION_KEY must be set in production")
-        if len(v) < 32:
-            raise ValueError("ENCRYPTION_KEY must be at least 32 characters")
+    def validate_encryption_key(cls, v: str | None) -> str:
+        """Validate or generate encryption key."""
+        if v is None or v == "":
+            # Generate a new key for development
+            from cryptography.fernet import Fernet
+            key = Fernet.generate_key().decode()
+            print(f"⚠️  Generated new ENCRYPTION_KEY: {key}")
+            print("   Add this to your .env file for production!")
+            return key
         return v
     
     @validator("TELEGRAM_BOT_TOKEN", pre=True)
-    def validate_bot_token(cls, v):
-        """Ensure bot token is set in production"""
-        if not v:
-            raise ValueError("TELEGRAM_BOT_TOKEN must be set in production")
+    def validate_telegram_token(cls, v: str | None) -> str:
+        """Validate Telegram bot token."""
+        if v is None or v == "":
+            if os.getenv("ENVIRONMENT", "development") == "production":
+                raise ValueError("TELEGRAM_BOT_TOKEN is required in production")
+            # For development, use a placeholder
+            print("⚠️  TELEGRAM_BOT_TOKEN not set - using placeholder")
+            return "placeholder-token-for-development"
         return v
     
-    @validator("DATABASE_URL", pre=True)
-    def validate_database_url(cls, v):
-        """Ensure proper database in production"""
-        if not v or "sqlite" in v.lower():
-            raise ValueError("Production must use PostgreSQL, not SQLite")
+    @validator("DATABASE_URL")
+    def validate_database_url(cls, v: str) -> str:
+        """Ensure DATABASE_URL is properly formatted."""
+        if v.startswith("postgres://"):
+            # Render uses postgres:// but SQLAlchemy needs postgresql://
+            return v.replace("postgres://", "postgresql://", 1)
         return v
     
     class Config:
-        env_file = ".env.production"
+        env_file = ".env"
         case_sensitive = True
+        # Allow extra fields from environment
+        extra = "allow"
 
-# Create production settings instance
-if os.getenv("ENVIRONMENT") == "production":
-    settings = ProductionSettings()
-else:
-    from backend.config import settings
+
+# Create settings instance with error handling
+def get_settings() -> Settings:
+    """Get settings with proper error handling."""
+    try:
+        return Settings()
+    except Exception as e:
+        print(f"❌ Configuration error: {e}")
+        print("   Please check your .env file")
+        # Return settings with defaults for development
+        if os.getenv("ENVIRONMENT", "development") == "development":
+            print("   Using development defaults...")
+            return Settings(
+                ENCRYPTION_KEY=os.getenv("ENCRYPTION_KEY", ""),
+                TELEGRAM_BOT_TOKEN=os.getenv("TELEGRAM_BOT_TOKEN", "")
+            )
+        raise
+
+
+# Global settings instance
+settings = get_settings()

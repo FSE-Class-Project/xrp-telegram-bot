@@ -74,9 +74,10 @@ python run.py bot      # Run only Telegram bot
 ```
 
 The script will:
+
 - Initialize the database
 - Generate encryption keys (if needed)
-- Start the FastAPI backend on http://localhost:8000
+- Start the FastAPI backend on [http://localhost:8000](http://localhost:8000)
 - Start the Telegram bot
 - Show you all available endpoints and commands
 
@@ -102,7 +103,8 @@ The script will:
 
 ## Project Structure
 
-```
+```text
+
 xrp-telegram-bot/
 ├── backend/                 # FastAPI backend
 │   ├── api/                # API routes and schemas
@@ -129,11 +131,12 @@ xrp-telegram-bot/
 ├── requirements.txt      # Python dependencies
 ├── run.py               # Development startup script
 └── README.md           # This file
+
 ```
 
 ## API Documentation
 
-Once the backend is running, visit http://localhost:8000/docs for interactive API documentation (Swagger UI).
+Once the backend is running, visit [http://localhost:8000/docs](http://localhost:8000/docs) for interactive API documentation (Swagger UI).
 
 ### Key Endpoints
 
@@ -205,19 +208,23 @@ pytest tests/ --cov=backend --cov=bot
 ## Troubleshooting
 
 ### Bot not responding
+
 - Check bot token in `.env`
 - Ensure backend is running (`http://localhost:8000/health`)
 - Check logs for errors
 
 ### Database errors
+
 - Delete `xrp_bot.db` and restart to recreate
 - Check DATABASE_URL in `.env`
 
 ### XRP TestNet issues
+
 - TestNet might be down - check [status](https://xrpl.org/public-servers.html)
 - Faucet might be rate-limited - wait and retry
 
 ### Transaction failures
+
 - Check wallet balance with `/balance`
 - Verify recipient address format (starts with 'r')
 - Ensure sufficient balance including fees
