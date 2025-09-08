@@ -2,11 +2,13 @@
 from __future__ import annotations
 from typing import Any
 from sqlalchemy.orm import Session
+from sqlalchemy import desc  # Import desc directly
 from datetime import datetime, timezone
 import logging
 
-from ..database.models import User, Wallet, Transaction, UserSettings
-from ..services.xrp_service import xrp_service
+# Use absolute imports to avoid issues
+from backend.database.models import User, Wallet, Transaction, UserSettings
+from backend.services.xrp_service import xrp_service
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +192,7 @@ class UserService:
             await self.update_balance(db, sender)
             
             # If internal transfer, update recipient balance too
-            if recipient_wallet:
+            if recipient_wallet and recipient_wallet.user:  # Add check for user
                 recipient_user = recipient_wallet.user
                 await self.update_balance(db, recipient_user)
             
@@ -221,10 +223,11 @@ class UserService:
         Get user's transaction history from database.
         Returns a list of transaction dictionaries.
         """
+        # Use desc() function directly from sqlalchemy
         transactions = db.query(Transaction).filter(
             Transaction.sender_id == user.id
         ).order_by(
-            Transaction.created_at.desc()
+            desc(Transaction.created_at)  # Use desc() function
         ).offset(offset).limit(limit).all()
         
         return [
@@ -234,7 +237,7 @@ class UserService:
                 "fee": tx.fee,
                 "recipient": tx.recipient_address,
                 "status": tx.status,
-                "timestamp": tx.created_at.isoformat(),
+                "timestamp": tx.created_at.isoformat() if tx.created_at else None,  # Handle None
                 "error": tx.error_message
             }
             for tx in transactions

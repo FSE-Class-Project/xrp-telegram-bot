@@ -1,135 +1,80 @@
-"""Configuration management"""
-from __future__ import annotations
 import os
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings
 from typing import Optional
-from cryptography.fernet import Fernet
-
 
 class Settings(BaseSettings):
-    """Application configuration using Pydantic with proper defaults."""
+    """Application configuration using Pydantic"""
     
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=False,  # This allows lowercase field names to match uppercase env vars
-        env_prefix="",  # No prefix needed
-        extra="allow"
-    )
+    # Application
+    APP_NAME: str = "XRP Telegram Bot"
+    APP_VERSION: str = "1.0.0"
+    DEBUG: bool = True
+    ENVIRONMENT: str = "development"
     
-    # Application - field names match env var names (case insensitive)
-    APP_NAME: str = Field(default="XRP Telegram Bot")
-    APP_VERSION: str = Field(default="1.0.0")
-    DEBUG: bool = Field(default=True)
-    ENVIRONMENT: str = Field(default="development")
-    
-    # Database
-    DATABASE_URL: str = Field(
-        default="sqlite:///./xrp_bot.db",
-        description="Database connection URL"
-    )
+    # Database - Auto-detect based on environment
+    DATABASE_URL: str = ""
     
     # Security
-    ENCRYPTION_KEY: str = Field(
-        default="",  # Will be validated/generated
-        description="32-byte Fernet encryption key"
-    )
-    JWT_SECRET: str = Field(
-        default="dev-jwt-secret-change-in-production",
-        description="JWT signing secret"
-    )
-    JWT_ALGORITHM: str = Field(default="HS256")
-    JWT_EXPIRATION_HOURS: int = Field(default=24)
+    ENCRYPTION_KEY: str = ""
+    JWT_SECRET: str = "dev-jwt-secret-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_HOURS: int = 24
     
     # Telegram
-    TELEGRAM_BOT_TOKEN: str = Field(
-        default="",  # Will be validated
-        description="Telegram bot token from BotFather"
-    )
-    TELEGRAM_WEBHOOK_URL: Optional[str] = Field(
-        default=None,
-        description="Webhook URL for production"
-    )
+    TELEGRAM_BOT_TOKEN: str
+    TELEGRAM_WEBHOOK_URL: Optional[str] = None
     
     # XRP Ledger
-    XRP_NETWORK: str = Field(default="testnet")
-    XRP_WEBSOCKET_URL: str = Field(
-        default="wss://s.altnet.rippletest.net:51233"
-    )
-    XRP_JSON_RPC_URL: str = Field(
-        default="https://s.altnet.rippletest.net:51234"
-    )
-    XRP_FAUCET_URL: str = Field(
-        default="https://faucet.altnet.rippletest.net/accounts"
-    )
+    XRP_NETWORK: str = "testnet"
+    XRP_WEBSOCKET_URL: str = "wss://s.altnet.rippletest.net:51233"
+    XRP_JSON_RPC_URL: str = "https://s.altnet.rippletest.net:51234"
+    XRP_FAUCET_URL: str = "https://faucet.altnet.rippletest.net/accounts"
     
     # API
-    API_HOST: str = Field(default="0.0.0.0")
-    API_PORT: int = Field(default=8000)
-    API_URL: str = Field(default="http://localhost:8000")
-    API_PREFIX: str = Field(default="/api/v1")
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+    API_URL: str = "http://localhost:8000"
+    API_PREFIX: str = "/api/v1"
     
     # Redis (optional)
-    REDIS_URL: Optional[str] = Field(default=None)
-    CACHE_TTL: int = Field(default=300)  # 5 minutes
+    REDIS_URL: Optional[str] = None
+    CACHE_TTL: int = 300  # 5 minutes
     
     # External APIs
-    PRICE_API_URL: str = Field(
-        default="https://api.coingecko.com/api/v3"
-    )
-    PRICE_API_KEY: Optional[str] = Field(default=None)
+    PRICE_API_URL: str = "https://api.coingecko.com/api/v3"
+    PRICE_API_KEY: Optional[str] = None
     
-    @field_validator("ENCRYPTION_KEY", mode="before")
-    @classmethod
-    def validate_encryption_key(cls, v: str | None) -> str:
-        """Validate or generate encryption key."""
-        if not v:
-            # Generate a new key for development
-            key = Fernet.generate_key().decode()
-            print(f"⚠️  Generated new ENCRYPTION_KEY: {key}")
-            print("   Add this to your .env file for production!")
-            return key
-        return v
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # Auto-configure database URL based on environment
+        if not self.DATABASE_URL:
+            if self.ENVIRONMENT == "production" or os.getenv("RENDER"):
+                # In production (Render), use PostgreSQL from environment
+                self.DATABASE_URL = os.getenv("DATABASE_URL", "")
+                if self.DATABASE_URL.startswith("postgres://"):
+                    # Render uses postgres://, but SQLAlchemy needs postgresql://
+                    self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+            else:
+                # In development, use SQLite
+                self.DATABASE_URL = "sqlite:///./xrp_bot.db"
+                print(f"Using SQLite for local development: {self.DATABASE_URL}")
+        
+        # Auto-generate encryption key if not set
+        if not self.ENCRYPTION_KEY:
+            self.ENCRYPTION_KEY = self.generate_encryption_key()
+            print(f"⚠️  Generated ENCRYPTION_KEY: {self.ENCRYPTION_KEY}")
+            print("   Add this to your .env file!")
     
-    @field_validator("TELEGRAM_BOT_TOKEN", mode="before")
-    @classmethod
-    def validate_telegram_token(cls, v: str | None) -> str:
-        """Validate Telegram bot token."""
-        if not v:
-            # Check if we're in production
-            env = os.getenv("ENVIRONMENT", "development")
-            if env == "production":
-                raise ValueError("TELEGRAM_BOT_TOKEN is required in production")
-            # For development, use a placeholder
-            print("⚠️  TELEGRAM_BOT_TOKEN not set - using placeholder")
-            return "placeholder-token-for-development"
-        return v
+    @staticmethod
+    def generate_encryption_key() -> str:
+        """Generate a new Fernet encryption key"""
+        from cryptography.fernet import Fernet
+        return Fernet.generate_key().decode()
     
-    @field_validator("DATABASE_URL", mode="after")
-    @classmethod
-    def validate_database_url(cls, v: str) -> str:
-        """Ensure DATABASE_URL is properly formatted."""
-        if v.startswith("postgres://"):
-            # Render uses postgres:// but SQLAlchemy needs postgresql://
-            return v.replace("postgres://", "postgresql://", 1)
-        return v
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
 
-
-# Create settings instance with error handling
-def get_settings() -> Settings:
-    """Get settings with proper error handling."""
-    try:
-        return Settings()
-    except Exception as e:
-        print(f"❌ Configuration error: {e}")
-        print("   Please check your .env file")
-        # Return settings with defaults for development
-        if os.getenv("ENVIRONMENT", "development") == "development":
-            print("   Using development defaults...")
-            # Let the validators handle the defaults
-            return Settings()
-        raise
-
-
-# Global settings instance
-settings = get_settings()
+# Create settings instance
+settings = Settings()

@@ -351,22 +351,25 @@ class HealthChecker:
         try:
             # Import inside function to avoid circular imports
             from backend.services.xrp_service import xrp_service
-            
+            from xrpl.models.requests import ServerInfo
+
             # Simple server_info request
             start_time = time.time()
-            response = xrp_service.client.request({"command": "server_info"})
+            # Instantiate the ServerInfo model instead of using a dict
+            response = xrp_service.client.request(ServerInfo())
             response_time = time.time() - start_time
             
             if response.is_successful():
                 return {
                     "status": "healthy", 
-                    "network": "testnet",
+                    "network": "testnet", # might want to get this from the response itself
                     "response_time": response_time
                 }
             else:
                 return {
                     "status": "degraded", 
-                    "error": "Connection established but unhealthy"
+                    "error": "Connection established but unhealthy",
+                    "details": response.result.get("error_message") or response.result
                 }
         except ImportError as e:
             return {

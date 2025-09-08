@@ -26,8 +26,8 @@ def print_banner():
     """Print startup banner"""
     print(f"""
 {BLUE}╔══════════════════════════════════════════╗
-║       XRP Telegram Bot - Development      ║
-║           TestNet Environment              ║
+║       XRP Telegram Bot - Development          ║
+║           TestNet Environment                 ║
 ╚══════════════════════════════════════════╝{RESET}
     """)
 

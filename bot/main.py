@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 from telegram import Update
 from telegram.ext import (
@@ -7,151 +6,145 @@ from telegram.ext import (
     CommandHandler,
     ConversationHandler,
     MessageHandler,
-    filters
+    CallbackQueryHandler,
+    filters,
+    ContextTypes,
 )
+from telegram.constants import ParseMode # Use HTML for consistency
+from html import escape
 from dotenv import load_dotenv
-
-# Add parent directory to path to import backend modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Import handlers
-from handlers.start import start_command, help_command
-from handlers.wallet import balance_command, profile_command, history_command
-from handlers.transaction import (
-    send_command,
-    amount_handler,
-    address_handler,
-    confirm_handler,
-    cancel_handler,
-    AMOUNT,
-    ADDRESS,
-    CONFIRM
-)
-from handlers.price import price_command
 
 # Load environment variables
 load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
+# --- Configuration ---
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL")
 
-# Import backend config to get dynamic API URL
-try:
-    from backend.config import settings
-    API_URL = settings.api_url
-    logger.info(f"Using API URL from settings: {API_URL}")
-except ImportError:
-    logger.warning("Could not import backend settings, using environment variable")
+# --- Import Handlers & Keyboards ---
+# These imports will now work because we are creating the files.
+from .handlers.start import start_command, help_command
+from .handlers.wallet import balance_command, profile_command
+from .handlers.transaction import (
+    send_command,
+    amount_handler,
+    address_handler,
+    confirm_handler,
+    cancel_handler,
+    history_command, # This is now defined in transaction.py
+    AMOUNT,
+    ADDRESS,
+    CONFIRM,
+)
+from .handlers.price import price_command
+from .keyboards.menus import keyboards # Import the keyboards object
 
-async def error_handler(update: Update, context):
-    """Log errors and notify user"""
-    logger.warning(f'Update "{update}" caused error "{context.error}"')
-    
-    # Notify user of error
-    if update and update.effective_message:
-        await update.effective_message.reply_text(
-            "❌ An error occurred while processing your request. Please try again later."
-        )
+# --- Handlers ---
 
-async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /settings command"""
-    await update.message.reply_text(
-        "⚙️ *Settings*\n\n"
-        "Settings management coming soon!\n\n"
-        "Available options will include:\n"
-        "• Price alerts\n"
-        "• Transaction notifications\n"
-        "• Display currency\n"
-        "• Language preferences",
-        parse_mode="Markdown"
-    )
+async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle all inline keyboard button presses."""
+    query = update.callback_query
+    if not query or not query.data:
+        return
 
-async def post_init(application):
-    """Initialize bot after startup"""
-    # Store API URL in bot data
-    application.bot_data['api_url'] = API_URL
-    logger.info(f"🤖 Bot initialized with API URL: {API_URL}")
-    
-    # Test API connection
-    try:
-        import httpx
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{API_URL}/api/v1/health", timeout=5.0)
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ API connection successful: {data}")
-            else:
-                logger.warning(f"⚠️ API returned status {response.status_code}")
-    except Exception as e:
-        logger.error(f"❌ Could not connect to API: {e}")
+    # Answer the callback to remove the "loading" state from the button
+    await query.answer()
+
+    # Route to appropriate handler based on the button's callback_data
+    if query.data == "balance":
+        await balance_command(update, context)
+    elif query.data == "send":
+        await send_command(update, context)
+    elif query.data == "price":
+        await price_command(update, context)
+    elif query.data == "history":
+        await history_command(update, context)
+    elif query.data == "profile":
+        await profile_command(update, context)
+    elif query.data == "help":
+        await help_command(update, context)
+    elif query.data == "main_menu":
+        message = "🏠 <b>Main Menu</b>\n\nWhat would you like to do?"
+        if query.message:
+            await query.message.edit_text(
+                message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboards.main_menu(),
+            )
+    elif query.data.startswith("refresh_"):
+        if query.data == "refresh_balance":
+            await balance_command(update, context)
+        elif query.data == "refresh_price":
+            await price_command(update, context)
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Log errors and send a user-friendly message using HTML."""
+    logger.error(f'Update "{update}" caused error "{context.error}"')
+
+    if isinstance(update, Update) and update.effective_message:
+        error_msg = "❌ <b>Something went wrong</b>\n\nPlease try again later."
+        try:
+            await update.effective_message.reply_text(
+                error_msg, parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            logger.error(f"Error while sending error message: {e}")
+
+async def post_init(application: Application):
+    """Initialize bot data after application starts."""
+    application.bot_data["api_url"] = API_URL
+    logger.info(f"Bot initialized with API URL: {API_URL}")
 
 def main():
-    """Start the bot"""
-    
+    """Start the bot."""
     if not BOT_TOKEN:
-        logger.error("❌ TELEGRAM_BOT_TOKEN not found in environment variables!")
-        logger.error("Please add it to your .env file")
+        logger.error("TELEGRAM_BOT_TOKEN not found in environment variables!")
         return
-    
-    logger.info("🚀 Starting XRP Telegram Bot...")
-    logger.info(f"📡 Configured to use API at: {API_URL}")
-    
-    # Create application
+
     application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
-    
-    # Add command handlers
+
+    # Conversation handler for the /send command
+    send_conversation_handler = ConversationHandler(
+        entry_points=[CommandHandler("send", send_command)],
+        states={
+            AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, amount_handler)],
+            ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, address_handler)],
+            CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_handler)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel_handler)],
+    )
+
+    # Add all handlers to the application
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("balance", balance_command))
     application.add_handler(CommandHandler("price", price_command))
     application.add_handler(CommandHandler("profile", profile_command))
     application.add_handler(CommandHandler("history", history_command))
-    application.add_handler(CommandHandler("settings", settings_command))
-    
-    # Add conversation handler for send transaction
-    send_conversation_handler = ConversationHandler(
-        entry_points=[CommandHandler("send", send_command)],
-        states={
-            AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, amount_handler)],
-            ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, address_handler)],
-            CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_handler)]
-        },
-        fallbacks=[CommandHandler("cancel", cancel_handler)]
-    )
     application.add_handler(send_conversation_handler)
-    
-    # Add error handler
+    application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_error_handler(error_handler)
-    
-    # Start bot
+
+    # Start the bot
     if WEBHOOK_URL:
-        # Use webhooks in production
-        logger.info(f"🌐 Starting bot with webhook: {WEBHOOK_URL}")
-        
-        # Parse webhook URL to get the base URL
-        webhook_path = BOT_TOKEN
-        
+        logger.info(f"Starting bot with webhook: {WEBHOOK_URL}")
         application.run_webhook(
             listen="0.0.0.0",
-            port=int(os.environ.get('PORT', 8443)),
-            url_path=webhook_path,
-            webhook_url=f"{WEBHOOK_URL}/{webhook_path}",
-            drop_pending_updates=True
+            port=int(os.environ.get("PORT", 8443)),
+            url_path=BOT_TOKEN,
+            webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
         )
     else:
-        # Use polling for development
-        logger.info("🔄 Starting bot with polling...")
-        logger.info("✅ Bot is running! Press Ctrl+C to stop.")
+        logger.info("Starting bot with polling...")
         application.run_polling(drop_pending_updates=True)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
