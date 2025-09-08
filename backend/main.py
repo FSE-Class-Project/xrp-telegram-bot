@@ -1,13 +1,19 @@
+"""Main FastAPI application"""
+import os
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
 import uvicorn
-import logging
 
 from .config import settings
 from .database.connection import init_database, engine
 from .api.routes import router
+
+# Check if running on Render
+IS_RENDER = os.getenv("RENDER") is not None
 
 # Configure logging
 logging.basicConfig(
@@ -23,7 +29,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"🌍 Environment: {settings.ENVIRONMENT}")
     logger.info(f"🐛 Debug mode: {settings.DEBUG}")
-    logger.info(f"🌐 API URL: {settings.api_url}")
+    logger.info(f"🌐 API URL: {settings.API_URL}")
     logger.info(f"💾 Database: {settings.DATABASE_URL[:30]}...")
     logger.info(f"🪙 XRP Network: {settings.XRP_NETWORK}")
     
@@ -37,12 +43,13 @@ async def lifespan(app: FastAPI):
     
     # Initialize encryption service
     try:
-        from .utils.encryption import get_encryption_service
-        encryption = get_encryption_service()
+        from .utils.encryption import encryption_service
+        # encryption_service is already an instance, just verify it exists
+        test_key = encryption_service.generate_key()
         logger.info("✅ Encryption service initialized")
     except Exception as e:
         logger.error(f"❌ Encryption initialization failed: {e}")
-        if settings.is_production:
+        if settings.ENVIRONMENT == "production":
             raise
     
     # Test XRP connection
@@ -101,16 +108,27 @@ async def root():
         "docs": "/docs",
         "health": "/api/v1/health",
         "environment": settings.ENVIRONMENT,
-        "network": settings.XRP_NETWORK
+        "network": settings.XRP_NETWORK,
+        "platform": "render" if IS_RENDER else "local"
+    }
+
+# Health check endpoint for Render
+@app.get("/health")
+async def health():
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "version": settings.APP_VERSION
     }
 
 # Run application
 if __name__ == "__main__":
     # Determine if we're on Render
-    if settings.RENDER:
+    if IS_RENDER:
         logger.info("🚀 Running on Render platform")
-        # Render will handle running the app
-        pass
+        # Render will handle running the app via the start command
+        # The app is already created, so Render's gunicorn/uvicorn will pick it up
     else:
         # Local development
         logger.info("🏠 Running in local development mode")

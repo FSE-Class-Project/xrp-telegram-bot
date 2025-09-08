@@ -1,6 +1,6 @@
-"""API routes with modern Python typing and Pydantic v2."""
+"""API routes"""
 from __future__ import annotations
-from typing import Annotated, TypeAlias
+from typing import Annotated, TypeAlias, cast
 from datetime import datetime, timezone
 from decimal import Decimal
 import logging
@@ -11,10 +11,10 @@ from sqlalchemy import text
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 import httpx
 
-from ..database.connection import get_db
-from ..services.user_service import user_service
-from ..services.xrp_service import xrp_service
-from ..database.models import User
+from backend.database.connection import get_db
+from backend.services import user_service, xrp_service
+from backend.database.models import User
+from backend.config import settings
 
 # Type aliases
 TelegramID: TypeAlias = str
@@ -25,8 +25,7 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/v1", tags=["API"])
 
-
-# Pydantic v2 models with modern typing
+# Pydantic v2 models
 class UserRegistration(BaseModel):
     """User registration request model."""
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -168,7 +167,7 @@ async def get_current_user(
     return user
 
 
-# Routes with modern typing
+# Routes
 @router.post(
     "/user/register",
     response_model=UserResponse,
@@ -200,11 +199,17 @@ async def register_user(
                 detail="Failed to create wallet for user"
             )
         
+        # Fix type inference issues by explicitly casting or using intermediate variables
+        user_id_value: int = cast(int, user.id)
+        telegram_id_value: str = cast(str, user.telegram_id)
+        xrp_address_value: str = cast(str, user.wallet.xrp_address)
+        balance_value: float = cast(float, user.wallet.balance)
+        
         return UserResponse(
-            user_id=user.id,
-            telegram_id=user.telegram_id,
-            xrp_address=user.wallet.xrp_address,
-            balance=Decimal(str(user.wallet.balance))
+            user_id=user_id_value,
+            telegram_id=telegram_id_value,
+            xrp_address=xrp_address_value,
+            balance=Decimal(str(balance_value))
         )
         
     except Exception as e:
@@ -240,8 +245,11 @@ async def get_balance(
     # Calculate available balance (minus reserve)
     available = max(Decimal(str(balance_info)) - Decimal("10"), Decimal("0"))
     
+    # Type casting for clarity
+    xrp_address_value: str = cast(str, user.wallet.xrp_address)
+    
     return BalanceResponse(
-        address=user.wallet.xrp_address,
+        address=xrp_address_value,
         balance=Decimal(str(balance_info)),
         available_balance=available,
         last_updated=user.wallet.last_balance_update
@@ -403,12 +411,9 @@ async def get_current_price() -> PriceInfo:
 )
 async def health_check(db: Session = Depends(get_db)) -> HealthCheckResponse:
     """Health check endpoint for monitoring."""
-    from ..config import settings
-    
     # Check database connection
     db_healthy = False
     try:
-        # Use text() to wrap the SQL statement for proper typing
         db.execute(text("SELECT 1"))
         db_healthy = True
     except Exception as e:

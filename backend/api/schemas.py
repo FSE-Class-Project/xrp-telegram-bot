@@ -1,4 +1,4 @@
-"""API schemas with modern Python 3.10+ typing and Pydantic v2."""
+"""API schemas"""
 from __future__ import annotations
 from typing import Any
 from datetime import datetime, timezone
