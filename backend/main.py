@@ -12,6 +12,7 @@ from .config import settings
 from .database.connection import init_database, engine
 from .api.routes import router
 from .api.middleware import setup_rate_limiting
+from .api.webhook import webhook_router, set_telegram_app
 
 # Check if running on Render
 IS_RENDER = os.getenv("RENDER") is not None
@@ -61,7 +62,46 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"⚠️ XRP Service initialization warning: {e}")
     
+    # Initialize Telegram bot for webhooks if in production
+    telegram_app = None
+    if IS_RENDER and os.getenv("TELEGRAM_BOT_TOKEN"):
+        try:
+            from .services.telegram_service import create_telegram_application, setup_webhook
+            
+            # Create and configure Telegram application
+            telegram_app = await create_telegram_application()
+            
+            if telegram_app:
+                # Initialize the application
+                await telegram_app.initialize()
+                
+                # Set the app instance for webhook handling
+                set_telegram_app(telegram_app)
+                
+                # Set up webhook if RENDER_EXTERNAL_URL is available
+                render_url = os.getenv("RENDER_EXTERNAL_URL")
+                if render_url:
+                    webhook_url = f"{render_url}/webhook/{os.getenv('TELEGRAM_BOT_TOKEN')}"
+                    await setup_webhook(telegram_app, webhook_url)
+                
+                logger.info("✅ Telegram bot initialized for webhook mode")
+            else:
+                logger.error("❌ Failed to create Telegram application")
+                
+        except Exception as e:
+            logger.error(f"❌ Telegram bot initialization failed: {e}")
+            if settings.ENVIRONMENT == "production":
+                raise
+    
     yield
+    
+    # Cleanup Telegram app if initialized
+    if telegram_app:
+        try:
+            await telegram_app.shutdown()
+            logger.info("✅ Telegram bot shutdown completed")
+        except Exception as e:
+            logger.error(f"⚠️ Telegram bot shutdown warning: {e}")
     
     # Shutdown
     logger.info("👋 Shutting down application...")
@@ -84,7 +124,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Setup rate limiting
+# Setup rate limiting and idempotency middleware
 # Configure different limits based on environment
 if settings.ENVIRONMENT == "production":
     rate_limits = ["100/minute", "1000/hour"]
@@ -93,8 +133,17 @@ else:
 
 setup_rate_limiting(app, default_limits=rate_limits)
 
+# Add idempotency middleware
+from .api.middleware import add_idempotency_middleware
+add_idempotency_middleware(app)
+
 # Include API routes
 app.include_router(router)
+app.include_router(webhook_router)
+
+# Include settings routes
+from .api.settings_routes import settings_router
+app.include_router(settings_router)
 
 # Exception handler
 @app.exception_handler(Exception)

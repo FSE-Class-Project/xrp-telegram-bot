@@ -1,11 +1,13 @@
-"""API Middleware for rate limiting and request validation"""
+"""API Middleware for rate limiting, request validation, and idempotency"""
 from typing import Optional, List, Union, Callable
-from fastapi import FastAPI
-from starlette.requests import Request
+from fastapi import FastAPI, Request, Depends
 from starlette.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Type alias for rate limit specification
 StrOrCallableStr = Union[str, Callable[..., str]]
@@ -66,3 +68,65 @@ def setup_rate_limiting(app: FastAPI, default_limits: Optional[List[StrOrCallabl
 
 # Create a default limiter for module-level imports
 limiter = create_limiter()
+
+
+class IdempotencyMiddleware:
+    """Middleware to handle idempotency keys in request headers."""
+    
+    def __init__(self, app: FastAPI):
+        self.app = app
+    
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        
+        request = Request(scope, receive)
+        
+        # Check for idempotency key in headers
+        idempotency_key = request.headers.get("Idempotency-Key")
+        if idempotency_key:
+            # Store in request state for handlers to access
+            if not hasattr(request, "state"):
+                request.state = {}
+            request.state.idempotency_key = idempotency_key
+        
+        # Continue processing
+        response = await self.app(scope, receive, send)
+        return response
+
+
+def add_idempotency_middleware(app: FastAPI):
+    """Add idempotency middleware to FastAPI app."""
+    app.add_middleware(IdempotencyMiddleware)
+    logger.info("Idempotency middleware added")
+
+
+# Dependency for extracting idempotency key
+def get_idempotency_key(request: Request) -> Optional[str]:
+    """Extract idempotency key from request headers or state."""
+    # Try header first
+    key = request.headers.get("Idempotency-Key")
+    if key:
+        return key
+    
+    # Try request state (set by middleware)
+    if hasattr(request, "state") and hasattr(request.state, "idempotency_key"):
+        return request.state.idempotency_key
+    
+    return None
+
+
+# Rate limiting functions for different endpoint types
+def rate_limit_auth() -> str:
+    """Rate limit for authentication endpoints."""
+    return "20/minute"
+
+
+def rate_limit_transactions() -> str:
+    """Rate limit for transaction endpoints."""
+    return "10/minute"
+
+
+def rate_limit_general() -> str:
+    """Rate limit for general API endpoints."""
+    return "100/minute"

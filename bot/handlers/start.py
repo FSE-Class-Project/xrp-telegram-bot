@@ -1,9 +1,20 @@
 # bot/handlers/start.py
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 import httpx
-from html import escape
+import logging
+
+from ..utils.formatting import (
+    escape_html,
+    format_xrp_address,
+    format_funding_instructions,
+    format_error_message,
+    format_success_message,
+)
+from ..keyboards.menus import keyboards
+
+logger = logging.getLogger(__name__)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command - Register user and create/fetch wallet info."""
@@ -34,9 +45,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async with httpx.AsyncClient() as client:
             # Ensure the api_url is correctly passed in your bot's main setup
             api_url = context.bot_data.get('api_url', 'http://localhost:8000')
+            api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
+            
+            headers = {"X-API-Key": api_key}
             response = await client.post(
                 f"{api_url}/api/v1/user/register",
                 json=user_data,
+                headers=headers,
                 timeout=30.0
             )
         
@@ -44,49 +59,76 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         data = response.json()
         
-        # We escape the user's name to prevent any potential HTML formatting issues
-        safe_first_name = escape(user.first_name or 'User')
+        # Safely escape the user's name to prevent HTML formatting issues
+        safe_first_name = escape_html(user.first_name or 'User')
+        
+        wallet_address = data.get('xrp_address', 'N/A')
+        balance = data.get('balance', 0)
         
         if data.get("is_new"):
             # Message for a newly registered user
-            message = (
-                "✅ <b>Wallet Created Successfully!</b>\n\n"
-                f"📬 <b>Your XRP Address:</b>\n<code>{escape(data['xrp_address'])}</code>\n\n"
-                f"💰 <b>Initial Balance:</b> {data['balance']:.2f} XRP\n\n"
-                "⚠️ <i>This is a TestNet wallet with TestNet XRP for testing only.</i>\n\n"
-                "Type /help to see all available commands."
+            message = format_success_message(
+                "Wallet Created Successfully!",
+                f"📬 <b>Your XRP Address:</b>\n{format_xrp_address(wallet_address)}\n\n"
+                f"💰 <b>Initial Balance:</b> {balance:.6f} XRP\n\n"
+                "⚠️ <i>This is a TestNet wallet with TestNet XRP for testing only.</i>"
             )
+            
+            # Add funding instructions for new wallets
+            funding_instructions = format_funding_instructions(balance, is_mainnet=False)
+            if funding_instructions:
+                message += funding_instructions
+                message += "\n\n"
+                
+            message += "Type /help to see all available commands."
         else:
             # Message for a returning user
             message = (
                 f"👋 <b>Welcome back, {safe_first_name}!</b>\n\n"
-                f"📬 <b>Your XRP Address:</b>\n<code>{escape(data['xrp_address'])}</code>\n\n"
-                f"💰 <b>Current Balance:</b> {data['balance']:.2f} XRP\n\n"
-                "What would you like to do today?\n"
-                "Type /help to see all available commands."
+                f"📬 <b>Your XRP Address:</b>\n{format_xrp_address(wallet_address)}\n\n"
+                f"💰 <b>Current Balance:</b> {balance:.6f} XRP\n\n"
             )
             
-        await update.message.reply_text(message, parse_mode=ParseMode.HTML)
+            # Show funding reminder if balance is low
+            if balance < 20:
+                message += (
+                    "⚠️ <b>Low Balance:</b> Your wallet needs funding to transact.\n"
+                    "Use /balance for funding instructions.\n\n"
+                )
+            
+            message += "What would you like to do today?"
+            
+        # Add inline keyboard for quick actions
+        keyboard = keyboards.main_menu()
+        await update.message.reply_text(
+            message, 
+            parse_mode=ParseMode.HTML,
+            reply_markup=keyboard
+        )
             
     except httpx.HTTPStatusError as e:
         # Handle specific HTTP errors from the backend
         error_message = f"Failed to communicate with the backend: Server responded with {e.response.status_code}."
         await update.message.reply_text(
-            f"❌ <b>Error</b>\n\nCould not set up your wallet.\n<b>Reason:</b> <code>{escape(error_message)}</code>",
+            format_error_message(f"Could not set up your wallet. Reason: {error_message}"),
             parse_mode=ParseMode.HTML
         )
     except Exception as e:
         # Handle other errors like network issues or timeouts
         await update.message.reply_text(
-            f"❌ <b>An Unexpected Error Occurred</b>\n\nRegistration failed. Please try again later.\n"
-            f"<b>Details:</b> <code>{escape(str(e))}</code>",
+            format_error_message(f"An Unexpected Error Occurred\n\nRegistration failed. Please try again later.\n\nDetails: {str(e)}"),
             parse_mode=ParseMode.HTML
         )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command and display available commands."""
-    # Ensure the message object exists before proceeding.
-    if not update.message:
+    # Handle both message and callback query
+    if update.message:
+        reply_func = update.message.reply_text
+    elif update.callback_query:
+        reply_func = update.callback_query.message.edit_text
+        await update.callback_query.answer()
+    else:
         return
 
     help_text = """
@@ -110,9 +152,15 @@ Or just type /send and follow the prompts!
 Visit the <a href="https://xrpl.org">XRP Ledger Docs</a>.
     """
     
-    await update.message.reply_text(
+    # Add back to main menu button
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
+    ]])
+    
+    await reply_func(
         help_text,
         parse_mode=ParseMode.HTML,
-        disable_web_page_preview=True
+        disable_web_page_preview=True,
+        reply_markup=keyboard
     )
 

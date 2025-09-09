@@ -50,6 +50,17 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
+        # Auto-configure for Render deployment
+        if os.getenv("RENDER"):
+            self.ENVIRONMENT = "production"
+            self.DEBUG = False
+            # Use Render's provided port or default
+            self.API_PORT = int(os.getenv("PORT", 10000))
+            # Use external URL for API if available
+            render_url = os.getenv("RENDER_EXTERNAL_URL")
+            if render_url:
+                self.API_URL = render_url
+        
         # Auto-configure database URL based on environment
         if not self.DATABASE_URL:
             if self.ENVIRONMENT == "production" or os.getenv("RENDER"):

@@ -145,6 +145,15 @@ class Transaction(Base):
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     fee: Mapped[float] = mapped_column(Float, default=0.00001, nullable=False)
     
+    # Idempotency key for preventing duplicate transactions
+    idempotency_key: Mapped[Optional[str]] = mapped_column(
+        String(255), 
+        unique=True, 
+        index=True,
+        nullable=True,
+        default=None
+    )
+    
     # XRP Ledger details
     tx_hash: Mapped[Optional[str]] = mapped_column(
         String(255), 
@@ -158,6 +167,7 @@ class Transaction(Base):
     # Status tracking
     status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -207,6 +217,62 @@ class PriceHistory(Base):
     
     def __repr__(self) -> str:
         return f"<PriceHistory(id={self.id}, price_usd={self.price_usd}, timestamp={self.timestamp})>"
+
+
+class IdempotencyRecord(Base):
+    """Idempotency tracking for preventing duplicate operations."""
+    __tablename__ = "idempotency_records"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    
+    # Idempotency tracking
+    idempotency_key: Mapped[str] = mapped_column(
+        String(255), 
+        unique=True, 
+        index=True,
+        nullable=False
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+        default=None
+    )
+    operation_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    
+    # Request data for comparison
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA256 hash
+    request_data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
+    
+    # Response tracking
+    response_status: Mapped[str] = mapped_column(String(20), nullable=False)  # success, error, processing
+    response_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    
+    # Related records
+    transaction_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("transactions.id"),
+        nullable=True,
+        default=None
+    )
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False
+    )
+    
+    # Relationships
+    user: Mapped[Optional["User"]] = relationship("User")
+    transaction: Mapped[Optional["Transaction"]] = relationship("Transaction")
+    
+    def __repr__(self) -> str:
+        return f"<IdempotencyRecord(key={self.idempotency_key}, operation={self.operation_type}, status={self.response_status})>"
 
 
 class UserSettings(Base):
@@ -260,5 +326,6 @@ __all__ = [
     "Wallet",
     "Transaction",
     "PriceHistory",
+    "IdempotencyRecord",
     "UserSettings",
 ]

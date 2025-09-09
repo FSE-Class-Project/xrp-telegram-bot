@@ -3,10 +3,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from collections.abc import Generator
 import logging
+import os
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
+from alembic.config import Config
+from alembic import command
+from alembic.script import ScriptDirectory
+from alembic.runtime.migration import MigrationContext
 
 from .models import Base
 from ..config import settings
@@ -52,14 +58,61 @@ SessionLocal = sessionmaker(
 )
 
 
+def get_alembic_config() -> Config:
+    """Get Alembic configuration."""
+    # Get the project root directory (where alembic.ini is located)
+    project_root = Path(__file__).parent.parent.parent
+    alembic_cfg_path = project_root / "alembic.ini"
+    
+    if not alembic_cfg_path.exists():
+        raise FileNotFoundError(f"Alembic configuration file not found at {alembic_cfg_path}")
+    
+    # Create Alembic config
+    alembic_cfg = Config(str(alembic_cfg_path))
+    
+    # Set the database URL from our settings
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    
+    return alembic_cfg
+
+
 def init_database() -> None:
-    """Initialize database tables."""
+    """Initialize database using Alembic migrations."""
     try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully!")
+        # Check if database needs migrations
+        with engine.connect() as connection:
+            context = MigrationContext.configure(connection)
+            current_rev = context.get_current_revision()
+            
+        # Get Alembic configuration
+        alembic_cfg = get_alembic_config()
+        script = ScriptDirectory.from_config(alembic_cfg)
+        head_rev = script.get_current_head()
+        
+        if current_rev is None:
+            # Database not initialized, run all migrations
+            logger.info("Database not initialized. Running initial migration...")
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Database initialized successfully with migrations!")
+        elif current_rev != head_rev:
+            # Database needs upgrade
+            logger.info(f"Database upgrade needed: {current_rev} -> {head_rev}")
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Database upgraded successfully!")
+        else:
+            # Database is up to date
+            logger.info("Database is up to date!")
+            
     except Exception as e:
-        logger.error(f"Failed to create database tables: {str(e)}")
-        raise
+        logger.error(f"Failed to initialize database with migrations: {str(e)}")
+        # Fallback to direct table creation for development
+        logger.warning("Falling back to direct table creation...")
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables created successfully (fallback)!")
+        except Exception as fallback_error:
+            logger.error(f"Fallback table creation also failed: {str(fallback_error)}")
+            raise
 
 
 def get_db() -> Generator[Session, None, None]:

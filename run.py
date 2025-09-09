@@ -25,10 +25,10 @@ RESET = '\033[0m'
 def print_banner():
     """Print startup banner"""
     print(f"""
-{BLUE}╔══════════════════════════════════════════╗
-║       XRP Telegram Bot - Development          ║
-║           TestNet Environment                 ║
-╚══════════════════════════════════════════╝{RESET}
+{BLUE}================================================
+       XRP Telegram Bot - Development
+           TestNet Environment
+================================================{RESET}
     """)
 
 def check_requirements():
@@ -40,10 +40,10 @@ def check_requirements():
         import sqlalchemy
         import cryptography
         import httpx
-        print(f"{GREEN}✓ All required packages installed{RESET}")
+        print(f"{GREEN}[OK] All required packages installed{RESET}")
         return True
     except ImportError as e:
-        print(f"{RED}✗ Missing package: {e.name}{RESET}")
+        print(f"{RED}[ERR] Missing package: {e.name}{RESET}")
         print(f"{YELLOW}Run: pip install -r requirements.txt{RESET}")
         return False
 
@@ -57,11 +57,11 @@ def check_environment():
             missing.append(var)
     
     if missing:
-        print(f"{RED}✗ Missing environment variables: {', '.join(missing)}{RESET}")
+        print(f"{RED}[ERR] Missing environment variables: {', '.join(missing)}{RESET}")
         print(f"{YELLOW}Please check your .env file{RESET}")
         return False
     
-    print(f"{GREEN}✓ Environment variables configured{RESET}")
+    print(f"{GREEN}[OK] Environment variables configured{RESET}")
     return True
 
 def initialize_database():
@@ -72,17 +72,17 @@ def initialize_database():
         
         print(f"{YELLOW}Initializing database...{RESET}")
         init_database()
-        print(f"{GREEN}✓ Database initialized{RESET}")
+        print(f"{GREEN}[OK] Database initialized{RESET}")
         
         # Generate encryption key if needed
         if not settings.ENCRYPTION_KEY:
             key = settings.generate_encryption_key()
-            print(f"{YELLOW}⚠ Generated ENCRYPTION_KEY: {key}{RESET}")
+            print(f"{YELLOW}! Generated ENCRYPTION_KEY: {key}{RESET}")
             print(f"{YELLOW}  Add this to your .env file!{RESET}")
         
         return True
     except Exception as e:
-        print(f"{RED}✗ Database initialization failed: {e}{RESET}")
+        print(f"{RED}[ERR] Database initialization failed: {e}{RESET}")
         return False
 
 def start_backend():
@@ -93,14 +93,40 @@ def start_backend():
            "--host", "0.0.0.0", "--port", "8000", "--reload"]
     
     process = subprocess.Popen(cmd)
-    print(f"{GREEN}✓ Backend API started on http://localhost:8000{RESET}")
+    print(f"{GREEN}[OK] Backend API started on http://localhost:8000{RESET}")
     print(f"  Documentation: http://localhost:8000/docs")
     
     return process
 
+def cleanup_telegram_instances():
+    """Clean up any existing Telegram bot connections"""
+    import asyncio
+    from telegram import Bot
+    
+    async def cleanup():
+        try:
+            bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+            if not bot_token:
+                return
+            
+            bot = Bot(token=bot_token)
+            # Delete webhook and drop pending updates to clear any conflicts
+            await bot.delete_webhook(drop_pending_updates=True)
+            print(f"{GREEN}[OK] Cleared existing bot connections{RESET}")
+        except Exception as e:
+            print(f"{YELLOW}! Warning: Could not clear bot connections: {e}{RESET}")
+    
+    try:
+        asyncio.run(cleanup())
+    except Exception:
+        pass  # Ignore cleanup errors
+
 def start_bot():
     """Start the Telegram bot"""
     print(f"\n{BLUE}Starting Telegram Bot...{RESET}")
+    
+    # Clean up any existing bot connections first
+    cleanup_telegram_instances()
     
     # Wait for backend to be ready
     import httpx
@@ -119,15 +145,44 @@ def start_bot():
         return False
     
     if asyncio.run(wait_for_backend()):
-        print(f"{GREEN}✓ Backend API is ready{RESET}")
+        print(f"{GREEN}[OK] Backend API is ready{RESET}")
     else:
-        print(f"{YELLOW}⚠ Backend API may not be ready yet{RESET}")
+        print(f"{YELLOW}! Backend API may not be ready yet{RESET}")
     
     cmd = [sys.executable, "-m", "bot.main"]
     process = subprocess.Popen(cmd)
-    print(f"{GREEN}✓ Telegram Bot started{RESET}")
+    print(f"{GREEN}[OK] Telegram Bot started{RESET}")
     
     return process
+
+def graceful_shutdown(backend_process, bot_process):
+    """Gracefully shutdown all processes"""
+    print(f"\n{YELLOW}Shutting down services...{RESET}")
+    
+    processes = []
+    if bot_process and bot_process.poll() is None:
+        processes.append(("Bot", bot_process))
+    if backend_process and backend_process.poll() is None:
+        processes.append(("Backend", backend_process))
+    
+    # Terminate processes gracefully
+    for name, process in processes:
+        try:
+            print(f"{YELLOW}Stopping {name}...{RESET}")
+            process.terminate()
+            
+            # Wait up to 5 seconds for graceful shutdown
+            try:
+                process.wait(timeout=5)
+                print(f"{GREEN}[OK] {name} stopped gracefully{RESET}")
+            except subprocess.TimeoutExpired:
+                print(f"{YELLOW}Force killing {name}...{RESET}")
+                process.kill()
+                process.wait()
+                print(f"{GREEN}[OK] {name} force stopped{RESET}")
+                
+        except Exception as e:
+            print(f"{RED}[ERR] Error stopping {name}: {e}{RESET}")
 
 def run_development():
     """Run both backend and bot in development mode"""
@@ -149,6 +204,16 @@ def run_development():
     backend_process = None
     bot_process = None
     
+    def signal_handler(signum, frame):
+        """Handle shutdown signals"""
+        graceful_shutdown(backend_process, bot_process)
+        sys.exit(0)
+    
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+    
     try:
         # Start backend
         backend_process = start_backend()
@@ -157,8 +222,8 @@ def run_development():
         # Start bot
         bot_process = start_bot()
         
-        print(f"\n{GREEN}═══════════════════════════════════════════{RESET}")
-        print(f"{GREEN}✓ All services started successfully!{RESET}")
+        print(f"\n{GREEN}==============================================={RESET}")
+        print(f"{GREEN}[OK] All services started successfully!{RESET}")
         print(f"\n{BLUE}Available endpoints:{RESET}")
         print(f"  • API: http://localhost:8000")
         print(f"  • Docs: http://localhost:8000/docs")
@@ -171,30 +236,27 @@ def run_development():
         print(f"  • /history - View transaction history")
         print(f"  • /help - Show all commands")
         print(f"\n{YELLOW}Press Ctrl+C to stop all services{RESET}")
-        print(f"{GREEN}═══════════════════════════════════════════{RESET}\n")
+        print(f"{GREEN}==============================================={RESET}\n")
         
-        # Wait for interrupt
-        backend_process.wait()
+        # Wait for processes to complete or interrupt
+        try:
+            while backend_process.poll() is None and bot_process.poll() is None:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            graceful_shutdown(backend_process, bot_process)
+            return 0
         
-    except KeyboardInterrupt:
-        print(f"\n{YELLOW}Shutting down services...{RESET}")
+        # Check if any process died unexpectedly
+        if backend_process.poll() is not None:
+            print(f"{RED}[ERR] Backend process exited unexpectedly{RESET}")
+        if bot_process.poll() is not None:
+            print(f"{RED}[ERR] Bot process exited unexpectedly{RESET}")
         
-        # Terminate processes
-        if backend_process:
-            backend_process.terminate()
-            backend_process.wait()
-            print(f"{GREEN}✓ Backend stopped{RESET}")
+        return 1
         
-        if bot_process:
-            bot_process.terminate()
-            bot_process.wait()
-            print(f"{GREEN}✓ Bot stopped{RESET}")
-        
-        print(f"{GREEN}✓ All services stopped successfully{RESET}")
-        return 0
-    
     except Exception as e:
-        print(f"{RED}✗ Error: {e}{RESET}")
+        print(f"{RED}[ERR] Error: {e}{RESET}")
+        graceful_shutdown(backend_process, bot_process)
         return 1
 
 def main():

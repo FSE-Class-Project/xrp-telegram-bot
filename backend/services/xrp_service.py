@@ -6,13 +6,13 @@ import json
 from typing import Any, Tuple
 from decimal import Decimal
 import xrpl
-from xrpl.clients import JsonRpcClient, WebsocketClient
+from xrpl.asyncio.clients import AsyncJsonRpcClient, AsyncWebsocketClient
 from xrpl.wallet import Wallet  # Remove 'generate' import - it's deprecated
 from xrpl.models.transactions import Payment
 from xrpl.models.requests import AccountInfo, AccountTx
-from xrpl.transaction import sign, submit_and_wait
+from xrpl.asyncio.transaction import sign, submit_and_wait
 from xrpl.utils import xrp_to_drops, drops_to_xrp
-from xrpl.ledger import get_latest_validated_ledger_sequence
+from xrpl.asyncio.ledger import get_latest_validated_ledger_sequence
 
 from ..config import settings
 from ..utils.encryption import encryption_service
@@ -26,7 +26,7 @@ class XRPService:
         self.json_rpc_url = settings.XRP_JSON_RPC_URL
         self.websocket_url = settings.XRP_WEBSOCKET_URL
         self.network = settings.XRP_NETWORK
-        self.client = JsonRpcClient(self.json_rpc_url)
+        self.client = AsyncJsonRpcClient(self.json_rpc_url)
     
     def create_wallet(self) -> Tuple[str, str]:
         """
@@ -87,7 +87,7 @@ class XRPService:
             )
             
             # Get response
-            response = self.client.request(request)
+            response = await self.client.request(request)
             
             if response.is_successful():
                 # Convert drops to XRP
@@ -155,7 +155,7 @@ class XRPService:
             signed_tx = sign(payment, wallet)
             
             # Submit and wait for validation
-            response = submit_and_wait(signed_tx, self.client)
+            response = await submit_and_wait(signed_tx, self.client)
             
             if response.is_successful():
                 result = response.result
@@ -201,7 +201,7 @@ class XRPService:
             )
             
             # Get response
-            response = self.client.request(request)
+            response = await self.client.request(request)
             
             if response.is_successful():
                 transactions = []
@@ -274,7 +274,7 @@ class XRPService:
                 # Check transaction status
                 from xrpl.models.requests import Tx
                 request = Tx(transaction=tx_hash)
-                response = self.client.request(request)
+                response = await self.client.request(request)
                 
                 if response.is_successful():
                     result = response.result

@@ -2,9 +2,18 @@
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ParseMode
-from html import escape
 import httpx
 import re
+import uuid
+
+from ..utils.formatting import (
+    format_transaction_confirmation,
+    format_transaction_success,
+    format_error_message,
+    format_hash,
+    format_xrp_address,
+    escape_html,
+)
 
 # --- Conversation States ---
 # Define states for the multi-step "send" process
@@ -42,15 +51,8 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             keyboard = [[KeyboardButton("✅ YES"), KeyboardButton("❌ NO")]]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             
-            total = amount + 0.00001 # Assuming a static fee for display
-            message = (
-                f"📤 <b>Confirm Transaction</b>\n\n"
-                f"<b>To:</b> <code>{escape(address)}</code>\n"
-                f"<b>Amount:</b> {amount:.6f} XRP\n"
-                f"<b>Total (incl. fee):</b> {total:.6f} XRP\n\n"
-                f"⚠️ <i>Please review carefully.</i>\n\n"
-                f"Reply <b>YES</b> to confirm or <b>NO</b> to cancel."
-            )
+            fee = 0.00001  # Standard fee
+            message = format_transaction_confirmation(address, amount, fee)
             await update.message.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
             return CONFIRM
         except (ValueError, IndexError):
@@ -98,14 +100,8 @@ async def address_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     keyboard = [[KeyboardButton("✅ YES"), KeyboardButton("❌ NO")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
     
-    total = amount + 0.00001
-    message = (
-        f"📤 <b>Confirm Transaction</b>\n\n"
-        f"<b>To:</b> <code>{escape(address)}</code>\n"
-        f"<b>Amount:</b> {amount:.6f} XRP\n"
-        f"<b>Total (incl. fee):</b> {total:.6f} XRP\n\n"
-        f"Reply <b>YES</b> to confirm."
-    )
+    fee = 0.00001  # Standard fee
+    message = format_transaction_confirmation(address, amount, fee)
     await update.message.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
     return CONFIRM
 
@@ -129,6 +125,15 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         async with httpx.AsyncClient() as client:
             api_url = context.bot_data.get('api_url', 'http://localhost:8000')
+            api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
+            
+            # Generate idempotency key for this transaction
+            idempotency_key = f"tg_{update.effective_user.id}_{uuid.uuid4().hex[:16]}"
+            
+            headers = {
+                "X-API-Key": api_key,
+                "Idempotency-Key": idempotency_key
+            }
             response = await client.post(
                 f"{api_url}/api/v1/transaction/send",
                 json={
@@ -136,6 +141,7 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "to_address": tx_data['address'],
                     "amount": tx_data['amount']
                 },
+                headers=headers,
                 timeout=30.0
             )
             response.raise_for_status()
@@ -144,20 +150,22 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await processing_msg.delete()
 
             if data.get("success"):
-                tx_hash = escape(data.get('tx_hash', 'N/A'))
+                tx_hash = data.get('tx_hash', 'N/A')
                 explorer_url = f"https://testnet.xrpl.org/transactions/{tx_hash}"
-                message = (
-                    f"✅ <b>Transaction Successful!</b>\n\n"
-                    f"<b>Hash:</b> <code>{tx_hash}</code>\n\n"
-                    f'<a href="{explorer_url}">View on Explorer</a>'
-                )
+                message = format_transaction_success(tx_hash, explorer_url)
                 await update.message.reply_text(message, parse_mode=ParseMode.HTML, disable_web_page_preview=False)
             else:
-                error = escape(data.get('error', 'Unknown error'))
-                await update.message.reply_text(f"❌ <b>Transaction Failed</b>\n\n<b>Reason:</b> {error}", parse_mode=ParseMode.HTML)
+                error = data.get('error', 'Unknown error')
+                await update.message.reply_text(
+                    format_error_message(f"Transaction Failed\n\nReason: {error}"),
+                    parse_mode=ParseMode.HTML
+                )
     except Exception as e:
         await processing_msg.delete()
-        await update.message.reply_text(f"❌ <b>Transaction Failed</b>\n\nAn error occurred: <code>{escape(str(e))}</code>", parse_mode=ParseMode.HTML)
+        await update.message.reply_text(
+            format_error_message(f"Transaction Failed\n\nAn error occurred: {str(e)}"),
+            parse_mode=ParseMode.HTML
+        )
     finally:
         context.user_data.pop('transaction', None)
     
@@ -172,8 +180,57 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Placeholder for the /history command."""
-    if not update.message:
+    """Handle /history command to show transaction history."""
+    if not update.message or not update.effective_user:
         return
-    await update.message.reply_text("<i>Fetching transaction history... (feature coming soon)</i>", parse_mode=ParseMode.HTML)
+    
+    user_id = update.effective_user.id
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            api_url = context.bot_data.get('api_url', 'http://localhost:8000')
+            api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
+            
+            headers = {"X-API-Key": api_key}
+            response = await client.get(f"{api_url}/api/v1/transaction/history/{user_id}?limit=10", headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            transactions = data.get('transactions', [])
+            
+            if not transactions:
+                await update.message.reply_text("📜 <b>Transaction History</b>\n\nNo transactions found.", parse_mode=ParseMode.HTML)
+                return
+            
+            message = "📜 <b>Recent Transactions</b>\n\n"
+            for i, tx in enumerate(transactions[:10], 1):
+                status_icon = "✅" if tx['status'] == 'success' else "❌"
+                message += f"{i}. {status_icon} {tx['amount']:.6f} XRP\n"
+                
+                # Format recipient address safely
+                recipient = tx['recipient']
+                if len(recipient) > 16:
+                    formatted_recipient = f"{recipient[:10]}...{recipient[-6:]}"
+                else:
+                    formatted_recipient = recipient
+                message += f"   <b>To:</b> {format_xrp_address(formatted_recipient)}\n"
+                
+                # Format hash if available
+                if tx.get('hash'):
+                    message += f"   <b>Hash:</b> {format_hash(tx['hash'], length=10)}\n"
+                    
+                message += f"   <b>Date:</b> {tx['timestamp'][:10]}\n\n"
+            
+            await update.message.reply_text(message, parse_mode=ParseMode.HTML)
+            
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            error_msg = "❌ <b>Not Registered</b>\n\nYou need to register first!\nUse /start to create your wallet."
+        else:
+            error_msg = f"A server error occurred: {e.response.status_code}"
+        await update.message.reply_text(error_msg, parse_mode=ParseMode.HTML)
+        
+    except Exception as e:
+        error_msg = format_error_message(f"Could not retrieve history: {str(e)}")
+        await update.message.reply_text(error_msg, parse_mode=ParseMode.HTML)
 
