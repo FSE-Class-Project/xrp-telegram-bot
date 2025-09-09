@@ -1,20 +1,22 @@
 """API routes"""
-from __future__ import annotations
-from typing import Annotated, TypeAlias, cast
+from typing import Annotated, TypeAlias, cast, Optional, Union
 from datetime import datetime, timezone
 from decimal import Decimal
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 import httpx
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from backend.database.connection import get_db
 from backend.services import user_service, xrp_service
 from backend.database.models import User
 from backend.config import settings
+from backend.api.middleware import limiter
 
 # Type aliases
 TelegramID: TypeAlias = str
@@ -31,9 +33,9 @@ class UserRegistration(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     
     telegram_id: TelegramID
-    telegram_username: str | None = None
-    telegram_first_name: str | None = None
-    telegram_last_name: str | None = None
+    telegram_username: Optional[str] = None
+    telegram_first_name: Optional[str] = None
+    telegram_last_name: Optional[str] = None
     
     @field_validator('telegram_id')
     @classmethod
@@ -61,7 +63,7 @@ class SendTransactionRequest(BaseModel):
     from_telegram_id: TelegramID
     to_address: XRPAddress
     amount: Decimal
-    memo: str | None = Field(None, max_length=512)
+    memo: Optional[str] = Field(None, max_length=512)
     
     @field_validator('to_address')
     @classmethod
@@ -93,14 +95,14 @@ class SendTransactionRequest(BaseModel):
 class TransactionResponse(BaseModel):
     """Transaction response model."""
     success: bool
-    tx_hash: str | None = None
-    error: str | None = None
-    amount: Decimal | None = None
-    fee: Decimal | None = None
-    ledger_index: int | None = None
+    tx_hash: Optional[str] = None
+    error: Optional[str] = None
+    amount: Optional[Decimal] = None
+    fee: Optional[Decimal] = None
+    ledger_index: Optional[int] = None
     
     @model_validator(mode='after')
-    def validate_response(self) -> TransactionResponse:
+    def validate_response(self) -> "TransactionResponse":
         """Ensure response has either success data or error."""
         if self.success and not self.tx_hash:
             raise ValueError('Successful transaction must have tx_hash')
@@ -114,15 +116,15 @@ class BalanceResponse(BaseModel):
     address: XRPAddress
     balance: Decimal
     available_balance: Decimal
-    last_updated: datetime | None = None
+    last_updated: Optional[datetime] = None
 
 
 class PriceInfo(BaseModel):
     """Price information model."""
     price_usd: Decimal
-    change_24h: Decimal | None = None
-    market_cap: Decimal | None = None
-    volume_24h: Decimal | None = None
+    change_24h: Optional[Decimal] = None
+    market_cap: Optional[Decimal] = None
+    volume_24h: Optional[Decimal] = None
     last_updated: datetime
 
 
@@ -134,7 +136,7 @@ class TransactionHistoryItem(BaseModel):
     recipient: XRPAddress
     status: str
     timestamp: datetime
-    error: str | None = None
+    error: Optional[str] = None
 
 
 class TransactionHistoryResponse(BaseModel):
@@ -178,7 +180,9 @@ async def get_current_user(
         500: {"description": "Internal server error"}
     }
 )
+@limiter.limit("5/hour")  # Limit registrations to prevent abuse
 async def register_user(
+    request: Request,
     registration: UserRegistration,
     db: Session = Depends(get_db)
 ) -> UserResponse:
@@ -266,13 +270,15 @@ async def get_balance(
         402: {"description": "Insufficient balance"}
     }
 )
+@limiter.limit("10/minute")  # Limit transaction attempts to prevent abuse
 async def send_transaction(
-    request: SendTransactionRequest,
+    request: Request,
+    transaction: SendTransactionRequest,
     db: Session = Depends(get_db)
 ) -> TransactionResponse:
     """Send XRP to another address."""
     # Get sender
-    sender = user_service.get_user_by_telegram_id(db, request.from_telegram_id)
+    sender = user_service.get_user_by_telegram_id(db, transaction.from_telegram_id)
     
     if not sender:
         raise HTTPException(
@@ -284,9 +290,9 @@ async def send_transaction(
     result = await user_service.send_xrp(
         db=db,
         sender=sender,
-        recipient_address=request.to_address,
-        amount=float(request.amount),  # Convert Decimal to float for XRP
-        memo=request.memo
+        recipient_address=transaction.to_address,
+        amount=float(transaction.amount),  # Convert Decimal to float for XRP
+        memo=transaction.memo
     )
     
     if not result["success"]:
@@ -358,7 +364,8 @@ async def get_transaction_history(
         503: {"description": "Price service unavailable"}
     }
 )
-async def get_current_price() -> PriceInfo:
+@limiter.limit("30/minute")  # Allow reasonable price checking
+async def get_current_price(request: Request) -> PriceInfo:
     """Get current XRP price from CoinGecko."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

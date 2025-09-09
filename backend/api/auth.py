@@ -1,5 +1,5 @@
 """API Authentication"""
-from fastapi import HTTPException, Security, Depends
+from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 from backend.config import settings
 

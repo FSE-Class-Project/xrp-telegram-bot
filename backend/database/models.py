@@ -1,9 +1,8 @@
 """SQLAlchemy models for XRP Telegram Bot."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING, Optional
 from datetime import datetime, timezone
-from decimal import Decimal
 
 from sqlalchemy import (
     String, 
@@ -13,14 +12,12 @@ from sqlalchemy import (
     ForeignKey, 
     Text, 
     Boolean,
-    create_engine,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
     relationship,
-    Session,
 )
 
 if TYPE_CHECKING:
@@ -64,7 +61,7 @@ class User(Base):
         uselist=False,
         lazy="selectin"
     )
-    sent_transactions: Mapped[List["Transaction"]] = relationship(
+    sent_transactions: Mapped[list["Transaction"]] = relationship(
         "Transaction",
         foreign_keys="Transaction.sender_id",
         back_populates="sender",

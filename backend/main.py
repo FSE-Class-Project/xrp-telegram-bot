@@ -11,6 +11,7 @@ import uvicorn
 from .config import settings
 from .database.connection import init_database, engine
 from .api.routes import router
+from .api.middleware import setup_rate_limiting
 
 # Check if running on Render
 IS_RENDER = os.getenv("RENDER") is not None
@@ -82,6 +83,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Setup rate limiting
+# Configure different limits based on environment
+if settings.ENVIRONMENT == "production":
+    rate_limits = ["100/minute", "1000/hour"]
+else:
+    rate_limits = ["200/minute", "2000/hour"]  # More lenient for development
+
+setup_rate_limiting(app, default_limits=rate_limits)
 
 # Include API routes
 app.include_router(router)

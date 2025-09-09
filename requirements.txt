@@ -21,6 +21,9 @@ psycopg2-binary==2.9.9
 httpx==0.24.1  # Works with both PTB 20.3 and xrpl-py 2.5.0
 requests==2.31.0
 
+# Rate Limiting
+slowapi==0.1.9
+
 # Caching
 redis==5.0.1
 

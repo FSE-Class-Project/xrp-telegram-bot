@@ -19,10 +19,13 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "dev-jwt-secret-change-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
+    BOT_API_KEY: str = "dev-bot-api-key-change-in-production"
+    ADMIN_API_KEY: str = "dev-admin-api-key-change-in-production"
     
     # Telegram
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_WEBHOOK_URL: Optional[str] = None
+    TELEGRAM_WEBHOOK_SECRET: str = "dev-webhook-secret-change-in-production"
     
     # XRP Ledger
     XRP_NETWORK: str = "testnet"

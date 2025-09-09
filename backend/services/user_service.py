@@ -84,6 +84,30 @@ class UserService:
         
         return user  # Return User model instance
     
+    async def create_or_get_user(
+        self,
+        db: Session,
+        telegram_id: str,
+        telegram_username: str | None = None,
+        telegram_first_name: str | None = None,
+        telegram_last_name: str | None = None
+    ) -> User:
+        """
+        Get existing user or create new one.
+        Returns a User model instance.
+        """
+        existing_user = self.get_user_by_telegram_id(db, telegram_id)
+        if existing_user:
+            return existing_user
+        
+        return await self.create_user(
+            db=db,
+            telegram_id=telegram_id,
+            telegram_username=telegram_username,
+            telegram_first_name=telegram_first_name,
+            telegram_last_name=telegram_last_name
+        )
+    
     def get_user_by_telegram_id(
         self,
         db: Session,
