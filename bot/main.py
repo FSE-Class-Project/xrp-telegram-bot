@@ -10,7 +10,7 @@ from telegram.ext import (
 from dotenv import load_dotenv
 
 # Import handlers
-from handlers.start import start_command, help_command
+from handlers.start import start_command, help_command, cancel_command, clear_command
 from handlers.wallet import balance_command, profile_command, history_command
 from handlers.transaction import send_command
 from handlers.price import price_command
@@ -64,6 +64,8 @@ def main():
     application.add_handler(CommandHandler("price", price_command))
     application.add_handler(CommandHandler("profile", profile_command))
     application.add_handler(CommandHandler("history", history_command))
+    application.add_handler(CommandHandler("cancel", cancel_command))
+    application.add_handler(CommandHandler("clear", clear_command))
     
     # Add error handler
     application.add_error_handler(error_handler)
