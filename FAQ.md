@@ -8,6 +8,8 @@
 - Fund your wallet with 1000 TestNet XRP
 - Set up your account with default settings
 
+⚠️ **Educational Note:** This automated wallet creation is for **TestNet learning only**. Real-world MainNet wallets require manual setup, secure key management, and purchasing XRP from exchanges.
+
 ### Q: Is this real XRP or test currency?
 **A:** The bot operates on **XRP TestNet only**. All XRP used is test currency with **no real monetary value**. This is a safe environment for learning and testing XRP transactions.
 
@@ -60,8 +62,20 @@
 - Transaction details (amount, recipient, timestamp)
 - Link to view on XRP Ledger explorer
 
-### Q: Can I cancel a transaction after sending?
-**A:** No. XRP Ledger transactions are **irreversible** once confirmed. Always double-check the recipient address and amount before confirming.
+### Q: Can I cancel a transaction?
+**A:** **It depends on timing:**
+
+✅ **Before Network Submission:**
+- Use `/cancel` command during transaction setup
+- Click "❌ Cancel" or "NO" buttons in confirmation prompts  
+- Full cancellation support until you confirm "YES"
+
+❌ **After Network Submission:**
+- XRP Ledger transactions are **irreversible** once submitted to the network
+- Network confirmation takes ~3-5 seconds on both TestNet and MainNet
+- No cancellation possible once blockchain processing begins
+
+💡 **Real-World Note:** On MainNet, the cancellation window is extremely brief (seconds) compared to TestNet's leisurely interaction time. Always double-check recipient address and amount before final confirmation.
 
 ## 📊 Price & History
 
@@ -131,6 +145,7 @@
 | `/start` | Create account and wallet | `/start` |
 | `/balance` | Check your XRP balance | `/balance` |
 | `/send` | Send XRP to an address | `/send 10 rPEPPER...` |
+| `/cancel` | Cancel ongoing transaction | `/cancel` |
 | `/price` | View current XRP price | `/price` |
 | `/history` | View transaction history | `/history` |
 | `/profile` | View your profile | `/profile` |
@@ -217,6 +232,29 @@ support@fse-group3.co.za
 - **MainNet:** Live network with real XRP (actual monetary value)
 - This bot uses **TestNet only** for safe learning
 
+### Q: How does this bot differ from real-world XRP usage?
+**A:** **Key differences for educational purposes:**
+
+🔧 **Wallet Management:**
+- **This Bot:** Automatic wallet creation and key management
+- **Real World:** Manual wallet setup, user controls private keys, hardware wallets recommended
+
+💰 **Funding:**
+- **This Bot:** Automatic 1000 TestNet XRP funding via faucet
+- **Real World:** Purchase XRP from exchanges, transfer to personal wallets
+
+⏱️ **Transaction Timing:**
+- **This Bot:** Leisurely confirmation process on TestNet  
+- **Real World:** 3-5 second confirmation window, immediate finality
+
+🔐 **Security:**
+- **This Bot:** Educational-grade security, keys stored in bot database
+- **Real World:** Military-grade security, hardware wallets, air-gapped systems
+
+💸 **Consequences:**
+- **This Bot:** Risk-free learning environment
+- **Real World:** Real money, irreversible transactions, regulatory compliance
+
 ### Q: How do XRP transactions work?
 **A:** 
 1. You initiate a transaction with recipient address and amount
@@ -247,4 +285,17 @@ Coming soon:
 
 ---
 
-*This FAQ covers the current TestNet implementation. Features and procedures may differ in a MainNet production version.*
+---
+
+## ⚠️ **Important Educational Disclaimer**
+
+**This bot is designed for learning XRP Ledger concepts in a safe TestNet environment.** 
+
+Key points for real-world application:
+- 🚫 **Never use this bot with real XRP or MainNet**
+- 🎓 **Educational transactions only** - all XRP used has no monetary value  
+- 🔄 **Transaction mechanics mirror real XRPL behavior** for authentic learning
+- 🏗️ **Wallet/security model simplified** for educational accessibility
+- 📚 **Production implementations require significant additional security measures**
+
+*This FAQ covers the current TestNet implementation. Features, security models, and procedures would differ significantly in a MainNet production version.*

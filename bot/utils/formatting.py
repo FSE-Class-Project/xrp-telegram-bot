@@ -48,7 +48,7 @@ def format_xrp_amount(amount: Union[Decimal, float, str], decimals: int = 6) -> 
     elif isinstance(amount, float):
         amount = Decimal(str(amount))
     
-    return f"{amount:.{decimals}f}"
+    return format(amount, f".{decimals}f")
 
 
 def format_usd_amount(amount: Union[Decimal, float, str]) -> str:
@@ -166,12 +166,17 @@ def format_balance_info(
     Returns:
         Formatted balance message
     """
+    formatted_address = format_xrp_address(address)
+    formatted_balance = format_xrp_amount(balance)
+    formatted_available = format_xrp_amount(available)
+    formatted_usd = format_usd_amount(usd_value)
+    
     message = (
         f"💰 <b>Your Balance</b>\n\n"
-        f"📬 <b>Address:</b> {format_xrp_address(address)}\n"
-        f"💵 <b>Balance:</b> {format_xrp_amount(balance)} XRP\n"
-        f"💸 <b>Available:</b> {format_xrp_amount(available)} XRP\n"
-        f"📈 <b>USD Value:</b> {format_usd_amount(usd_value)}\n\n"
+        f"📬 <b>Address:</b> {formatted_address}\n"
+        f"💵 <b>Balance:</b> {formatted_balance} XRP\n"
+        f"💸 <b>Available:</b> {formatted_available} XRP\n"
+        f"📈 <b>USD Value:</b> {formatted_usd}\n\n"
     )
     
     if last_updated:
@@ -201,12 +206,17 @@ def format_transaction_confirmation(
     """
     total = Decimal(str(amount)) + Decimal(str(fee))
     
+    formatted_recipient = format_xrp_address(recipient)
+    formatted_amount = format_xrp_amount(amount)
+    formatted_fee = format_xrp_amount(fee)
+    formatted_total = format_xrp_amount(total)
+    
     return (
         f"📤 <b>Confirm Transaction</b>\n\n"
-        f"<b>To:</b> {format_xrp_address(recipient)}\n"
-        f"<b>Amount:</b> {format_xrp_amount(amount)} XRP\n"
-        f"<b>Fee:</b> {format_xrp_amount(fee)} XRP\n"
-        f"<b>Total:</b> {format_xrp_amount(total)} XRP\n\n"
+        f"<b>To:</b> {formatted_recipient}\n"
+        f"<b>Amount:</b> {formatted_amount} XRP\n"
+        f"<b>Fee:</b> {formatted_fee} XRP\n"
+        f"<b>Total:</b> {formatted_total} XRP\n\n"
         f"⚠️ <i>Please review carefully.</i>\n\n"
         f"Reply <b>YES</b> to confirm or <b>NO</b> to cancel."
     )
@@ -272,16 +282,18 @@ def format_funding_instructions(balance: Union[Decimal, float, str], is_mainnet:
             )
     elif balance_decimal < Decimal("25"):  # Low balance warning
         if is_mainnet:
+            available_amount = format_xrp_amount(balance_decimal - Decimal('10'))
             return (
                 f"\n\n💡 <b>Low Balance Notice</b>\n"
-                f"You have {format_xrp_amount(balance_decimal - Decimal('10'))} XRP available for transactions.\n"
+                f"You have {available_amount} XRP available for transactions.\n"
                 f"Consider buying more XRP for larger transactions.\n\n"
                 f"<i>💡 Buy XRP from exchanges like Coinbase or Binance.</i>"
             )
         else:
+            available_amount = format_xrp_amount(balance_decimal - Decimal('10'))
             return (
                 f"\n\n💡 <b>Low Balance Notice</b>\n"
-                f"You have {format_xrp_amount(balance_decimal - Decimal('10'))} XRP available for transactions.\n"
+                f"You have {available_amount} XRP available for transactions.\n"
                 f"Consider adding more funds for larger transactions.\n\n"
                 f"<b>Get more TestNet XRP:</b>\n"
                 f"<a href='https://xrpl.org/xrp-testnet-faucet.html'>XRPL Testnet Faucet</a>\n\n"

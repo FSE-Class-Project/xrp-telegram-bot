@@ -12,7 +12,7 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
 
 ### Core Functionality
 
-- 🏦 **Automatic Wallet Creation** - Each user gets a secure XRP TestNet wallet
+- 🏦 **Automatic Wallet Creation** - Each user gets a secure XRP TestNet wallet *(educational feature)*
 - 💸 **Send XRP** - Send TestNet XRP to any address with confirmation flow
 - 💰 **Balance Checking** - Real-time balance updates from XRP Ledger
 - 📜 **Transaction History** - Complete transaction tracking and history
@@ -135,6 +135,7 @@ This will:
 | `/start` | Register and create wallet |
 | `/balance` | Check XRP balance |
 | `/send` | Send XRP to another address |
+| `/cancel` | Cancel ongoing transaction |
 | `/price` | View current XRP price |
 | `/history` | View transaction history |
 | `/profile` | View your profile |
@@ -155,7 +156,12 @@ Or use the interactive flow:
 /send
 > Enter amount: 10
 > Enter address: rN7n7otQDd6FczFgLdSqDtD2XZzWjfrn96
-> Confirm: YES
+> Confirm: YES  (or NO to cancel)
+```
+
+**Cancel Transaction:**
+```text
+/cancel  (cancels any ongoing transaction setup)
 ```
 
 ## 🌐 API Endpoints
@@ -447,4 +453,14 @@ When reporting issues, please include:
 
 ---
 
-**⚠️ Disclaimer**: This bot operates on XRP TestNet with test funds only. TestNet XRP has no monetary value.
+---
+
+**⚠️ Educational Use Only**: This bot is designed for learning XRP Ledger concepts in a safe TestNet environment. 
+
+**Key Points:**
+- 🚫 **TestNet only** - No real XRP or monetary value
+- 🎓 **Educational purpose** - Transaction mechanics mirror real XRPL behavior  
+- 🏗️ **Simplified security model** - Real-world implementations require additional security measures
+- 📚 **Production differences** - Wallet management, funding, and security differ significantly on MainNet
+
+See [FAQ.md](FAQ.md) for detailed comparisons between this educational bot and real-world XRP usage.
