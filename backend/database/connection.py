@@ -1,21 +1,23 @@
 """Database connection with proper typing."""
+
 from __future__ import annotations
-from typing import TYPE_CHECKING
-from collections.abc import Generator
+
 import logging
-import os
+from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-from alembic.config import Config
-from alembic import command
-from alembic.script import ScriptDirectory
-from alembic.runtime.migration import MigrationContext
 
-from .models import Base
+from alembic import command
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+
 from ..config import settings
+from .models import Base
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -31,7 +33,7 @@ def create_db_engine() -> Engine:
             settings.DATABASE_URL,
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
-            echo=settings.DEBUG
+            echo=settings.DEBUG,
         )
     else:
         # PostgreSQL/MySQL settings
@@ -40,7 +42,7 @@ def create_db_engine() -> Engine:
             pool_size=20,
             max_overflow=40,
             pool_pre_ping=True,
-            echo=settings.DEBUG
+            echo=settings.DEBUG,
         )
     return engine
 
@@ -50,11 +52,11 @@ engine = create_db_engine()
 
 # Create session factory
 SessionLocal = sessionmaker(
-    autocommit=False, 
-    autoflush=False, 
+    autocommit=False,
+    autoflush=False,
     bind=engine,
     class_=Session,  # Explicitly specify Session class
-    expire_on_commit=False  # Don't expire objects after commit
+    expire_on_commit=False,  # Don't expire objects after commit
 )
 
 
@@ -63,16 +65,16 @@ def get_alembic_config() -> Config:
     # Get the project root directory (where alembic.ini is located)
     project_root = Path(__file__).parent.parent.parent
     alembic_cfg_path = project_root / "alembic.ini"
-    
+
     if not alembic_cfg_path.exists():
         raise FileNotFoundError(f"Alembic configuration file not found at {alembic_cfg_path}")
-    
+
     # Create Alembic config
     alembic_cfg = Config(str(alembic_cfg_path))
-    
+
     # Set the database URL from our settings
     alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-    
+
     return alembic_cfg
 
 
@@ -83,12 +85,12 @@ def init_database() -> None:
         with engine.connect() as connection:
             context = MigrationContext.configure(connection)
             current_rev = context.get_current_revision()
-            
+
         # Get Alembic configuration
         alembic_cfg = get_alembic_config()
         script = ScriptDirectory.from_config(alembic_cfg)
         head_rev = script.get_current_head()
-        
+
         if current_rev is None:
             # Database not initialized, run all migrations
             logger.info("Database not initialized. Running initial migration...")
@@ -102,7 +104,7 @@ def init_database() -> None:
         else:
             # Database is up to date
             logger.info("Database is up to date!")
-            
+
     except Exception as e:
         logger.error(f"Failed to initialize database with migrations: {str(e)}")
         # Fallback to direct table creation for development
@@ -141,6 +143,7 @@ def check_database_health() -> bool:
         db = SessionLocal()
         try:
             from sqlalchemy import text
+
             db.execute(text("SELECT 1"))
             return True
         finally:

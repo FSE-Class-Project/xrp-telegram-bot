@@ -1,22 +1,23 @@
 """Database module initialization."""
+
 from __future__ import annotations
+
+# Import connection utilities
+from .connection import (
+    SessionLocal,
+    engine,
+    get_db,
+    init_database,
+)
 
 # Import models
 from .models import (
     Base,
-    User,
-    Wallet,
-    Transaction,
     PriceHistory,
+    Transaction,
+    User,
     UserSettings,
-)
-
-# Import connection utilities
-from .connection import (
-    engine,
-    SessionLocal,
-    init_database,
-    get_db,
+    Wallet,
 )
 
 __all__ = [

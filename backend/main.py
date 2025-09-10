@@ -1,18 +1,20 @@
 """Main FastAPI application"""
-import os
+
 import logging
+import os
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import uvicorn
 
-from .config import settings
-from .database.connection import init_database, engine
+from .api.middleware import add_idempotency_middleware, setup_rate_limiting
 from .api.routes import router
-from .api.middleware import setup_rate_limiting
-from .api.webhook import webhook_router, set_telegram_app
+from .api.settings_routes import settings_router
+from .api.webhook import set_telegram_app, webhook_router
+from .config import settings
+from .database.connection import engine, init_database
 
 # Check if running on Render
 IS_RENDER = os.getenv("RENDER") is not None
@@ -20,9 +22,10 @@ IS_RENDER = os.getenv("RENDER") is not None
 # Configure logging
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,7 +37,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"🌐 API URL: {settings.API_URL}")
     logger.info(f"💾 Database: {settings.DATABASE_URL[:30]}...")
     logger.info(f"🪙 XRP Network: {settings.XRP_NETWORK}")
-    
+
     # Initialize database
     try:
         init_database()
@@ -42,59 +45,59 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
         raise
-    
+
     # Initialize encryption service
     try:
         from .utils.encryption import encryption_service
+
         # encryption_service is already an instance, just verify it exists
-        test_key = encryption_service.generate_key()
+        encryption_service.generate_key()
         logger.info("✅ Encryption service initialized")
     except Exception as e:
         logger.error(f"❌ Encryption initialization failed: {e}")
         if settings.ENVIRONMENT == "production":
             raise
-    
+
     # Test XRP connection
     try:
-        from .services.xrp_service import xrp_service
         # Just create the service to test connection
         logger.info(f"✅ XRP Service initialized for {settings.XRP_NETWORK}")
     except Exception as e:
         logger.error(f"⚠️ XRP Service initialization warning: {e}")
-    
+
     # Initialize Telegram bot for webhooks if in production
     telegram_app = None
     if IS_RENDER and os.getenv("TELEGRAM_BOT_TOKEN"):
         try:
             from .services.telegram_service import create_telegram_application, setup_webhook
-            
+
             # Create and configure Telegram application
             telegram_app = await create_telegram_application()
-            
+
             if telegram_app:
                 # Initialize the application
                 await telegram_app.initialize()
-                
+
                 # Set the app instance for webhook handling
                 set_telegram_app(telegram_app)
-                
+
                 # Set up webhook if RENDER_EXTERNAL_URL is available
                 render_url = os.getenv("RENDER_EXTERNAL_URL")
                 if render_url:
                     webhook_url = f"{render_url}/webhook/{os.getenv('TELEGRAM_BOT_TOKEN')}"
                     await setup_webhook(telegram_app, webhook_url)
-                
+
                 logger.info("✅ Telegram bot initialized for webhook mode")
             else:
                 logger.error("❌ Failed to create Telegram application")
-                
+
         except Exception as e:
             logger.error(f"❌ Telegram bot initialization failed: {e}")
             if settings.ENVIRONMENT == "production":
                 raise
-    
+
     yield
-    
+
     # Cleanup Telegram app if initialized
     if telegram_app:
         try:
@@ -102,17 +105,15 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Telegram bot shutdown completed")
         except Exception as e:
             logger.error(f"⚠️ Telegram bot shutdown warning: {e}")
-    
+
     # Shutdown
     logger.info("👋 Shutting down application...")
     engine.dispose()
 
+
 # Create FastAPI app
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
-    debug=settings.DEBUG,
-    lifespan=lifespan
+    title=settings.APP_NAME, version=settings.APP_VERSION, debug=settings.DEBUG, lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -134,16 +135,13 @@ else:
 setup_rate_limiting(app, default_limits=rate_limits)
 
 # Add idempotency middleware
-from .api.middleware import add_idempotency_middleware
 add_idempotency_middleware(app)
 
 # Include API routes
 app.include_router(router)
 app.include_router(webhook_router)
-
-# Include settings routes
-from .api.settings_routes import settings_router
 app.include_router(settings_router)
+
 
 # Exception handler
 @app.exception_handler(Exception)
@@ -151,11 +149,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler"""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
-        status_code=500,
-        content={
-            "detail": str(exc) if settings.DEBUG else "Internal server error"
-        }
+        status_code=500, content={"detail": str(exc) if settings.DEBUG else "Internal server error"}
     )
+
 
 # Root endpoint
 @app.get("/")
@@ -168,18 +164,16 @@ async def root():
         "health": "/api/v1/health",
         "environment": settings.ENVIRONMENT,
         "network": settings.XRP_NETWORK,
-        "platform": "render" if IS_RENDER else "local"
+        "platform": "render" if IS_RENDER else "local",
     }
+
 
 # Health check endpoint for Render
 @app.get("/health")
 async def health():
     """Health check endpoint for monitoring"""
-    return {
-        "status": "healthy",
-        "service": settings.APP_NAME,
-        "version": settings.APP_VERSION
-    }
+    return {"status": "healthy", "service": settings.APP_NAME, "version": settings.APP_VERSION}
+
 
 # Run application
 if __name__ == "__main__":
@@ -196,5 +190,5 @@ if __name__ == "__main__":
             host=settings.API_HOST,
             port=settings.API_PORT,
             reload=settings.DEBUG,
-            log_level="info" if not settings.DEBUG else "debug"
+            log_level="info" if not settings.DEBUG else "debug",
         )

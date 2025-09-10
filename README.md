@@ -1,250 +1,429 @@
 # XRP Telegram Bot
 
-A Telegram bot for managing XRP (Ripple) cryptocurrency on the TestNet, built with Python, FastAPI, and the XRP Ledger.
+A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Python-Telegram-Bot, and deployed on Render.
 
-## Features
+## 🌐 Live Deployment
 
-- 🎯 **Wallet Management**: Create and manage XRP wallets via Telegram
-- 💸 **Send & Receive XRP**: Transfer XRP between addresses with simple commands
-- 💰 **Balance Tracking**: Real-time balance updates from the XRP Ledger
-- 📊 **Price Information**: Current XRP market prices and 24h changes
-- 📜 **Transaction History**: View your recent transactions
-- 🔐 **Secure Storage**: Encrypted wallet secrets using Fernet encryption
-- 🧪 **TestNet Integration**: Safe testing environment with free TestNet XRP
+- **API**: https://xrp-bot-api.onrender.com
+- **Network**: XRP TestNet
+- **Status**: Production-ready TestNet implementation
 
-## Quick Start
+## ✨ Features
 
-### Prerequisites
+### Core Functionality
 
-- Python 3.8 or higher
-- Telegram account
-- Git
+- 🏦 **Automatic Wallet Creation** - Each user gets a secure XRP TestNet wallet
+- 💸 **Send XRP** - Send TestNet XRP to any address with confirmation flow
+- 💰 **Balance Checking** - Real-time balance updates from XRP Ledger
+- 📜 **Transaction History** - Complete transaction tracking and history
+- 📊 **Live Price Data** - Real-time XRP price from CoinGecko
+- ⚙️ **User Settings** - Customizable preferences and notifications
 
-### 1. Clone the Repository
+### Security & Production Features
+- 🔐 **Encrypted Storage** - Private keys encrypted at rest
+- 🛡️ **Rate Limiting** - Prevents abuse with configurable limits
+- 🔄 **Idempotency** - Prevents duplicate transactions
+- 📱 **Rich UI** - Inline keyboards and formatted messages
+- 🎯 **Input Validation** - Comprehensive XRP address and amount validation
+- 📈 **Monitoring** - Health checks and comprehensive logging
+- 🗄️ **Database Persistence** - PostgreSQL with SQLAlchemy ORM
 
+## 🏗️ Architecture
+
+### Backend (FastAPI)
+- **API Server**: RESTful API with OpenAPI documentation
+- **Database**: PostgreSQL with Alembic migrations  
+- **XRP Integration**: Direct connection to XRP Ledger TestNet
+- **Caching**: Redis for improved performance (optional)
+- **Authentication**: API key-based security
+
+### Frontend (Telegram Bot)
+- **Framework**: python-telegram-bot v20+
+- **Mode**: Webhook-based for production, polling for development
+- **UI**: Rich inline keyboards and HTML-formatted messages
+- **State Management**: Conversation handlers for multi-step flows
+
+### Infrastructure (Render)
+
+- **Web Service**: `xrp-bot-api.onrender.com`
+- **Database**: PostgreSQL `dpg-d2tce07fte5s73a3ln40-a`
+- **Background Worker**: `srv-d2tcfc3e5dus73dn50h0`
+- **Blueprint**: `exs-d2tcgg15pdvs739e7vgg`
+
+## 🚀 Quick Start
+
+### Development Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/ces0491/xrp-telegram-bot.git
+   cd xrp-telegram-bot
+   git checkout dev/ces
+   ```
+
+2. **Set up Python environment**
+   ```bash
+   # Create virtual environment
+   python -m venv venv
+   
+   # Activate virtual environment
+   # Windows:
+   venv\Scripts\activate
+   # Mac/Linux:
+   source venv/bin/activate
+   
+   # Install dependencies
+   pip install -r requirements.txt
+   ```
+
+3. **Environment setup**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Required Environment Variables**
+   ```env
+   # Telegram
+   TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+   
+   # Database (development uses SQLite)
+   DATABASE_URL=sqlite:///./xrp_bot.db
+   
+   # Security
+   ENCRYPTION_KEY=generate_with_fernet
+   BOT_API_KEY=change-in-production
+   ADMIN_API_KEY=change-in-production
+   ```
+
+5. **Run development server**
+   ```bash
+   python run.py
+   ```
+
+### Generate Test Wallet
+
+Create a funded TestNet wallet:
 ```bash
-git clone https://github.com/ces0491/xrp-telegram-bot.git
-cd xrp-telegram-bot
-git checkout dev/ces
+python generate_test_wallet.py
 ```
 
-### 2. Set Up Python Environment
+This will:
+
+- Generate a new XRP TestNet wallet
+- Fund it with 10 XRP from the faucet
+- Save wallet details to JSON file
+
+## 📱 Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Register and create wallet |
+| `/balance` | Check XRP balance |
+| `/send` | Send XRP to another address |
+| `/price` | View current XRP price |
+| `/history` | View transaction history |
+| `/profile` | View your profile |
+| `/settings` | Manage preferences |
+| `/help` | Show all commands |
+
+### Example Usage
+
+**Send XRP:**
+
+```
+/send 10 rN7n7otQDd6FczFgLdSqDtD2XZzWjfrn96
+```
+
+Or use the interactive flow:
+
+```
+/send
+> Enter amount: 10
+> Enter address: rN7n7otQDd6FczFgLdSqDtD2XZzWjfrn96
+> Confirm: YES
+```
+
+## 🌐 API Endpoints
+
+### Core API
+
+- `GET /api/v1/health` - Health check
+- `POST /api/v1/user/register` - Register user
+- `GET /api/v1/wallet/balance/{telegram_id}` - Get balance
+- `POST /api/v1/transaction/send` - Send transaction
+- `GET /api/v1/transaction/history/{telegram_id}` - Get history
+- `GET /api/v1/price/current` - Get XRP price
+
+### Documentation
+
+- **Interactive Docs**: https://xrp-bot-api.onrender.com/docs
+- **OpenAPI Schema**: https://xrp-bot-api.onrender.com/openapi.json
+
+## 🔧 Render Deployment
+
+### Infrastructure Components
+
+**Web Service** (`xrp-bot-api.onrender.com`)
+
+- Runs the FastAPI backend
+- Handles Telegram webhook
+- Serves API endpoints
+- Auto-deploys from Git
+
+**PostgreSQL Database** (`dpg-d2tce07fte5s73a3ln40-a`)
+
+- Production database
+- Automated backups
+- Connection pooling
+
+**Background Worker** (`srv-d2tcfc3e5dus73dn50h0`)
+
+- Runs the Telegram bot
+- Handles background tasks
+- Processes webhook updates
+
+### Environment Variables (Production)
+
+```env
+# Render provides these automatically
+DATABASE_URL=postgresql://...
+RENDER_EXTERNAL_URL=https://xrp-bot-api.onrender.com
+PORT=10000
+
+# You must set these in Render dashboard
+TELEGRAM_BOT_TOKEN=your_bot_token
+ENCRYPTION_KEY=your_fernet_key
+BOT_API_KEY=secure_api_key
+ADMIN_API_KEY=secure_admin_key
+
+# Optional
+REDIS_URL=redis://...
+SENTRY_DSN=your_sentry_dsn
+```
+
+### Build Commands
+
+**Web Service:**
 
 ```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On Mac/Linux:
-source venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Create Telegram Bot
-
-1. Open Telegram and search for [@BotFather](https://t.me/BotFather)
-2. Send `/newbot` command
-3. Choose a name for your bot (e.g., "My XRP Wallet")
-4. Choose a username (must end with 'bot', e.g., "my_xrp_wallet_bot")
-5. Copy the bot token you receive
-
-### 4. Configure Environment
+**Start Command:**
 
 ```bash
-# Copy environment template
-cp .env.example .env
-
-# Edit .env file and add your bot token
-# Required: TELEGRAM_BOT_TOKEN=your_bot_token_here
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-### 5. Run the Bot
+**Background Worker:**
 
 ```bash
-# Run both backend and bot (recommended for development)
-python run.py
-
-# Or run services separately:
-python run.py backend  # Run only API backend
-python run.py bot      # Run only Telegram bot
+python -m bot.main
 ```
 
-The script will:
+## 🔧 Configuration
 
-- Initialize the database
-- Generate encryption keys (if needed)
-- Start the FastAPI backend on [http://localhost:8000](http://localhost:8000)
-- Start the Telegram bot
-- Show you all available endpoints and commands
+### Network Settings
 
-### 6. Test Your Bot
+The bot is configured for XRP TestNet:
 
-1. Open Telegram and search for your bot username
-2. Send `/start` to register and create a wallet
-3. Your wallet will be automatically funded with TestNet XRP
-4. Try commands like `/balance`, `/price`, `/help`
-
-## Bot Commands
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/start` | Register and create XRP wallet | `/start` |
-| `/help` | Show all available commands | `/help` |
-| `/balance` | Check your XRP balance | `/balance` |
-| `/send` | Send XRP to another address | `/send 10 rN7n7...` or `/send` |
-| `/price` | View current XRP market price | `/price` |
-| `/history` | View your transaction history | `/history` |
-| `/profile` | View your profile and wallet info | `/profile` |
-| `/settings` | Manage preferences (coming soon) | `/settings` |
-
-## Project Structure
-
-```text
-
-xrp-telegram-bot/
-├── backend/                 # FastAPI backend
-│   ├── api/                # API routes and schemas
-│   ├── database/           # Database models and connection
-│   ├── services/           # Business logic services
-│   │   ├── xrp_service.py    # XRP Ledger integration
-│   │   ├── user_service.py   # User management
-│   │   └── security_service.py
-│   ├── utils/              # Utility functions
-│   │   └── encryption.py     # Encryption service
-│   ├── config.py           # Configuration management
-│   └── main.py            # FastAPI application
-├── bot/                    # Telegram bot
-│   ├── handlers/          # Command handlers
-│   │   ├── start.py        # Registration handlers
-│   │   ├── wallet.py       # Wallet operations
-│   │   ├── transaction.py  # Send XRP flow
-│   │   └── price.py        # Price information
-│   ├── keyboards/         # Telegram keyboards
-│   ├── messages/          # Message templates
-│   └── main.py           # Bot application
-├── tests/                 # Test suite
-├── .env.example          # Environment template
-├── requirements.txt      # Python dependencies
-├── run.py               # Development startup script
-└── README.md           # This file
-
+```python
+XRP_NETWORK = "testnet"
+XRP_WEBSOCKET_URL = "wss://s.altnet.rippletest.net:51233"
+XRP_JSON_RPC_URL = "https://s.altnet.rippletest.net:51234"
+XRP_FAUCET_URL = "https://faucet.altnet.rippletest.net/accounts"
 ```
 
-## API Documentation
+### Rate Limits
 
-Once the backend is running, visit [http://localhost:8000/docs](http://localhost:8000/docs) for interactive API documentation (Swagger UI).
+- **User Registration**: 5/hour
+- **Transactions**: 10/minute
+- **Price Checks**: 30/minute
+- **General API**: 100/minute
 
-### Key Endpoints
+### Security Features
 
-- `POST /api/v1/user/register` - Register new user
-- `GET /api/v1/wallet/balance/{telegram_id}` - Get user balance
-- `POST /api/v1/transaction/send` - Send XRP transaction
-- `GET /api/v1/transaction/history/{telegram_id}` - Get transaction history
-- `GET /api/v1/price/current` - Get current XRP price
-- `GET /api/v1/health` - Health check
+- Private keys encrypted with Fernet
+- API key authentication
+- Input validation and sanitization
+- SQL injection protection
+- Rate limiting
+- Comprehensive logging
 
-## Deployment
+## 📊 Database Schema
 
-### Deploy to Render
+### Users
 
-1. Fork this repository
-2. Create account at [render.com](https://render.com)
-3. Create a new **Web Service** for the backend:
-   - Connect your GitHub repository
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-   - Add environment variables from `.env`
+- `id` - Primary key
+- `telegram_id` - Telegram user ID
+- `telegram_username` - Username
+- `created_at` - Registration timestamp
 
-4. Create a new **Background Worker** for the bot:
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `python -m bot.main`
-   - Add environment variables including `API_URL` pointing to your backend service
+### Wallets
 
-### Deploy to Railway
+- `id` - Primary key
+- `user_id` - Foreign key to users
+- `xrp_address` - XRP Ledger address
+- `encrypted_secret` - Encrypted private key
+- `balance` - Cached balance
 
-1. Install Railway CLI: `npm install -g @railway/cli`
-2. Login: `railway login`
-3. Initialize: `railway init`
-4. Deploy: `railway up`
-5. Add environment variables in Railway dashboard
+### Transactions
 
-### Environment Variables
+- `id` - Primary key
+- `sender_id` - Foreign key to users
+- `recipient_address` - Destination address
+- `amount` - XRP amount
+- `tx_hash` - Transaction hash
+- `status` - Transaction status
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `TELEGRAM_BOT_TOKEN` | Your bot token from BotFather | Yes | - |
-| `DATABASE_URL` | Database connection string | No | `sqlite:///./xrp_bot.db` |
-| `ENCRYPTION_KEY` | 32-byte Fernet key for encryption | No | Auto-generated |
-| `JWT_SECRET` | Secret for JWT tokens | No | Auto-generated |
-| `API_URL` | Backend API URL | No | `http://localhost:8000` |
-| `DEBUG` | Enable debug mode | No | `True` |
-| `ENVIRONMENT` | Environment name | No | `development` |
+### User Settings
 
-## Security Considerations
+- `user_id` - Foreign key to users
+- `price_alerts` - Boolean
+- `transaction_notifications` - Boolean
+- `currency_display` - Display currency
+- `language` - Preferred language
 
-- **Custodial Wallet Model**: The bot manages wallets on behalf of users
-- **Encrypted Storage**: All wallet secrets are encrypted using Fernet (AES-128)
-- **TestNet Only**: Currently configured for TestNet only (no real money)
-- **Rate Limiting**: Consider implementing rate limiting for production
-- **HTTPS Only**: Use HTTPS in production with valid certificates
+## 🧪 Testing
 
-## Testing
+### Run Tests
 
 ```bash
-# Run all tests
 python run.py test
-
-# Or use pytest directly
-pytest tests/ -v
-
-# Run with coverage
-pytest tests/ --cov=backend --cov=bot
 ```
 
-## Troubleshooting
+### Generate Test Data
 
-### Bot not responding
+```bash
+# Create funded test wallet
+python generate_test_wallet.py
 
-- Check bot token in `.env`
-- Ensure backend is running (`http://localhost:8000/health`)
-- Check logs for errors
+# Test bot locally
+python run.py
+```
 
-### Database errors
+### Manual Testing
 
-- Delete `xrp_bot.db` and restart to recreate
-- Check DATABASE_URL in `.env`
+1. Start the bot: `python run.py`
+2. Message your Telegram bot
+3. Use `/start` to create wallet
+4. Test transactions between wallets
 
-### XRP TestNet issues
+## 🔍 Monitoring
 
-- TestNet might be down - check [status](https://xrpl.org/public-servers.html)
-- Faucet might be rate-limited - wait and retry
+### Health Checks
 
-### Transaction failures
+- **API Health**: GET `/api/v1/health`
+- **Database**: Connection test
+- **XRP Ledger**: Network connectivity
+- **Redis**: Cache availability
 
-- Check wallet balance with `/balance`
-- Verify recipient address format (starts with 'r')
-- Ensure sufficient balance including fees
+### Logs
 
-## Contributing
+- **Application**: Structured JSON logging
+- **Database**: SQLAlchemy query logging
+- **HTTP**: Request/response logging
+- **Errors**: Full stack traces
+
+### Metrics
+
+Tracked automatically:
+
+- Request counts and response times
+- Transaction success rates
+- User registration metrics
+- Error rates by endpoint
+
+## 🛡️ Security Considerations
+
+### Production Checklist
+
+- [ ] Change all default API keys
+- [ ] Set strong encryption keys
+- [ ] Enable HTTPS only
+- [ ] Configure rate limiting
+- [ ] Set up monitoring
+- [ ] Enable database backups
+- [ ] Review logs regularly
+
+### Sensitive Data
+
+- Private keys: Encrypted at rest
+- User data: Minimal collection
+- API keys: Environment variables only
+- Database: PostgreSQL with SSL
+
+## 🔄 Migration Guide
+
+### From TestNet to MainNet
+
+1. **Update Configuration**
+   ```python
+   XRP_NETWORK = "mainnet"
+   XRP_WEBSOCKET_URL = "wss://s1.ripple.com:443"
+   XRP_JSON_RPC_URL = "https://s1.ripple.com:51234"
+   # Remove XRP_FAUCET_URL
+   ```
+
+2. **Update Rate Limits**
+   - Reduce transaction limits
+   - Add wallet funding checks
+   - Implement minimum balance requirements
+
+3. **Enhanced Security**
+   - Add 2FA for large transactions
+   - Implement withdrawal limits
+   - Add KYC integration if required
+
+## 📁 Project Structure
+
+```
+xrp-telegram-bot/
+├── backend/                    # FastAPI backend
+│   ├── api/                   # API routes and middleware
+│   ├── database/              # Database models and migrations
+│   ├── services/              # Business logic services
+│   └── utils/                 # Utility functions
+├── bot/                       # Telegram bot
+│   ├── handlers/              # Command handlers
+│   ├── keyboards/             # Inline keyboards
+│   └── utils/                 # Bot utilities
+├── tests/                     # Test files
+├── requirements.txt           # Python dependencies
+├── run.py                    # Development runner
+├── generate_test_wallet.py   # Test wallet generator
+└── README.md                 # This file
+```
+
+## 📚 Resources
+
+- **XRP Ledger Docs**: https://xrpl.org/
+- **Telegram Bot API**: https://core.telegram.org/bots/api
+- **FastAPI Docs**: https://fastapi.tiangolo.com/
+- **Render Docs**: https://render.com/docs
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-## Resources
+## 📄 License
 
-- [XRP Ledger Documentation](https://xrpl.org)
-- [Telegram Bot API](https://core.telegram.org/bots/api)
-- [Python Telegram Bot](https://python-telegram-bot.org)
-- [FastAPI Documentation](https://fastapi.tiangolo.com)
-- [XRP TestNet Faucet](https://xrpl.org/xrp-testnet-faucet.html)
+MIT License - See LICENSE file for details.
 
-## License
+## 🆘 Support
 
-MIT - see the [LICENSE](./LICENSE) file for details
+For issues and questions:
+
+1. Check the documentation
+2. Review existing issues
+3. Create a new issue with details
+4. Include logs and error messages
+
+---
+
+**⚠️ Disclaimer**: This bot operates on XRP TestNet with test funds only. TestNet XRP has no monetary value.

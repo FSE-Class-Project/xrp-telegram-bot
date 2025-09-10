@@ -9,7 +9,6 @@ import sys
 import time
 import subprocess
 import signal
-from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -34,12 +33,12 @@ def print_banner():
 def check_requirements():
     """Check if all requirements are installed"""
     try:
-        import fastapi
-        import telegram
-        import xrpl
-        import sqlalchemy
-        import cryptography
-        import httpx
+        import fastapi  # noqa: F401
+        import telegram  # noqa: F401
+        import xrpl  # noqa: F401
+        import sqlalchemy  # noqa: F401
+        import cryptography  # noqa: F401
+        import httpx  # noqa: F401
         print(f"{GREEN}[OK] All required packages installed{RESET}")
         return True
     except ImportError as e:
@@ -110,8 +109,12 @@ def cleanup_telegram_instances():
                 return
             
             bot = Bot(token=bot_token)
-            # Delete webhook and drop pending updates to clear any conflicts
-            await bot.delete_webhook(drop_pending_updates=True)
+            # Initialize the bot and delete webhook with pending updates
+            await bot.initialize()
+            try:
+                await Bot.delete_webhook(bot, drop_pending_updates=True)
+            finally:
+                await bot.shutdown()
             print(f"{GREEN}[OK] Cleared existing bot connections{RESET}")
         except Exception as e:
             print(f"{YELLOW}! Warning: Could not clear bot connections: {e}{RESET}")
@@ -133,7 +136,7 @@ def start_bot():
     import asyncio
     
     async def wait_for_backend():
-        for i in range(10):
+        for _ in range(10):
             try:
                 async with httpx.AsyncClient() as client:
                     response = await client.get("http://localhost:8000/api/v1/health")
@@ -204,7 +207,7 @@ def run_development():
     backend_process = None
     bot_process = None
     
-    def signal_handler(signum, frame):
+    def signal_handler(_signum, _frame):
         """Handle shutdown signals"""
         graceful_shutdown(backend_process, bot_process)
         sys.exit(0)

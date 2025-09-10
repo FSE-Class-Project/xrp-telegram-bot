@@ -1,17 +1,18 @@
 """SQLAlchemy models for XRP Telegram Bot."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    String, 
-    Integer, 
-    Float, 
-    DateTime, 
-    ForeignKey, 
-    Text, 
     Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -27,294 +28,252 @@ if TYPE_CHECKING:
 
 class Base(DeclarativeBase):
     """Base class for all models."""
+
     pass
 
 
 class User(Base):
     """User model storing Telegram user information."""
+
     __tablename__ = "users"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     telegram_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    telegram_username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default=None)
-    telegram_first_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default=None)
-    telegram_last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default=None)
-    
+    telegram_username: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    telegram_first_name: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )
+    telegram_last_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
+
     # Relationships - use string references to avoid circular imports
-    wallet: Mapped[Optional["Wallet"]] = relationship(
-        "Wallet",
-        back_populates="user",
-        uselist=False,
-        lazy="selectin"
+    wallet: Mapped[Wallet | None] = relationship(
+        "Wallet", back_populates="user", uselist=False, lazy="selectin"
     )
-    sent_transactions: Mapped[list["Transaction"]] = relationship(
-        "Transaction",
-        foreign_keys="Transaction.sender_id",
-        back_populates="sender",
-        lazy="select"
+    sent_transactions: Mapped[list[Transaction]] = relationship(
+        "Transaction", foreign_keys="Transaction.sender_id", back_populates="sender", lazy="select"
     )
-    settings: Mapped[Optional["UserSettings"]] = relationship(
-        "UserSettings",
-        back_populates="user",
-        uselist=False,
-        lazy="selectin"
+    settings: Mapped[UserSettings | None] = relationship(
+        "UserSettings", back_populates="user", uselist=False, lazy="selectin"
     )
-    
+
     def __repr__(self) -> str:
         return f"<User(id={self.id}, telegram_id={self.telegram_id}, username={self.telegram_username})>"
 
 
 class Wallet(Base):
     """Wallet model storing XRP account information (Custodial Model)."""
+
     __tablename__ = "wallets"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("users.id"),
-        unique=True,
-        nullable=False
+        Integer, ForeignKey("users.id"), unique=True, nullable=False
     )
-    
+
     # XRP Account Details
     xrp_address: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     encrypted_secret: Mapped[str] = mapped_column(Text, nullable=False)
-    
+
     # Balance tracking (cached for performance)
     balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    last_balance_update: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        default=None
+    last_balance_update: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
     )
-    
+
     # Security
     encryption_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
-    
+
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="wallet")
-    
+    user: Mapped[User] = relationship("User", back_populates="wallet")
+
     def __repr__(self) -> str:
         return f"<Wallet(id={self.id}, xrp_address={self.xrp_address}, balance={self.balance})>"
 
 
 class Transaction(Base):
     """Transaction model storing XRP transfer history."""
+
     __tablename__ = "transactions"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    
+
     # Transaction parties
-    sender_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("users.id"),
-        nullable=True,
-        default=None
+    sender_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=True, default=None
     )
     sender_address: Mapped[str] = mapped_column(String(255), nullable=False)
     recipient_address: Mapped[str] = mapped_column(String(255), nullable=False)
-    
+
     # Transaction details
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     fee: Mapped[float] = mapped_column(Float, default=0.00001, nullable=False)
-    
+
     # Idempotency key for preventing duplicate transactions
-    idempotency_key: Mapped[Optional[str]] = mapped_column(
-        String(255), 
-        unique=True, 
-        index=True,
-        nullable=True,
-        default=None
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(255), unique=True, index=True, nullable=True, default=None
     )
-    
+
     # XRP Ledger details
-    tx_hash: Mapped[Optional[str]] = mapped_column(
-        String(255), 
-        unique=True, 
-        index=True, 
-        nullable=True,
-        default=None
+    tx_hash: Mapped[str | None] = mapped_column(
+        String(255), unique=True, index=True, nullable=True, default=None
     )
-    ledger_index: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
-    
+    ledger_index: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+
     # Status tracking
     status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    confirmed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        default=None
+    confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
     )
-    
+
     # Relationships
-    sender: Mapped[Optional["User"]] = relationship(
-        "User",
-        back_populates="sent_transactions"
-    )
-    
+    sender: Mapped[User | None] = relationship("User", back_populates="sent_transactions")
+
     def __repr__(self) -> str:
         return f"<Transaction(id={self.id}, hash={self.tx_hash}, amount={self.amount}, status={self.status})>"
 
 
 class PriceHistory(Base):
     """Price history for caching XRP price data."""
+
     __tablename__ = "price_history"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    
+
     # Price data
     price_usd: Mapped[float] = mapped_column(Float, nullable=False)
-    price_btc: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=None)
-    market_cap: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=None)
-    volume_24h: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=None)
-    change_24h: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=None)
-    
+    price_btc: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
+    market_cap: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
+    volume_24h: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
+    change_24h: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
+
     # Source tracking
     source: Mapped[str] = mapped_column(String(50), default="coingecko", nullable=False)
-    
+
     # Timestamps
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         index=True,
-        nullable=False
+        nullable=False,
     )
-    
+
     def __repr__(self) -> str:
-        return f"<PriceHistory(id={self.id}, price_usd={self.price_usd}, timestamp={self.timestamp})>"
+        return (
+            f"<PriceHistory(id={self.id}, price_usd={self.price_usd}, timestamp={self.timestamp})>"
+        )
 
 
 class IdempotencyRecord(Base):
     """Idempotency tracking for preventing duplicate operations."""
+
     __tablename__ = "idempotency_records"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    
+
     # Idempotency tracking
     idempotency_key: Mapped[str] = mapped_column(
-        String(255), 
-        unique=True, 
-        index=True,
-        nullable=False
+        String(255), unique=True, index=True, nullable=False
     )
-    user_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("users.id"),
-        nullable=True,
-        default=None
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=True, default=None
     )
     operation_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    
+
     # Request data for comparison
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA256 hash
     request_data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
-    
+
     # Response tracking
-    response_status: Mapped[str] = mapped_column(String(20), nullable=False)  # success, error, processing
-    response_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
-    
+    response_status: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # success, error, processing
+    response_data: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+
     # Related records
-    transaction_id: Mapped[Optional[int]] = mapped_column(
-        Integer,
-        ForeignKey("transactions.id"),
-        nullable=True,
-        default=None
+    transaction_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("transactions.id"), nullable=True, default=None
     )
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False
-    )
-    
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
     # Relationships
-    user: Mapped[Optional["User"]] = relationship("User")
-    transaction: Mapped[Optional["Transaction"]] = relationship("Transaction")
-    
+    user: Mapped[User | None] = relationship("User")
+    transaction: Mapped[Transaction | None] = relationship("Transaction")
+
     def __repr__(self) -> str:
         return f"<IdempotencyRecord(key={self.idempotency_key}, operation={self.operation_type}, status={self.response_status})>"
 
 
 class UserSettings(Base):
     """User preferences and settings."""
+
     __tablename__ = "user_settings"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("users.id"),
-        unique=True,
-        nullable=False
+        Integer, ForeignKey("users.id"), unique=True, nullable=False
     )
-    
+
     # Notification preferences
     price_alerts: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transaction_notifications: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
+
     # Display preferences
     currency_display: Mapped[str] = mapped_column(String(10), default="USD", nullable=False)
     language: Mapped[str] = mapped_column(String(10), default="en", nullable=False)
-    
+
     # Security
     two_factor_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    pin_code: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, default=None)
-    
+    pin_code: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False
+        nullable=False,
     )
-    
+
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="settings")
-    
+    user: Mapped[User] = relationship("User", back_populates="settings")
+
     def __repr__(self) -> str:
         return f"<UserSettings(id={self.id}, user_id={self.user_id}, language={self.language})>"
 

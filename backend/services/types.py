@@ -1,13 +1,16 @@
 """Type definitions for services module."""
+
 from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TypedDict, NotRequired, Literal, Any
+from typing import Any, Literal, NotRequired, TypedDict
+
 
 # Transaction type definitions
 class TransactionResultDict(TypedDict):
     """Result of a transaction operation."""
+
     success: bool
     tx_hash: NotRequired[str]
     ledger_index: NotRequired[int]
@@ -19,6 +22,7 @@ class TransactionResultDict(TypedDict):
 
 class XRPBalanceDict(TypedDict):
     """XRP balance information."""
+
     address: str
     balance: Decimal  # Use Decimal for financial precision
     last_updated: datetime | None
@@ -27,6 +31,7 @@ class XRPBalanceDict(TypedDict):
 
 class TransactionHistoryItemDict(TypedDict):
     """Single transaction in history."""
+
     hash: str | None
     type: Literal["payment", "trust_set", "offer_create", "offer_cancel", "other"]
     amount: Decimal  # Use Decimal for financial precision
@@ -42,6 +47,7 @@ class TransactionHistoryItemDict(TypedDict):
 
 class TransactionHistoryDict(TypedDict):
     """Transaction history response."""
+
     transactions: list[TransactionHistoryItemDict]
     total_count: int
     has_more: bool
@@ -49,6 +55,7 @@ class TransactionHistoryDict(TypedDict):
 
 class PriceDataDict(TypedDict):
     """Cryptocurrency price data."""
+
     symbol: str
     price_usd: Decimal  # Use Decimal for financial precision
     price_btc: NotRequired[Decimal]
@@ -63,6 +70,7 @@ class PriceDataDict(TypedDict):
 
 class WalletCreationResultDict(TypedDict):
     """Result of wallet creation."""
+
     address: str
     encrypted_secret: str
     balance: Decimal  # Use Decimal for financial precision
@@ -74,6 +82,7 @@ class WalletCreationResultDict(TypedDict):
 # User service type definitions
 class UserCreationDataDict(TypedDict):
     """Data for creating a new user."""
+
     telegram_id: str
     telegram_username: NotRequired[str]
     telegram_first_name: NotRequired[str]
@@ -82,6 +91,7 @@ class UserCreationDataDict(TypedDict):
 
 class UserDataDict(TypedDict):
     """Complete user data."""
+
     id: int
     telegram_id: str
     telegram_username: str | None
@@ -97,6 +107,7 @@ class UserDataDict(TypedDict):
 # API Response type definitions
 class BalanceResponseDict(TypedDict):
     """Balance API response."""
+
     address: str
     balance: float  # API responses can use float for JSON compatibility
     last_updated: str | None
@@ -104,6 +115,7 @@ class BalanceResponseDict(TypedDict):
 
 class SendTransactionRequestDict(TypedDict):
     """Send transaction request."""
+
     from_telegram_id: str
     to_address: str
     amount: float  # API requests can accept float
@@ -112,6 +124,7 @@ class SendTransactionRequestDict(TypedDict):
 
 class TransactionResponseDict(TypedDict):
     """Transaction API response."""
+
     success: bool
     tx_hash: NotRequired[str]
     error: NotRequired[str]
@@ -122,6 +135,7 @@ class TransactionResponseDict(TypedDict):
 # XRP Ledger specific type definitions
 class XRPAccountInfoDict(TypedDict):
     """XRP Ledger account information."""
+
     account: str
     balance: str  # In drops (string from XRP Ledger)
     flags: int
@@ -134,6 +148,7 @@ class XRPAccountInfoDict(TypedDict):
 
 class XRPTransactionMetadataDict(TypedDict):
     """XRP transaction metadata."""
+
     transaction_index: int
     transaction_result: str
     delivered_amount: NotRequired[str]  # In drops
@@ -141,6 +156,7 @@ class XRPTransactionMetadataDict(TypedDict):
 
 class FaucetResponseDict(TypedDict):
     """TestNet faucet response."""
+
     account: str
     amount: int  # In drops
     balance: int  # In drops
@@ -152,6 +168,7 @@ class FaucetResponseDict(TypedDict):
 # Settings type definitions
 class UserSettingsDict(TypedDict):
     """User preference settings."""
+
     user_id: int
     price_alerts: bool
     transaction_notifications: bool
@@ -163,6 +180,7 @@ class UserSettingsDict(TypedDict):
 # Error type definitions
 class ServiceErrorDict(TypedDict):
     """Service error details."""
+
     code: str
     message: str
     details: NotRequired[dict[str, Any]]
@@ -172,6 +190,7 @@ class ServiceErrorDict(TypedDict):
 # Validation type definitions
 class AddressValidationDict(TypedDict):
     """Address validation result."""
+
     is_valid: bool
     address: str
     network: Literal["mainnet", "testnet", "devnet"]
@@ -182,6 +201,7 @@ class AddressValidationDict(TypedDict):
 # Cache type definitions
 class CacheEntryDict(TypedDict):
     """Cache entry for Redis or in-memory caching."""
+
     key: str
     value: Any
     ttl: int
