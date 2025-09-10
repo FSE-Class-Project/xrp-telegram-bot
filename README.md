@@ -4,7 +4,7 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
 
 ## 🌐 Live Deployment
 
-- **API**: https://xrp-bot-api.onrender.com
+- **API**: [https://xrp-bot-api.onrender.com](https://xrp-bot-api.onrender.com)
 - **Network**: XRP TestNet
 - **Status**: Production-ready TestNet implementation
 
@@ -20,6 +20,7 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
 - ⚙️ **User Settings** - Customizable preferences and notifications
 
 ### Security & Production Features
+
 - 🔐 **Encrypted Storage** - Private keys encrypted at rest
 - 🛡️ **Rate Limiting** - Prevents abuse with configurable limits
 - 🔄 **Idempotency** - Prevents duplicate transactions
@@ -31,13 +32,15 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
 ## 🏗️ Architecture
 
 ### Backend (FastAPI)
+
 - **API Server**: RESTful API with OpenAPI documentation
-- **Database**: PostgreSQL with Alembic migrations  
+- **Database**: PostgreSQL with Alembic migrations
 - **XRP Integration**: Direct connection to XRP Ledger TestNet
 - **Caching**: Redis for improved performance (optional)
 - **Authentication**: API key-based security
 
 ### Frontend (Telegram Bot)
+
 - **Framework**: python-telegram-bot v20+
 - **Mode**: Webhook-based for production, polling for development
 - **UI**: Rich inline keyboards and HTML-formatted messages
@@ -55,6 +58,7 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
 ### Development Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/ces0491/xrp-telegram-bot.git
    cd xrp-telegram-bot
@@ -62,6 +66,7 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
    ```
 
 2. **Set up Python environment**
+
    ```bash
    # Create virtual environment
    python -m venv venv
@@ -74,16 +79,22 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
    
    # Install dependencies
    pip install -r requirements.txt
+
    ```
 
 3. **Environment setup**
+
    ```bash
+
    cp .env.example .env
    # Edit .env with your configuration
+
    ```
 
 4. **Required Environment Variables**
+
    ```env
+
    # Telegram
    TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
    
@@ -97,13 +108,16 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
    ```
 
 5. **Run development server**
+
    ```bash
+
    python run.py
    ```
 
 ### Generate Test Wallet
 
 Create a funded TestNet wallet:
+
 ```bash
 python generate_test_wallet.py
 ```
@@ -131,13 +145,13 @@ This will:
 
 **Send XRP:**
 
-```
+```text
 /send 10 rN7n7otQDd6FczFgLdSqDtD2XZzWjfrn96
 ```
 
 Or use the interactive flow:
 
-```
+```text
 /send
 > Enter amount: 10
 > Enter address: rN7n7otQDd6FczFgLdSqDtD2XZzWjfrn96
@@ -157,8 +171,8 @@ Or use the interactive flow:
 
 ### Documentation
 
-- **Interactive Docs**: https://xrp-bot-api.onrender.com/docs
-- **OpenAPI Schema**: https://xrp-bot-api.onrender.com/openapi.json
+- **Interactive Docs**: [https://xrp-bot-api.onrender.com/docs](https://xrp-bot-api.onrender.com/docs)
+- **OpenAPI Schema**: [https://xrp-bot-api.onrender.com/openapi.json](https://xrp-bot-api.onrender.com/openapi.json)
 
 ## 🔧 Render Deployment
 
@@ -359,6 +373,7 @@ Tracked automatically:
 ### From TestNet to MainNet
 
 1. **Update Configuration**
+
    ```python
    XRP_NETWORK = "mainnet"
    XRP_WEBSOCKET_URL = "wss://s1.ripple.com:443"
@@ -378,7 +393,7 @@ Tracked automatically:
 
 ## 📁 Project Structure
 
-```
+``` text
 xrp-telegram-bot/
 ├── backend/                    # FastAPI backend
 │   ├── api/                   # API routes and middleware
@@ -398,10 +413,10 @@ xrp-telegram-bot/
 
 ## 📚 Resources
 
-- **XRP Ledger Docs**: https://xrpl.org/
-- **Telegram Bot API**: https://core.telegram.org/bots/api
-- **FastAPI Docs**: https://fastapi.tiangolo.com/
-- **Render Docs**: https://render.com/docs
+- **XRP Ledger Docs**: [https://xrpl.org/](https://xrpl.org/)
+- **Telegram Bot API**: [https://core.telegram.org/bots/api](https://core.telegram.org/bots/api)
+- **FastAPI Docs**: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/)
+- **Render Docs**: [https://render.com/docs](https://render.com/docs)
 
 ## 🤝 Contributing
 
@@ -419,10 +434,16 @@ MIT License - See LICENSE file for details.
 
 For issues and questions:
 
-1. Check the documentation
-2. Review existing issues
-3. Create a new issue with details
-4. Include logs and error messages
+1. **📚 Check the [FAQ](FAQ.md)** - Comprehensive answers to common questions
+2. **📧 Email Support:** support@fse-group3.co.za
+3. **🐛 Report Issues:** [GitHub Issues](https://github.com/FSE-Class-Project/xrp-telegram-bot/issues)
+4. **📊 Project Progress:** [Project Board](https://github.com/orgs/FSE-Class-Project/projects/1/views/1)
+
+When reporting issues, please include:
+- Description of the problem
+- Steps to reproduce
+- Error messages or logs
+- Your environment details
 
 ---
 

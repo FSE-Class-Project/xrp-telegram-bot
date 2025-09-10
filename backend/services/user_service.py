@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class UserService:
     """Service for managing users and wallets."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize user service with cache."""
         self.cache = get_cache_service()
 
@@ -90,8 +90,8 @@ class UserService:
                 # Update balance
                 balance = await xrp_service.get_balance(address)
                 if balance is not None:
-                    wallet.balance = balance
-                    wallet.last_balance_update = datetime.now(timezone.utc)
+                    wallet.balance = balance  # type: ignore[assignment]
+                    wallet.last_balance_update = datetime.now(timezone.utc)  # type: ignore[assignment]
                     db.commit()
                     db.refresh(user)  # Refresh to get updated wallet
         except Exception as e:
@@ -136,7 +136,7 @@ class UserService:
             "telegram_first_name": user.telegram_first_name,
             "created_at": user.created_at.isoformat() if user.created_at else None,
         }
-        self.cache.set_user(user.telegram_id, user_data)
+        self.cache.set_user(str(user.telegram_id), user_data)  # type: ignore[arg-type]
 
         # Cache wallet data if exists
         if user.wallet:
@@ -151,7 +151,7 @@ class UserService:
                     else None
                 ),
             }
-            self.cache.set_wallet(user.id, wallet_data)
+            self.cache.set_wallet(int(user.id), wallet_data)  # type: ignore[arg-type]
 
     def get_user_by_telegram_id(self, db: Session, telegram_id: str) -> User | None:
         """
@@ -199,12 +199,12 @@ class UserService:
         balance = await xrp_service.get_balance(user.wallet.xrp_address)
 
         if balance is not None:
-            user.wallet.balance = balance
-            user.wallet.last_balance_update = datetime.now(timezone.utc)
+            user.wallet.balance = balance  # type: ignore[assignment]
+            user.wallet.last_balance_update = datetime.now(timezone.utc)  # type: ignore[assignment]
             db.commit()
             db.refresh(user)
 
-        return balance if balance is not None else user.wallet.balance
+        return float(balance if balance is not None else user.wallet.balance)
 
     async def send_xrp(
         self,

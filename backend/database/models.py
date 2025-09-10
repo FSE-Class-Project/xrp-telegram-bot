@@ -15,21 +15,18 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.orm import (
-    DeclarativeBase,
-    Mapped,
-    mapped_column,
+    declarative_base,
     relationship,
 )
+from sqlalchemy import Column
 
 if TYPE_CHECKING:
     # This prevents circular imports while still providing type hints
     pass
 
 
-class Base(DeclarativeBase):
-    """Base class for all models."""
-
-    pass
+Base = declarative_base()
+# Base class for all models
 
 
 class User(Base):
@@ -37,34 +34,32 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    telegram_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    telegram_username: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
-    telegram_first_name: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, default=None
-    )
-    telegram_last_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    id = Column(Integer, primary_key=True)
+    telegram_id = Column(String(50), unique=True, nullable=False, index=True)
+    telegram_username = Column(String(255), nullable=True, default=None)
+    telegram_first_name = Column(String(255), nullable=True, default=None)
+    telegram_last_name = Column(String(255), nullable=True, default=None)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
+    created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    updated_at: Mapped[datetime] = mapped_column(
+    updated_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
 
     # Relationships - use string references to avoid circular imports
-    wallet: Mapped[Wallet | None] = relationship(
+    wallet = relationship(
         "Wallet", back_populates="user", uselist=False, lazy="selectin"
     )
-    sent_transactions: Mapped[list[Transaction]] = relationship(
+    sent_transactions = relationship(
         "Transaction", foreign_keys="Transaction.sender_id", back_populates="sender", lazy="select"
     )
-    settings: Mapped[UserSettings | None] = relationship(
+    settings = relationship(
         "UserSettings", back_populates="user", uselist=False, lazy="selectin"
     )
 
@@ -77,29 +72,29 @@ class Wallet(Base):
 
     __tablename__ = "wallets"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    id = Column(Integer, primary_key=True)
+    user_id = Column(
         Integer, ForeignKey("users.id"), unique=True, nullable=False
     )
 
     # XRP Account Details
-    xrp_address: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    encrypted_secret: Mapped[str] = mapped_column(Text, nullable=False)
+    xrp_address = Column(String(255), unique=True, nullable=False, index=True)
+    encrypted_secret = Column(Text, nullable=False)
 
     # Balance tracking (cached for performance)
-    balance: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    last_balance_update: Mapped[datetime | None] = mapped_column(
+    balance = Column(Float, default=0.0, nullable=False)
+    last_balance_update = Column(
         DateTime(timezone=True), nullable=True, default=None
     )
 
     # Security
-    encryption_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    encryption_version = Column(Integer, default=1, nullable=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
+    created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    updated_at: Mapped[datetime] = mapped_column(
+    updated_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
@@ -107,7 +102,7 @@ class Wallet(Base):
     )
 
     # Relationships
-    user: Mapped[User] = relationship("User", back_populates="wallet")
+    user = relationship("User", back_populates="wallet")
 
     def __repr__(self) -> str:
         return f"<Wallet(id={self.id}, xrp_address={self.xrp_address}, balance={self.balance})>"
@@ -118,45 +113,45 @@ class Transaction(Base):
 
     __tablename__ = "transactions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
     # Transaction parties
-    sender_id: Mapped[int | None] = mapped_column(
+    sender_id = Column(
         Integer, ForeignKey("users.id"), nullable=True, default=None
     )
-    sender_address: Mapped[str] = mapped_column(String(255), nullable=False)
-    recipient_address: Mapped[str] = mapped_column(String(255), nullable=False)
+    sender_address = Column(String(255), nullable=False)
+    recipient_address = Column(String(255), nullable=False)
 
     # Transaction details
-    amount: Mapped[float] = mapped_column(Float, nullable=False)
-    fee: Mapped[float] = mapped_column(Float, default=0.00001, nullable=False)
+    amount = Column(Float, nullable=False)
+    fee = Column(Float, default=0.00001, nullable=False)
 
     # Idempotency key for preventing duplicate transactions
-    idempotency_key: Mapped[str | None] = mapped_column(
+    idempotency_key = Column(
         String(255), unique=True, index=True, nullable=True, default=None
     )
 
     # XRP Ledger details
-    tx_hash: Mapped[str | None] = mapped_column(
+    tx_hash = Column(
         String(255), unique=True, index=True, nullable=True, default=None
     )
-    ledger_index: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    ledger_index = Column(Integer, nullable=True, default=None)
 
     # Status tracking
-    status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
-    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status = Column(String(50), default="pending", nullable=False)
+    error_message = Column(Text, nullable=True, default=None)
+    retry_count = Column(Integer, default=0, nullable=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
+    created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    confirmed_at: Mapped[datetime | None] = mapped_column(
+    confirmed_at = Column(
         DateTime(timezone=True), nullable=True, default=None
     )
 
     # Relationships
-    sender: Mapped[User | None] = relationship("User", back_populates="sent_transactions")
+    sender = relationship("User", back_populates="sent_transactions")
 
     def __repr__(self) -> str:
         return f"<Transaction(id={self.id}, hash={self.tx_hash}, amount={self.amount}, status={self.status})>"
@@ -167,20 +162,20 @@ class PriceHistory(Base):
 
     __tablename__ = "price_history"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
     # Price data
-    price_usd: Mapped[float] = mapped_column(Float, nullable=False)
-    price_btc: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
-    market_cap: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
-    volume_24h: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
-    change_24h: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
+    price_usd = Column(Float, nullable=False)
+    price_btc = Column(Float, nullable=True, default=None)
+    market_cap = Column(Float, nullable=True, default=None)
+    volume_24h = Column(Float, nullable=True, default=None)
+    change_24h = Column(Float, nullable=True, default=None)
 
     # Source tracking
-    source: Mapped[str] = mapped_column(String(50), default="coingecko", nullable=False)
+    source = Column(String(50), default="coingecko", nullable=False)
 
     # Timestamps
-    timestamp: Mapped[datetime] = mapped_column(
+    timestamp = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         index=True,
@@ -198,41 +193,41 @@ class IdempotencyRecord(Base):
 
     __tablename__ = "idempotency_records"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
     # Idempotency tracking
-    idempotency_key: Mapped[str] = mapped_column(
+    idempotency_key = Column(
         String(255), unique=True, index=True, nullable=False
     )
-    user_id: Mapped[int | None] = mapped_column(
+    user_id = Column(
         Integer, ForeignKey("users.id"), nullable=True, default=None
     )
-    operation_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    operation_type = Column(String(50), nullable=False)
 
     # Request data for comparison
-    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA256 hash
-    request_data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
+    request_hash = Column(String(64), nullable=False)  # SHA256 hash
+    request_data = Column(Text, nullable=False)  # JSON string
 
     # Response tracking
-    response_status: Mapped[str] = mapped_column(
+    response_status = Column(
         String(20), nullable=False
     )  # success, error, processing
-    response_data: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    response_data = Column(Text, nullable=True, default=None)
 
     # Related records
-    transaction_id: Mapped[int | None] = mapped_column(
+    transaction_id = Column(
         Integer, ForeignKey("transactions.id"), nullable=True, default=None
     )
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
+    created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
 
     # Relationships
-    user: Mapped[User | None] = relationship("User")
-    transaction: Mapped[Transaction | None] = relationship("Transaction")
+    user = relationship("User")
+    transaction = relationship("Transaction")
 
     def __repr__(self) -> str:
         return f"<IdempotencyRecord(key={self.idempotency_key}, operation={self.operation_type}, status={self.response_status})>"
@@ -243,28 +238,28 @@ class UserSettings(Base):
 
     __tablename__ = "user_settings"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    id = Column(Integer, primary_key=True)
+    user_id = Column(
         Integer, ForeignKey("users.id"), unique=True, nullable=False
     )
 
     # Notification preferences
-    price_alerts: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    transaction_notifications: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    price_alerts = Column(Boolean, default=False, nullable=False)
+    transaction_notifications = Column(Boolean, default=True, nullable=False)
 
     # Display preferences
-    currency_display: Mapped[str] = mapped_column(String(10), default="USD", nullable=False)
-    language: Mapped[str] = mapped_column(String(10), default="en", nullable=False)
+    currency_display = Column(String(10), default="USD", nullable=False)
+    language = Column(String(10), default="en", nullable=False)
 
     # Security
-    two_factor_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    pin_code: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
+    two_factor_enabled = Column(Boolean, default=False, nullable=False)
+    pin_code = Column(String(255), nullable=True, default=None)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
+    created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    updated_at: Mapped[datetime] = mapped_column(
+    updated_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
@@ -272,7 +267,7 @@ class UserSettings(Base):
     )
 
     # Relationships
-    user: Mapped[User] = relationship("User", back_populates="settings")
+    user = relationship("User", back_populates="settings")
 
     def __repr__(self) -> str:
         return f"<UserSettings(id={self.id}, user_id={self.user_id}, language={self.language})>"

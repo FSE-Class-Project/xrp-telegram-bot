@@ -4,11 +4,11 @@ import json
 import logging
 import pickle
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Set, Callable, Generator
 
 import redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import RedisError
+from redis.exceptions import RedisError, LockError
 
 from ..config import settings
 
@@ -94,7 +94,7 @@ class RedisCache:
         """Check if Redis is connected."""
         return self._connected
 
-    def _safe_execute(self, operation, *args, **kwargs) -> Any | None:
+    def _safe_execute(self, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any | None:
         """Safely execute Redis operation with error handling."""
         if not self._connected:
             self._test_connection()
@@ -158,7 +158,7 @@ class RedisCache:
         try:
             json_value = json.dumps(value)
             return self.set(key, json_value, ttl)
-        except (TypeError, json.JSONEncodeError) as e:
+        except (TypeError, ValueError) as e:
             logger.error(f"Failed to encode JSON for key {key}: {e}")
             return False
 
@@ -168,7 +168,7 @@ class RedisCache:
         value = self.get(key)
         if value:
             try:
-                return pickle.loads(value)
+                return pickle.loads(value)  # type: ignore[arg-type]
             except (pickle.PickleError, TypeError) as e:
                 logger.error(f"Failed to unpickle object for key {key}: {e}")
         return None
@@ -237,7 +237,7 @@ class RedisCache:
         result = self._safe_execute(self.client.srem, key, *members)
         return result or 0
 
-    def smembers(self, key: str) -> set:
+    def smembers(self, key: str) -> Set[Any]:
         """Get all set members."""
         result = self._safe_execute(self.client.smembers, key)
         return result or set()
@@ -262,17 +262,18 @@ class RedisCache:
         result = self._safe_execute(self.client.keys, pattern)
         return result or []
 
-    def scan_iter(self, match: str | None = None, count: int = 100):
+    def scan_iter(self, match: str | None = None, count: int = 100) -> Generator[str, None, None]:
         """Scan keys matching pattern (production-safe)."""
+        if not self._connected:
+            return
         try:
             yield from self.client.scan_iter(match=match, count=count)
         except (RedisError, RedisConnectionError) as e:
             logger.error(f"Scan operation failed: {e}")
-            return
 
     # Distributed locking
     @contextmanager
-    def lock(self, key: str, timeout: int = 10, blocking_timeout: int | None = None):
+    def lock(self, key: str, timeout: int = 10, blocking_timeout: int | None = None) -> Any:
         """Distributed lock context manager."""
         lock = self.client.lock(key, timeout=timeout, blocking_timeout=blocking_timeout)
         acquired = False
@@ -286,11 +287,11 @@ class RedisCache:
             if acquired:
                 try:
                     lock.release()
-                except redis.exceptions.LockError:
+                except LockError:
                     pass  # Lock already released or expired
 
     # Batch operations
-    def pipeline(self):
+    def pipeline(self) -> Any:
         """Create a pipeline for batch operations."""
         return self.client.pipeline()
 
@@ -456,7 +457,7 @@ class CacheService:
         return True, 0
 
     # Distributed locking
-    def acquire_transaction_lock(self, user_id: int, timeout: int = 10):
+    def acquire_transaction_lock(self, user_id: int, timeout: int = 10) -> Any:
         """Acquire lock for transaction processing."""
         if not self.enabled:
             return None

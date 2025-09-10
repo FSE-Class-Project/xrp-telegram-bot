@@ -132,7 +132,7 @@ if settings.ENVIRONMENT == "production":
 else:
     rate_limits = ["200/minute", "2000/hour"]  # More lenient for development
 
-setup_rate_limiting(app, default_limits=rate_limits)
+setup_rate_limiting(app, default_limits=rate_limits)  # type: ignore[arg-type]
 
 # Add idempotency middleware
 add_idempotency_middleware(app)

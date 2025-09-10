@@ -101,7 +101,7 @@ def validate_xrp_amount(v: Decimal) -> Decimal:
     """Comprehensive XRP amount validation using network constants."""
     # Convert to Decimal if needed and normalize
     if not isinstance(v, Decimal):
-        v = Decimal(str(v))
+        v = Decimal(str(v))  # type: ignore[unreachable]
 
     # Basic validation
     if v <= 0:
@@ -328,8 +328,8 @@ async def get_current_user(
 )
 @limiter.limit("5/hour")  # Limit registrations to prevent abuse
 async def register_user(
-    _request: Request,
-    _response: Response,
+    request: Request,
+    response: Response,
     registration: UserRegistration,
     db: Session = Depends(get_db),
 ) -> UserResponse:
@@ -486,8 +486,8 @@ async def validate_transaction(
 )
 @limiter.limit(rate_limit_transactions)
 async def send_transaction(
-    _request: Request,
-    _response: Response,
+    request: Request,
+    response: Response,
     transaction: SendTransactionRequest,
     db: Session = Depends(get_db),
     idempotency_key: str | None = Depends(get_idempotency_key),
@@ -539,7 +539,7 @@ async def send_transaction(
     if not idempotency_key:
         assert sender.id is not None, "Sender ID cannot be None"
         idempotency_key = IdempotencyKey.from_request(
-            user_id=sender.id,
+            user_id=int(sender.id),  # type: ignore[arg-type]
             operation="send_transaction",
             data={
                 "to_address": transaction.to_address,
@@ -552,7 +552,7 @@ async def send_transaction(
     assert sender.id is not None, "Sender ID cannot be None"
     existing = await tx_idempotency.check_transaction_idempotency(
         idempotency_key=idempotency_key,
-        user_id=sender.id,
+        user_id=int(sender.id),  # type: ignore[arg-type]
         to_address=transaction.to_address,
         amount=float(transaction.amount),
     )
@@ -561,8 +561,8 @@ async def send_transaction(
         # Return existing transaction result
         if hasattr(existing, "tx_hash"):  # It's a Transaction
             return TransactionResponse(
-                success=existing.status == "success",
-                tx_hash=existing.tx_hash,
+                success=existing.status == "success",  # type: ignore[arg-type]
+                tx_hash=str(existing.tx_hash) if existing.tx_hash else None,  # type: ignore[arg-type]
                 amount=Decimal(str(existing.amount)),
                 fee=Decimal(str(existing.fee)),
             )
@@ -575,7 +575,7 @@ async def send_transaction(
             elif existing.response_status == "success" and existing.response_data:
                 import json
 
-                response_data = json.loads(existing.response_data)
+                response_data = json.loads(str(existing.response_data))  # type: ignore[arg-type]
                 return TransactionResponse(
                     success=True,
                     tx_hash=response_data.get("tx_hash"),
@@ -587,7 +587,7 @@ async def send_transaction(
     assert sender.id is not None, "Sender ID cannot be None"
     idempotency_record = await tx_idempotency.create_transaction_idempotency(
         idempotency_key=idempotency_key,
-        user_id=sender.id,
+        user_id=int(sender.id),  # type: ignore[arg-type]
         to_address=transaction.to_address,
         amount=float(transaction.amount),
     )
@@ -675,7 +675,7 @@ async def get_transaction_history(
     },
 )
 @limiter.limit("30/minute")  # Allow reasonable price checking
-async def get_current_price(_request: Request, _response: Response) -> PriceInfo:
+async def get_current_price(request: Request, response: Response) -> PriceInfo:
     """Get current XRP price from CoinGecko."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
