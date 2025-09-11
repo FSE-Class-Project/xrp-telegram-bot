@@ -15,18 +15,18 @@ class Settings(BaseSettings):
     # Database - Auto-detect based on environment
     DATABASE_URL: str = ""
 
-    # Security
+    # Security - these should be overridden via environment variables
     ENCRYPTION_KEY: str = ""
-    JWT_SECRET: str = "dev-jwt-secret-change-in-production"
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
-    BOT_API_KEY: str = "dev-bot-api-key-change-in-production"
-    ADMIN_API_KEY: str = "dev-admin-api-key-change-in-production"
+    BOT_API_KEY: str = ""
+    ADMIN_API_KEY: str = ""
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_WEBHOOK_URL: str | None = None
-    TELEGRAM_WEBHOOK_SECRET: str = "dev-webhook-secret-change-in-production"
+    TELEGRAM_WEBHOOK_SECRET: str = ""
 
     # XRP Ledger
     XRP_NETWORK: str = "testnet"
@@ -48,9 +48,8 @@ class Settings(BaseSettings):
     PRICE_API_URL: str = "https://api.coingecko.com/api/v3"
     PRICE_API_KEY: str | None = None
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def configure_for_environment(self) -> None:
+        """Configure settings based on environment - call this explicitly after creation"""
         # Auto-configure for Render deployment
         if os.getenv("RENDER"):
             self.ENVIRONMENT = "production"
@@ -70,16 +69,50 @@ class Settings(BaseSettings):
                 if self.DATABASE_URL.startswith("postgres://"):
                     # Render uses postgres://, but SQLAlchemy needs postgresql://
                     self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+                if not self.DATABASE_URL:
+                    raise ValueError("DATABASE_URL must be set in production environment")
             else:
                 # In development, use SQLite
                 self.DATABASE_URL = "sqlite:///./xrp_bot.db"
-                print(f"Using SQLite for local development: {self.DATABASE_URL}")
+        
+        # Configure security settings based on environment
+        self._configure_security_settings()
 
-        # Auto-generate encryption key if not set
+    def ensure_encryption_key(self) -> str:
+        """Ensure encryption key exists, generate if needed"""
         if not self.ENCRYPTION_KEY:
             self.ENCRYPTION_KEY = self.generate_encryption_key()
-            print(f"⚠️  Generated ENCRYPTION_KEY: {self.ENCRYPTION_KEY}")
-            print("   Add this to your .env file!")
+            return self.ENCRYPTION_KEY
+        return self.ENCRYPTION_KEY
+
+    def _configure_security_settings(self) -> None:
+        """Configure security settings based on environment"""
+        import secrets
+        
+        # Generate development defaults if in development mode
+        if self.ENVIRONMENT != "production" and not os.getenv("RENDER"):
+            if not self.JWT_SECRET:
+                self.JWT_SECRET = f"dev-jwt-{secrets.token_urlsafe(16)}"
+            if not self.BOT_API_KEY:
+                self.BOT_API_KEY = f"dev-bot-{secrets.token_urlsafe(16)}"
+            if not self.ADMIN_API_KEY:
+                self.ADMIN_API_KEY = f"dev-admin-{secrets.token_urlsafe(16)}"
+            if not self.TELEGRAM_WEBHOOK_SECRET:
+                self.TELEGRAM_WEBHOOK_SECRET = f"dev-webhook-{secrets.token_urlsafe(16)}"
+        else:
+            # In production, all secrets must be provided via environment
+            missing_secrets = []
+            if not self.JWT_SECRET:
+                missing_secrets.append("JWT_SECRET")
+            if not self.BOT_API_KEY:
+                missing_secrets.append("BOT_API_KEY")
+            if not self.ADMIN_API_KEY:
+                missing_secrets.append("ADMIN_API_KEY")
+            if not self.TELEGRAM_WEBHOOK_SECRET:
+                missing_secrets.append("TELEGRAM_WEBHOOK_SECRET")
+                
+            if missing_secrets:
+                raise ValueError(f"Production environment requires these secrets: {', '.join(missing_secrets)}")
 
     @staticmethod
     def generate_encryption_key() -> str:
@@ -87,6 +120,12 @@ class Settings(BaseSettings):
         from cryptography.fernet import Fernet
 
         return Fernet.generate_key().decode()
+    
+    @staticmethod
+    def generate_secure_secret(length: int = 32) -> str:
+        """Generate a secure random secret"""
+        import secrets
+        return secrets.token_urlsafe(length)
 
     class Config:
         env_file = ".env"
@@ -95,3 +134,9 @@ class Settings(BaseSettings):
 
 # Create settings instance
 settings = Settings()
+
+# Configure based on environment (call this explicitly)
+def initialize_settings():
+    """Initialize and configure settings - must be called before using settings"""
+    settings.configure_for_environment()
+    return settings

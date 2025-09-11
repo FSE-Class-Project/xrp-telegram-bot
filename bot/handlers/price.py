@@ -77,10 +77,7 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(f"Error in price_command: {e}", exc_info=True)
         await reply_func(
-            format_error_message(
-                "An unexpected error occurred",
-                str(e)
-            ),
+            format_error_message(f"An unexpected error occurred: {str(e)}"),
             parse_mode=ParseMode.HTML
         )
 
@@ -148,11 +145,11 @@ def format_enhanced_price_message(price_data: Dict[str, Any], market_data: Optio
         Formatted HTML message string
     """
     # Extract values with defaults
-    price_usd = price_data.get('price_usd', 0)
-    price_btc = price_data.get('price_btc', 0)
-    change_24h = price_data.get('change_24h_percent', price_data.get('change_24h', 0))
-    market_cap = price_data.get('market_cap_usd', price_data.get('market_cap', 0))
-    volume_24h = price_data.get('volume_24h_usd', price_data.get('volume_24h', 0))
+    price_usd = float(price_data.get('price_usd', 0))
+    price_btc = float(price_data.get('price_btc', 0))
+    change_24h = float(price_data.get('change_24h_percent', price_data.get('change_24h', 0)))
+    market_cap = float(price_data.get('market_cap_usd', price_data.get('market_cap', 0)))
+    volume_24h = float(price_data.get('volume_24h_usd', price_data.get('volume_24h', 0)))
     
     # Choose emoji based on price change
     change_emoji = "📈" if change_24h >= 0 else "📉"

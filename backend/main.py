@@ -13,8 +13,8 @@ from .api.middleware import add_idempotency_middleware, setup_rate_limiting
 from .api.routes import router
 from .api.settings_routes import settings_router
 from .api.webhook import set_telegram_app, webhook_router
-from .config import settings
-from .database.connection import engine, init_database
+from .config import settings, initialize_settings
+from .database.connection import initialize_database_engine, init_database, close_database_connections
 
 # Check if running on Render
 IS_RENDER = os.getenv("RENDER") is not None
@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
+    # Initialize settings first
+    initialize_settings()
+    
     # Startup
     logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"🌍 Environment: {settings.ENVIRONMENT}")
@@ -38,8 +41,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"💾 Database: {settings.DATABASE_URL[:30]}...")
     logger.info(f"🪙 XRP Network: {settings.XRP_NETWORK}")
 
-    # Initialize database
+    # Initialize database engine and schema
     try:
+        initialize_database_engine(settings.DATABASE_URL, settings.DEBUG)
         init_database()
         logger.info("✅ Database initialized successfully")
     except Exception as e:
@@ -48,8 +52,18 @@ async def lifespan(app: FastAPI):
 
     # Initialize encryption service
     try:
+        # Ensure encryption key is available
+        encryption_key = settings.ensure_encryption_key()
+        if encryption_key == settings.ENCRYPTION_KEY and not os.getenv("ENCRYPTION_KEY"):
+            if settings.ENVIRONMENT == "production":
+                logger.error("❌ ENCRYPTION_KEY must be set in production environment!")
+                raise ValueError("ENCRYPTION_KEY required in production")
+            else:
+                logger.warning("⚠️ Generated new ENCRYPTION_KEY - add this to your .env file!")
+                # Only show key in development mode and only first few characters
+                logger.info(f"   ENCRYPTION_KEY={encryption_key[:8]}...{encryption_key[-4:]}")
+        
         from .utils.encryption import encryption_service
-
         # encryption_service is already an instance, just verify it exists
         encryption_service.generate_key()
         logger.info("✅ Encryption service initialized")
@@ -108,7 +122,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("👋 Shutting down application...")
-    engine.dispose()
+    close_database_connections()
 
 
 # Create FastAPI app
@@ -116,14 +130,33 @@ app = FastAPI(
     title=settings.APP_NAME, version=settings.APP_VERSION, debug=settings.DEBUG, lifespan=lifespan
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Add CORS middleware with environment-specific configuration
+if settings.ENVIRONMENT == "production":
+    # Production: Restrictive CORS
+    allowed_origins = [
+        settings.API_URL,
+    ]
+    # Add render URL if available
+    render_url = os.getenv("RENDER_EXTERNAL_URL")
+    if render_url and render_url not in allowed_origins:
+        allowed_origins.append(render_url)
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=False,  # More secure for production
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
+else:
+    # Development: Permissive CORS for easier development
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Setup rate limiting and idempotency middleware
 # Configure different limits based on environment
@@ -165,6 +198,7 @@ async def root():
         "environment": settings.ENVIRONMENT,
         "network": settings.XRP_NETWORK,
         "platform": "render" if IS_RENDER else "local",
+        "debug_timestamp": "2025-09-11-updated",  # Force reload indicator
     }
 
 

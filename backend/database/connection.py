@@ -16,7 +16,6 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 
-from ..config import settings
 from .models import Base
 
 if TYPE_CHECKING:
@@ -24,43 +23,57 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Global variables that will be initialized later
+engine: Engine | None = None
+SessionLocal: sessionmaker[Session] | None = None
 
-def create_db_engine() -> Engine:
+
+def create_db_engine(database_url: str, debug: bool = False) -> Engine:
     """Create and configure database engine."""
-    if settings.DATABASE_URL.startswith("sqlite"):
+    if database_url.startswith("sqlite"):
         # SQLite specific settings for concurrent access
         engine = create_engine(
-            settings.DATABASE_URL,
+            database_url,
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
-            echo=settings.DEBUG,
+            echo=debug,
         )
     else:
         # PostgreSQL/MySQL settings
         engine = create_engine(
-            settings.DATABASE_URL,
+            database_url,
             pool_size=20,
             max_overflow=40,
             pool_pre_ping=True,
-            echo=settings.DEBUG,
+            echo=debug,
         )
     return engine
 
 
-# Create engine
-engine = create_db_engine()
+def initialize_database_engine(database_url: str, debug: bool = False) -> None:
+    """Initialize database engine and session factory."""
+    global engine, SessionLocal
+    
+    if engine is not None:
+        logger.warning("Database engine already initialized")
+        return
+    
+    logger.info(f"Initializing database engine with URL: {database_url[:30]}...")
+    
+    # Create engine
+    engine = create_db_engine(database_url, debug)
+    
+    # Create session factory
+    SessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine,
+        class_=Session,  # Explicitly specify Session class
+        expire_on_commit=False,  # Don't expire objects after commit
+    )
 
-# Create session factory
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    class_=Session,  # Explicitly specify Session class
-    expire_on_commit=False,  # Don't expire objects after commit
-)
 
-
-def get_alembic_config() -> Config:
+def get_alembic_config(database_url: str) -> Config:
     """Get Alembic configuration."""
     # Get the project root directory (where alembic.ini is located)
     project_root = Path(__file__).parent.parent.parent
@@ -72,14 +85,25 @@ def get_alembic_config() -> Config:
     # Create Alembic config
     alembic_cfg = Config(str(alembic_cfg_path))
 
-    # Set the database URL from our settings
-    alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    # Set the database URL
+    alembic_cfg.set_main_option("sqlalchemy.url", database_url)
 
     return alembic_cfg
 
 
-def init_database() -> None:
+def init_database(database_url: str | None = None, debug: bool = False) -> None:
     """Initialize database using Alembic migrations."""
+    global engine
+    
+    # Initialize engine if not already done
+    if engine is None:
+        if database_url is None:
+            raise ValueError("Database URL must be provided when engine is not initialized")
+        initialize_database_engine(database_url, debug)
+    
+    if engine is None:
+        raise RuntimeError("Failed to initialize database engine")
+    
     try:
         # Check if database needs migrations
         with engine.connect() as connection:
@@ -87,7 +111,7 @@ def init_database() -> None:
             current_rev = context.get_current_revision()
 
         # Get Alembic configuration
-        alembic_cfg = get_alembic_config()
+        alembic_cfg = get_alembic_config(engine.url.render_as_string(hide_password=False))
         script = ScriptDirectory.from_config(alembic_cfg)
         head_rev = script.get_current_head()
 
@@ -122,6 +146,9 @@ def get_db() -> Generator[Session, None, None]:
     Dependency for getting database session.
     Yields a database session and closes it after use.
     """
+    if SessionLocal is None:
+        raise RuntimeError("Database not initialized. Call initialize_database_engine first.")
+    
     db = SessionLocal()
     try:
         yield db
@@ -134,11 +161,18 @@ def get_db_session() -> Session:
     Get a database session directly (for non-FastAPI contexts).
     Remember to close the session when done.
     """
+    if SessionLocal is None:
+        raise RuntimeError("Database not initialized. Call initialize_database_engine first.")
+    
     return SessionLocal()
 
 
 def check_database_health() -> bool:
     """Check if database is healthy."""
+    if SessionLocal is None:
+        logger.error("Database not initialized")
+        return False
+        
     try:
         db = SessionLocal()
         try:
@@ -151,3 +185,13 @@ def check_database_health() -> bool:
     except Exception as e:
         logger.error(f"Database health check failed: {str(e)}")
         return False
+
+
+def close_database_connections() -> None:
+    """Close all database connections gracefully."""
+    global engine
+    
+    if engine is not None:
+        logger.info("Closing database connections...")
+        engine.dispose()
+        logger.info("Database connections closed")

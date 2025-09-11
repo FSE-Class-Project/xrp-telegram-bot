@@ -50,9 +50,9 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             price_response = await client.get(f"{api_url}/api/v1/price/current")
             price_data = price_response.json() if price_response.status_code == 200 else {}
             
-            balance_xrp = balance_data.get('balance', 0)
-            available_balance = balance_data.get('available_balance', 0)
-            price_usd = price_data.get('price_usd', 0)
+            balance_xrp = float(balance_data.get('balance', 0))
+            available_balance = float(balance_data.get('available_balance', 0))
+            price_usd = float(price_data.get('price_usd', 0))
             usd_value = balance_xrp * price_usd
             wallet_address = balance_data.get('address', 'N/A')
             
@@ -129,7 +129,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             username = format_username(user.username)
             
-            balance_xrp = wallet_data.get('balance', 0)
+            balance_xrp = float(wallet_data.get('balance', 0))
             wallet_address = wallet_data.get('address', 'N/A')
             
             # Format message with HTML

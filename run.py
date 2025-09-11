@@ -31,20 +31,53 @@ def print_banner():
     """)
 
 def check_requirements():
-    """Check if all requirements are installed"""
-    try:
-        import fastapi  # noqa: F401
-        import telegram  # noqa: F401
-        import xrpl  # noqa: F401
-        import sqlalchemy  # noqa: F401
-        import cryptography  # noqa: F401
-        import httpx  # noqa: F401
-        print(f"{GREEN}[OK] All required packages installed{RESET}")
-        return True
-    except ImportError as e:
-        print(f"{RED}[ERR] Missing package: {e.name}{RESET}")
+    """Check if all requirements are installed with version verification"""
+    required_packages = [
+        ("fastapi", "0.95.0"),
+        ("telegram", "20.0.0"), 
+        ("xrpl", "2.0.0"),
+        ("sqlalchemy", "2.0.0"),
+        ("cryptography", "3.0.0"),
+        ("httpx", "0.24.0"),
+        ("uvicorn", "0.20.0"),
+        ("pydantic", "2.0.0")
+    ]
+    
+    missing_packages = []
+    version_mismatches = []
+    
+    for package_name, min_version in required_packages:
+        try:
+            if package_name == "telegram":
+                # Special case for python-telegram-bot package name
+                import telegram
+                module = telegram
+            else:
+                module = __import__(package_name)
+            
+            # Check version if available
+            if hasattr(module, '__version__'):
+                current_version = module.__version__
+                # Simple version comparison (works for most cases)
+                if current_version < min_version:
+                    version_mismatches.append(f"{package_name}: {current_version} < {min_version}")
+            
+        except ImportError as e:
+            missing_packages.append(package_name)
+    
+    if missing_packages:
+        print(f"{RED}[ERR] Missing packages: {', '.join(missing_packages)}{RESET}")
         print(f"{YELLOW}Run: pip install -r requirements.txt{RESET}")
         return False
+    
+    if version_mismatches:
+        print(f"{YELLOW}[WARN] Version mismatches detected:{RESET}")
+        for mismatch in version_mismatches:
+            print(f"{YELLOW}  - {mismatch}{RESET}")
+        print(f"{YELLOW}Consider running: pip install --upgrade -r requirements.txt{RESET}")
+    
+    print(f"{GREEN}[OK] All required packages installed{RESET}")
+    return True
 
 def check_environment():
     """Check if required environment variables are set"""
@@ -66,18 +99,25 @@ def check_environment():
 def initialize_database():
     """Initialize the database"""
     try:
-        from backend.database.connection import init_database
-        from backend.config import settings
+        from backend.database.connection import initialize_database_engine, init_database
+        from backend.config import settings, initialize_settings
+        
+        # Initialize settings first
+        initialize_settings()
         
         print(f"{YELLOW}Initializing database...{RESET}")
+        
+        # Initialize database engine and schema
+        initialize_database_engine(settings.DATABASE_URL, settings.DEBUG)
         init_database()
         print(f"{GREEN}[OK] Database initialized{RESET}")
         
-        # Generate encryption key if needed
-        if not settings.ENCRYPTION_KEY:
-            key = settings.generate_encryption_key()
-            print(f"{YELLOW}! Generated ENCRYPTION_KEY: {key}{RESET}")
-            print(f"{YELLOW}  Add this to your .env file!{RESET}")
+        # Ensure encryption key exists
+        encryption_key = settings.ensure_encryption_key()
+        if encryption_key == settings.ENCRYPTION_KEY and not os.getenv("ENCRYPTION_KEY"):
+            print(f"{YELLOW}! Generated new ENCRYPTION_KEY - add this to your .env file!{RESET}")
+            print(f"{YELLOW}  ENCRYPTION_KEY={encryption_key[:8]}...{encryption_key[-4:]}{RESET}")
+            print(f"{GREEN}  Full key saved to logs - check application output for complete key{RESET}")
         
         return True
     except Exception as e:
@@ -124,6 +164,28 @@ def cleanup_telegram_instances():
     except Exception:
         pass  # Ignore cleanup errors
 
+def wait_for_backend(max_attempts=30, delay=1):
+    """Wait for backend to be ready with proper health checks"""
+    import requests
+    
+    print(f"{YELLOW}Waiting for backend to be ready...{RESET}")
+    
+    for attempt in range(max_attempts):
+        try:
+            # Check health endpoint
+            response = requests.get("http://localhost:8000/health", timeout=5)
+            if response.status_code == 200:
+                print(f"{GREEN}[OK] Backend API is ready (attempt {attempt + 1})${RESET}")
+                return True
+        except requests.exceptions.RequestException as e:
+            if attempt < max_attempts - 1:
+                print(f"{YELLOW}Attempt {attempt + 1}: Backend not ready, waiting {delay}s...{RESET}")
+                time.sleep(delay)
+            else:
+                print(f"{RED}[ERR] Backend health check failed: {e}{RESET}")
+    
+    return False
+
 def start_bot():
     """Start the Telegram bot"""
     print(f"\n{BLUE}Starting Telegram Bot...{RESET}")
@@ -131,32 +193,26 @@ def start_bot():
     # Clean up any existing bot connections first
     cleanup_telegram_instances()
     
-    # Wait for backend to be ready
-    import httpx
-    import asyncio
-    
-    async def wait_for_backend():
-        for _ in range(10):
-            try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get("http://localhost:8000/api/v1/health")
-                    if response.status_code == 200:
-                        return True
-            except:
-                pass
-            await asyncio.sleep(1)
-        return False
-    
-    if asyncio.run(wait_for_backend()):
-        print(f"{GREEN}[OK] Backend API is ready{RESET}")
-    else:
-        print(f"{YELLOW}! Backend API may not be ready yet{RESET}")
+    # Wait for backend to be ready with proper health checks
+    if not wait_for_backend():
+        print(f"{RED}[ERR] Backend is not ready, cannot start bot{RESET}")
+        return None
     
     cmd = [sys.executable, "-m", "bot.main"]
-    process = subprocess.Popen(cmd)
-    print(f"{GREEN}[OK] Telegram Bot started{RESET}")
-    
-    return process
+    try:
+        process = subprocess.Popen(cmd)
+        print(f"{GREEN}[OK] Telegram Bot started{RESET}")
+        
+        # Give bot a moment to initialize and check if it's still running
+        time.sleep(2)
+        if process.poll() is not None:
+            print(f"{RED}[ERR] Bot process exited immediately{RESET}")
+            return None
+        
+        return process
+    except Exception as e:
+        print(f"{RED}[ERR] Failed to start bot: {e}{RESET}")
+        return None
 
 def graceful_shutdown(backend_process, bot_process):
     """Gracefully shutdown all processes"""
@@ -224,6 +280,10 @@ def run_development():
         
         # Start bot
         bot_process = start_bot()
+        if bot_process is None:
+            print(f"{RED}[ERR] Failed to start bot, shutting down backend{RESET}")
+            graceful_shutdown(backend_process, None)
+            return 1
         
         print(f"\n{GREEN}==============================================={RESET}")
         print(f"{GREEN}[OK] All services started successfully!{RESET}")
@@ -241,21 +301,35 @@ def run_development():
         print(f"\n{YELLOW}Press Ctrl+C to stop all services{RESET}")
         print(f"{GREEN}==============================================={RESET}\n")
         
-        # Wait for processes to complete or interrupt
+        # Enhanced process monitoring
         try:
-            while backend_process.poll() is None and bot_process.poll() is None:
-                time.sleep(1)
+            check_interval = 5  # Check every 5 seconds
+            while True:
+                # Check if processes are still running
+                backend_alive = backend_process.poll() is None
+                bot_alive = bot_process and bot_process.poll() is None
+                
+                if not backend_alive:
+                    print(f"{RED}[ERR] Backend process exited unexpectedly (code: {backend_process.poll()}){RESET}")
+                    if bot_process:
+                        print(f"{YELLOW}Stopping bot due to backend failure...{RESET}")
+                        graceful_shutdown(None, bot_process)
+                    return 1
+                
+                if bot_process and not bot_alive:
+                    print(f"{RED}[ERR] Bot process exited unexpectedly (code: {bot_process.poll()}){RESET}")
+                    print(f"{YELLOW}Bot died but backend is still running{RESET}")
+                    print(f"{YELLOW}You can restart just the bot with: python run.py bot{RESET}")
+                    graceful_shutdown(backend_process, None)
+                    return 1
+                
+                # Both processes are healthy
+                time.sleep(check_interval)
+                
         except KeyboardInterrupt:
+            print(f"\n{YELLOW}Received interrupt signal{RESET}")
             graceful_shutdown(backend_process, bot_process)
             return 0
-        
-        # Check if any process died unexpectedly
-        if backend_process.poll() is not None:
-            print(f"{RED}[ERR] Backend process exited unexpectedly{RESET}")
-        if bot_process.poll() is not None:
-            print(f"{RED}[ERR] Bot process exited unexpectedly{RESET}")
-        
-        return 1
         
     except Exception as e:
         print(f"{RED}[ERR] Error: {e}{RESET}")
@@ -264,14 +338,23 @@ def run_development():
 
 def main():
     """Main entry point"""
+    # Check for production environment
+    if os.getenv("RENDER") or os.getenv("ENVIRONMENT") == "production":
+        print(f"{RED}[ERR] This development script should not be used in production!{RESET}")
+        print(f"{YELLOW}In production, use: python -m backend.main{RESET}")
+        return 1
+    
     if len(sys.argv) > 1:
         command = sys.argv[1]
         
         if command == "backend":
-            # Run only backend
-            subprocess.run([sys.executable, "-m", "backend.main"])
+            # Run only backend in development mode
+            print(f"{BLUE}Running backend in development mode...{RESET}")
+            subprocess.run([sys.executable, "-m", "uvicorn", "backend.main:app", 
+                           "--host", "0.0.0.0", "--port", "8000", "--reload"])
         elif command == "bot":
-            # Run only bot
+            # Run only bot in development mode
+            print(f"{BLUE}Running bot in development polling mode...{RESET}")
             subprocess.run([sys.executable, "-m", "bot.main"])
         elif command == "test":
             # Run tests
@@ -279,6 +362,10 @@ def main():
         else:
             print(f"Unknown command: {command}")
             print("Usage: python run.py [backend|bot|test]")
+            print("  backend - Run only FastAPI backend")
+            print("  bot     - Run only Telegram bot (polling)")
+            print("  test    - Run test suite")
+            print("  (no args) - Run both backend and bot together")
             return 1
     else:
         # Run both in development mode

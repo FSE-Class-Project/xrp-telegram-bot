@@ -48,7 +48,8 @@ def format_xrp_amount(amount: Union[Decimal, float, str], decimals: int = 6) -> 
     elif isinstance(amount, float):
         amount = Decimal(str(amount))
     
-    return format(amount, f".{decimals}f")
+    format_spec = f".{decimals}f"
+    return format(amount, format_spec)
 
 
 def format_usd_amount(amount: Union[Decimal, float, str]) -> str:
@@ -115,7 +116,9 @@ def format_error_message(error: str) -> str:
     Returns:
         Formatted error message
     """
-    return f"❌ <b>Error</b>\n\n<code>{escape_html(error)}</code>"
+    # Safely escape and format the error message to prevent f-string conflicts
+    escaped_error = escape_html(str(error))
+    return "❌ <b>Error</b>\n\n<code>" + escaped_error + "</code>"
 
 
 def format_success_message(title: str, message: str) -> str:
@@ -129,7 +132,9 @@ def format_success_message(title: str, message: str) -> str:
     Returns:
         Formatted success message
     """
-    return f"✅ <b>{escape_html(title)}</b>\n\n{message}"
+    # Safely escape title to prevent formatting conflicts
+    escaped_title = escape_html(str(title))
+    return "✅ <b>" + escaped_title + "</b>\n\n" + message
 
 
 def format_warning_message(title: str, message: str) -> str:
@@ -143,7 +148,9 @@ def format_warning_message(title: str, message: str) -> str:
     Returns:
         Formatted warning message
     """
-    return f"⚠️ <b>{escape_html(title)}</b>\n\n{message}"
+    # Safely escape title to prevent formatting conflicts
+    escaped_title = escape_html(str(title))
+    return "⚠️ <b>" + escaped_title + "</b>\n\n" + message
 
 
 def format_balance_info(
@@ -172,18 +179,19 @@ def format_balance_info(
     formatted_usd = format_usd_amount(usd_value)
     
     message = (
-        f"💰 <b>Your Balance</b>\n\n"
-        f"📬 <b>Address:</b> {formatted_address}\n"
-        f"💵 <b>Balance:</b> {formatted_balance} XRP\n"
-        f"💸 <b>Available:</b> {formatted_available} XRP\n"
-        f"📈 <b>USD Value:</b> {formatted_usd}\n\n"
+        "💰 <b>Your Balance</b>\n\n"
+        "📬 <b>Address:</b> " + formatted_address + "\n"
+        "💵 <b>Balance:</b> " + formatted_balance + " XRP\n"
+        "💸 <b>Available:</b> " + formatted_available + " XRP\n"
+        "📈 <b>USD Value:</b> " + formatted_usd + "\n\n"
     )
     
     if last_updated:
         timestamp = last_updated.strftime('%Y-%m-%d %H:%M:%S UTC')
-        message += f"<i>Last updated: {timestamp}</i>"
+        message += "<i>Last updated: " + timestamp + "</i>"
     else:
-        message += f"<i>Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</i>"
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        message += "<i>Last updated: " + timestamp + "</i>"
     
     return message
 
@@ -212,13 +220,13 @@ def format_transaction_confirmation(
     formatted_total = format_xrp_amount(total)
     
     return (
-        f"📤 <b>Confirm Transaction</b>\n\n"
-        f"<b>To:</b> {formatted_recipient}\n"
-        f"<b>Amount:</b> {formatted_amount} XRP\n"
-        f"<b>Fee:</b> {formatted_fee} XRP\n"
-        f"<b>Total:</b> {formatted_total} XRP\n\n"
-        f"⚠️ <i>Please review carefully.</i>\n\n"
-        f"Reply <b>YES</b> to confirm or <b>NO</b> to cancel."
+        "📤 <b>Confirm Transaction</b>\n\n"
+        "<b>To:</b> " + formatted_recipient + "\n"
+        "<b>Amount:</b> " + formatted_amount + " XRP\n"
+        "<b>Fee:</b> " + formatted_fee + " XRP\n"
+        "<b>Total:</b> " + formatted_total + " XRP\n\n"
+        "⚠️ <i>Please review carefully.</i>\n\n"
+        "Reply <b>YES</b> to confirm or <b>NO</b> to cancel."
     )
 
 
@@ -234,12 +242,12 @@ def format_transaction_success(tx_hash: str, explorer_url: Optional[str] = None)
         Formatted success message
     """
     message = (
-        f"✅ <b>Transaction Successful!</b>\n\n"
-        f"<b>Hash:</b> {format_hash(tx_hash)}\n\n"
+        "✅ <b>Transaction Successful!</b>\n\n"
+        "<b>Hash:</b> " + format_hash(tx_hash) + "\n\n"
     )
     
     if explorer_url:
-        message += f'<a href="{escape_html(explorer_url)}">View on Explorer</a>'
+        message += '<a href="' + escape_html(explorer_url) + '">View on Explorer</a>'
     
     return message
 
@@ -284,20 +292,20 @@ def format_funding_instructions(balance: Union[Decimal, float, str], is_mainnet:
         if is_mainnet:
             available_amount = format_xrp_amount(balance_decimal - Decimal('10'))
             return (
-                f"\n\n💡 <b>Low Balance Notice</b>\n"
-                f"You have {available_amount} XRP available for transactions.\n"
-                f"Consider buying more XRP for larger transactions.\n\n"
-                f"<i>💡 Buy XRP from exchanges like Coinbase or Binance.</i>"
+                "\n\n💡 <b>Low Balance Notice</b>\n"
+                "You have " + available_amount + " XRP available for transactions.\n"
+                "Consider buying more XRP for larger transactions.\n\n"
+                "<i>💡 Buy XRP from exchanges like Coinbase or Binance.</i>"
             )
         else:
             available_amount = format_xrp_amount(balance_decimal - Decimal('10'))
             return (
-                f"\n\n💡 <b>Low Balance Notice</b>\n"
-                f"You have {available_amount} XRP available for transactions.\n"
-                f"Consider adding more funds for larger transactions.\n\n"
-                f"<b>Get more TestNet XRP:</b>\n"
-                f"<a href='https://xrpl.org/xrp-testnet-faucet.html'>XRPL Testnet Faucet</a>\n\n"
-                f"<i>💡 On mainnet, you'd buy XRP from an exchange.</i>"
+                "\n\n💡 <b>Low Balance Notice</b>\n"
+                "You have " + available_amount + " XRP available for transactions.\n"
+                "Consider adding more funds for larger transactions.\n\n"
+                "<b>Get more TestNet XRP:</b>\n"
+                "<a href='https://xrpl.org/xrp-testnet-faucet.html'>XRPL Testnet Faucet</a>\n\n"
+                "<i>💡 On mainnet, you'd buy XRP from an exchange.</i>"
             )
     
     return ""  # No funding message needed

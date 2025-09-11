@@ -69,13 +69,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Message for a newly registered user
             message = format_success_message(
                 "Wallet Created Successfully!",
-                f"📬 <b>Your XRP Address:</b>\n{format_xrp_address(wallet_address)}\n\n"
-                f"💰 <b>Initial Balance:</b> {balance:.6f} XRP\n\n"
+                "📬 <b>Your XRP Address:</b>\n" + format_xrp_address(wallet_address) + "\n\n"
+                "💰 <b>Initial Balance:</b> " + f"{float(balance):.6f}" + " XRP\n\n"
                 "⚠️ <i>This is a TestNet wallet with TestNet XRP for testing only.</i>"
             )
             
             # Add funding instructions for new wallets
-            funding_instructions = format_funding_instructions(balance, is_mainnet=False)
+            funding_instructions = format_funding_instructions(float(balance), is_mainnet=False)
             if funding_instructions:
                 message += funding_instructions
                 message += "\n\n"
@@ -84,13 +84,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             # Message for a returning user
             message = (
-                f"👋 <b>Welcome back, {safe_first_name}!</b>\n\n"
-                f"📬 <b>Your XRP Address:</b>\n{format_xrp_address(wallet_address)}\n\n"
-                f"💰 <b>Current Balance:</b> {balance:.6f} XRP\n\n"
+                "👋 <b>Welcome back, " + safe_first_name + "!</b>\n\n"
+                "📬 <b>Your XRP Address:</b>\n" + format_xrp_address(wallet_address) + "\n\n"
+                "💰 <b>Current Balance:</b> " + f"{float(balance):.6f}" + " XRP\n\n"
             )
             
             # Show funding reminder if balance is low
-            if balance < 20:
+            if float(balance) < 20:
                 message += (
                     "⚠️ <b>Low Balance:</b> Your wallet needs funding to transact.\n"
                     "Use /balance for funding instructions.\n\n"
@@ -108,15 +108,20 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except httpx.HTTPStatusError as e:
         # Handle specific HTTP errors from the backend
-        error_message = f"Failed to communicate with the backend: Server responded with {e.response.status_code}."
+        error_message = "Failed to communicate with the backend: Server responded with " + str(e.response.status_code) + "."
+        full_error = "Could not set up your wallet. Reason: " + error_message
         await update.message.reply_text(
-            format_error_message(f"Could not set up your wallet. Reason: {error_message}"),
+            format_error_message(full_error),
             parse_mode=ParseMode.HTML
         )
     except Exception as e:
         # Handle other errors like network issues or timeouts
+        import traceback
+        logger.error(f"Error in start_command: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        error_details = "An Unexpected Error Occurred\n\nRegistration failed. Please try again later.\n\nDetails: " + str(e)
         await update.message.reply_text(
-            format_error_message(f"An Unexpected Error Occurred\n\nRegistration failed. Please try again later.\n\nDetails: {str(e)}"),
+            format_error_message(error_details),
             parse_mode=ParseMode.HTML
         )
 

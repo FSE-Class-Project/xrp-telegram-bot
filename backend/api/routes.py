@@ -326,7 +326,8 @@ async def get_current_user(
         500: {"description": "Internal server error"},
     },
 )
-@limiter.limit("5/hour")  # Limit registrations to prevent abuse
+# Temporarily disable rate limiting for development debugging
+# @limiter.limit("100/hour" if settings.ENVIRONMENT == "development" else "5/hour")
 async def register_user(
     request: Request,
     response: Response,
