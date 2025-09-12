@@ -62,7 +62,8 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         # --- Interactive mode ---
         await update.message.reply_text(
             "💵 <b>Send XRP</b>\n\nHow much XRP would you like to send?",
-            reply_markup=ReplyKeyboardRemove()
+            reply_markup=ReplyKeyboardRemove(),
+            parse_mode=ParseMode.HTML
         )
         return AMOUNT
 
