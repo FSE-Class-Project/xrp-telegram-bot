@@ -67,7 +67,7 @@ You haven't made any transactions yet. Start by sending some XRP!
                             InlineKeyboardButton("💸 Send XRP", callback_data="send_xrp"),
                             InlineKeyboardButton("💰 Balance", callback_data="balance")
                         ],
-                        [InlineKeyboardButton("🔙 Back", callback_data="profile")]
+                        [InlineKeyboardButton("🔙 Back", callback_data="back")]
                     ])
                     
                 elif not transactions and page > 0:
@@ -81,13 +81,14 @@ You haven't made any transactions yet. Start by sending some XRP!
                     keyboard = create_history_pagination_keyboard(page, total_count, limit)
                 
             else:
-                message = format_error_message(
+                from ..utils.formatting import format_warning_message
+                message = format_warning_message(
                     "History Unavailable",
                     "Could not load your transaction history. Please try again later."
                 )
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("🔄 Try Again", callback_data="history")],
-                    [InlineKeyboardButton("🔙 Back", callback_data="profile")]
+                    [InlineKeyboardButton("🔙 Back", callback_data="back")]
                 ])
             
             if update.message:
@@ -98,7 +99,7 @@ You haven't made any transactions yet. Start by sending some XRP!
                 )
             elif update.callback_query:
                 await update.callback_query.answer()
-                await update.callback_query.message.edit_text(
+                await update.callback_query.edit_message_text(
                     message,
                     parse_mode=ParseMode.HTML,
                     reply_markup=keyboard
@@ -107,7 +108,6 @@ You haven't made any transactions yet. Start by sending some XRP!
     except Exception as e:
         logger.error(f"Error in show_transaction_history: {e}", exc_info=True)
         error_message = format_error_message(
-            "History Error",
             "An error occurred while loading transaction history."
         )
         
@@ -261,7 +261,7 @@ def create_history_pagination_keyboard(page: int, total_count: int, limit: int) 
             InlineKeyboardButton("💰 Balance", callback_data="balance")
         ],
         [
-            InlineKeyboardButton("🔙 Back", callback_data="profile"),
+            InlineKeyboardButton("🔙 Back", callback_data="back"),
             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
         ]
     ])
@@ -334,7 +334,7 @@ async def transaction_details(update: Update, context: ContextTypes.DEFAULT_TYPE
                     ]
                 ])
                 
-                await query.message.edit_text(
+                await query.edit_message_text(
                     message,
                     parse_mode=ParseMode.HTML,
                     reply_markup=keyboard

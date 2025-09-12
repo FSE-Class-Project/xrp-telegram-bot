@@ -110,7 +110,7 @@ async def notification_settings(update: Update, context: ContextTypes.DEFAULT_TY
                     )
                 ],
                 [
-                    InlineKeyboardButton("🔙 Back to Settings", callback_data="settings"),
+                    InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
                     InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
                 ]
             ])
@@ -173,7 +173,7 @@ Select your preferred currency for displaying XRP values:
             
             keyboard.extend([
                 [
-                    InlineKeyboardButton("🔙 Back to Settings", callback_data="settings"),
+                    InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
                     InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
                 ]
             ])
@@ -236,7 +236,7 @@ async def security_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     )
                 ],
                 [
-                    InlineKeyboardButton("🔙 Back to Settings", callback_data="settings"),
+                    InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
                     InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
                 ]
             ])
@@ -447,7 +447,7 @@ Stay tuned for updates!
     
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔙 Back to Settings", callback_data="settings"),
+            InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
         ]
     ])
@@ -506,7 +506,7 @@ Your data export has been prepared:
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("📞 Contact Support", url="https://t.me/your_support_bot")],
                     [
-                        InlineKeyboardButton("🔙 Back to Settings", callback_data="settings"),
+                        InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
                         InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
                     ]
                 ])

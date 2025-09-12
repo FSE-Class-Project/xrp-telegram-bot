@@ -46,23 +46,10 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             # Format and send price message with enhanced data
             message = format_enhanced_price_message(price_data, market_data)
             
-            # Add inline keyboard for actions
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("🔄 Refresh", callback_data="refresh_price"),
-                    InlineKeyboardButton("📈 Market Stats", callback_data="market_stats")
-                ],
-                [
-                    InlineKeyboardButton("💰 Balance", callback_data="balance"),
-                    InlineKeyboardButton("📤 Send XRP", callback_data="send")
-                ],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
-            ])
-            
             await reply_func(
                 message,
                 parse_mode=ParseMode.HTML,
-                reply_markup=keyboard
+                reply_markup=keyboards.price_menu()
             )
         else:
             # Send error message
@@ -233,10 +220,8 @@ async def market_stats_callback(update: Update, context: ContextTypes.DEFAULT_TY
 🔒 Max: {data.get('max_supply', 0):,.0f}
 """
                 
-                keyboard = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Back", callback_data="price"),
-                    InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
-                ]])
+                keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="back"),
+                                                  InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]])
                 
                 await query.message.edit_text(
                     message,
@@ -278,23 +263,10 @@ async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_T
             # Update the existing message
             message = format_enhanced_price_message(price_data, market_data)
             
-            # Keep the same keyboard
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("🔄 Refresh", callback_data="refresh_price"),
-                    InlineKeyboardButton("📈 Market Stats", callback_data="market_stats")
-                ],
-                [
-                    InlineKeyboardButton("💰 Balance", callback_data="balance"),
-                    InlineKeyboardButton("📤 Send XRP", callback_data="send")
-                ],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
-            ])
-            
             await query.message.edit_text(
                 text=message,
                 parse_mode=ParseMode.HTML,
-                reply_markup=keyboard
+                reply_markup=keyboards.price_menu()
             )
         else:
             await query.answer("Failed to refresh price", show_alert=True)

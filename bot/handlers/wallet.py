@@ -69,20 +69,8 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if funding_instructions:
                 message += funding_instructions
             
-            # Add inline keyboard for actions
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("🔄 Refresh", callback_data="refresh_balance"),
-                    InlineKeyboardButton("📤 Send XRP", callback_data="send")
-                ],
-                [
-                    InlineKeyboardButton("📊 Price", callback_data="price"),
-                    InlineKeyboardButton("📜 History", callback_data="history")
-                ],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
-            ])
-            
-            await reply_func(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+            # Use shared wallet menu (includes Back + Main)
+            await reply_func(message, parse_mode=ParseMode.HTML, reply_markup=keyboards.wallet_menu())
 
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
@@ -152,16 +140,8 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             message += "Use /balance for detailed funding instructions."
             
-            # Add inline keyboard
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("💰 Balance", callback_data="balance"),
-                    InlineKeyboardButton("⚙️ Settings", callback_data="settings")
-                ],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
-            ])
-            
-            await reply_func(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+            # Use shared profile menu (includes Back + Main)
+            await reply_func(message, parse_mode=ParseMode.HTML, reply_markup=keyboards.profile_menu())
 
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:

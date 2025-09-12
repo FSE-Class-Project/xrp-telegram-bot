@@ -35,6 +35,7 @@ class Keyboards:
                 InlineKeyboardButton("📜 History", callback_data="history"),
             ],
             [
+                InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
             ]
         ]
@@ -48,6 +49,7 @@ class Keyboards:
                 InlineKeyboardButton("❌ Cancel", callback_data="cancel_send"),
             ],
             [
+                InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
             ]
         ]
@@ -62,6 +64,7 @@ class Keyboards:
             ],
             [
                 InlineKeyboardButton("📤 Send Again", callback_data="send"),
+                InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
             ]
         ]
@@ -79,6 +82,7 @@ class Keyboards:
                 InlineKeyboardButton("📤 Send XRP", callback_data="send"),
             ],
             [
+                InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
             ]
         ]
@@ -93,6 +97,7 @@ class Keyboards:
             ],
             [
                 InlineKeyboardButton("📤 Send XRP", callback_data="send"),
+                InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
             ]
         ]
@@ -106,6 +111,7 @@ class Keyboards:
                 InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
             ],
             [
+                InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
             ]
         ]
@@ -119,6 +125,7 @@ class Keyboards:
                 InlineKeyboardButton("❓ Help", callback_data="help"),
             ],
             [
+                InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
             ]
         ]
@@ -127,6 +134,7 @@ class Keyboards:
     def back_to_main(self) -> InlineKeyboardMarkup:
         """Simple back to main menu keyboard."""
         return InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 Back", callback_data="back"),
             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
         ]])
 

@@ -81,7 +81,7 @@ If you ever want to use the bot again, simply send /start to create a new accoun
                         parse_mode=ParseMode.HTML,
                         reply_markup=InlineKeyboardMarkup([
                             [InlineKeyboardButton("🔄 Try Again", callback_data="delete_account")],
-                            [InlineKeyboardButton("🔙 Back to Settings", callback_data="settings")]
+                            [InlineKeyboardButton("🔙 Back to Settings", callback_data="back")]
                         ])
                     )
                 
@@ -96,7 +96,7 @@ If you ever want to use the bot again, simply send /start to create a new accoun
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🔄 Try Again", callback_data="delete_account")],
-                    [InlineKeyboardButton("🔙 Back to Settings", callback_data="settings")]
+                    [InlineKeyboardButton("🔙 Back to Settings", callback_data="back")]
                 ])
             )
 

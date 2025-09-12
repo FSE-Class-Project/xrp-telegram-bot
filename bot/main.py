@@ -82,20 +82,118 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     # Answer the callback to remove the "loading" state from the button
     await query.answer()
 
+    # --- Navigation stack management ---
+    # Keep per-user navigation stack and current menu id
+    user_data = context.user_data
+    nav_stack = user_data.setdefault("nav_stack", [])
+    current_menu = user_data.get("current_menu", "main_menu")
+
+    data = query.data
+
+    # Helper to route to a given menu id
+    async def route_to(menu_id: str):
+        user_data["current_menu"] = menu_id
+        if menu_id == "main_menu":
+            message = "🏠 <b>Main Menu</b>\n\nWhat would you like to do?"
+            if query.message:
+                await query.message.edit_text(
+                    message,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboards.main_menu(),
+                )
+            return
+        # Map menu id to handler
+        if menu_id == "balance":
+            await balance_command(update, context)
+        elif menu_id == "send" or menu_id == "send_xrp":
+            # Conversation flows are best started via /send; try anyway
+            await send_command(update, context)
+        elif menu_id == "price":
+            await price_command(update, context)
+        elif menu_id == "history":
+            # Prefer enhanced history pagination if available
+            try:
+                from .handlers.history import history_command as hist_cmd
+                await hist_cmd(update, context)
+            except Exception:
+                await history_command(update, context)
+        elif menu_id == "profile":
+            await profile_command(update, context)
+        elif menu_id == "help":
+            await help_command(update, context)
+        elif menu_id == "settings":
+            await settings_command(update, context)
+        elif menu_id == "market_stats":
+            from .handlers.price import market_stats_callback
+            await market_stats_callback(update, context)
+        elif menu_id in ("notification_settings", "currency_settings", "security_settings", "language_settings", "export_data", "delete_account"):
+            from .handlers.settings import (
+                notification_settings, currency_settings, security_settings, language_settings,
+                export_data, delete_account_warning
+            )
+            if menu_id == "notification_settings":
+                await notification_settings(update, context)
+            elif menu_id == "currency_settings":
+                await currency_settings(update, context)
+            elif menu_id == "security_settings":
+                await security_settings(update, context)
+            elif menu_id == "language_settings":
+                await language_settings(update, context)
+            elif menu_id == "export_data":
+                await export_data(update, context)
+            elif menu_id == "delete_account":
+                await delete_account_warning(update, context)
+        else:
+            # Fallback to main menu if unknown
+            await route_to("main_menu")
+            return
+
+    # Handle universal back
+    if data == "back":
+        target = nav_stack.pop() if nav_stack else "main_menu"
+        await route_to(target)
+        return
+
     # Route to appropriate handler based on the button's callback_data
-    if query.data == "balance":
+    # Determine if this is an in-place action (won't change page)
+    is_refresh = data.startswith("refresh_") or data.startswith("history_page_") or data in ("page_info",)
+
+    # Before navigating forward, push current menu onto stack
+    def push_if_forward(target_id: str):
+        if not is_refresh and target_id and target_id != current_menu:
+            if current_menu and current_menu != "main_menu":
+                nav_stack.append(current_menu)
+
+    if data == "balance":
+        push_if_forward("balance")
         await balance_command(update, context)
-    elif query.data == "send":
+        user_data["current_menu"] = "balance"
+    elif data in ("send", "send_xrp"):
+        push_if_forward("send")
         await send_command(update, context)
-    elif query.data == "price":
+        user_data["current_menu"] = "send"
+    elif data == "price":
+        push_if_forward("price")
         await price_command(update, context)
-    elif query.data == "history":
-        await history_command(update, context)
-    elif query.data == "profile":
+        user_data["current_menu"] = "price"
+    elif data == "history":
+        push_if_forward("history")
+        try:
+            from .handlers.history import history_command as hist_cmd
+            await hist_cmd(update, context)
+        except Exception:
+            await history_command(update, context)
+        user_data["current_menu"] = "history"
+    elif data == "profile":
+        push_if_forward("profile")
         await profile_command(update, context)
-    elif query.data == "help":
+        user_data["current_menu"] = "profile"
+    elif data == "help":
+        push_if_forward("help")
         await help_command(update, context)
-    elif query.data == "main_menu":
+        user_data["current_menu"] = "help"
+    elif data == "main_menu":
+        nav_stack.clear()
         message = "🏠 <b>Main Menu</b>\n\nWhat would you like to do?"
         if query.message:
             await query.message.edit_text(
@@ -103,62 +201,87 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
                 parse_mode=ParseMode.HTML,
                 reply_markup=keyboards.main_menu(),
             )
+        user_data["current_menu"] = "main_menu"
     elif query.data.startswith("refresh_"):
-        if query.data == "refresh_balance":
+        if data == "refresh_balance":
             await balance_command(update, context)
-        elif query.data == "refresh_price":
+        elif data == "refresh_price":
             # Import price refresh handler
             from .handlers.price import price_refresh_callback
             await price_refresh_callback(update, context)
-        elif query.data == "refresh_history":
+        elif data == "refresh_history":
             await history_command(update, context)
-    elif query.data == "market_stats":
+    elif data.startswith("history_page_"):
+        try:
+            from .handlers.history import history_page
+            await history_page(update, context)
+        except Exception:
+            # Fallback: just reload history
+            await history_command(update, context)
+        user_data["current_menu"] = "history"
+    elif data == "market_stats":
+        push_if_forward("market_stats")
         # Import market stats handler
         from .handlers.price import market_stats_callback
         await market_stats_callback(update, context)
-    elif query.data.startswith(("notification_", "currency_", "security_", "language_", "export_", "delete_", "toggle_", "set_", "setup_")):
+        user_data["current_menu"] = "market_stats"
+    elif data.startswith(("notification_", "currency_", "security_", "language_", "export_", "delete_", "toggle_", "set_", "setup_")):
         # Handle settings-related callbacks
         from .handlers.settings import (
             notification_settings, currency_settings, security_settings, language_settings,
             export_data, delete_account_warning, toggle_setting, set_currency
         )
         
-        if query.data == "notification_settings":
+        if data == "notification_settings":
+            push_if_forward("notification_settings")
             await notification_settings(update, context)
-        elif query.data == "currency_settings":
+            user_data["current_menu"] = "notification_settings"
+        elif data == "currency_settings":
+            push_if_forward("currency_settings")
             await currency_settings(update, context)
-        elif query.data == "security_settings":
+            user_data["current_menu"] = "currency_settings"
+        elif data == "security_settings":
+            push_if_forward("security_settings")
             await security_settings(update, context)
-        elif query.data == "language_settings":
+            user_data["current_menu"] = "security_settings"
+        elif data == "language_settings":
+            push_if_forward("language_settings")
             await language_settings(update, context)
-        elif query.data == "export_data":
+            user_data["current_menu"] = "language_settings"
+        elif data == "export_data":
+            push_if_forward("export_data")
             await export_data(update, context)
-        elif query.data == "delete_account":
+            user_data["current_menu"] = "export_data"
+        elif data == "delete_account":
+            push_if_forward("delete_account")
             await delete_account_warning(update, context)
-        elif query.data.startswith("toggle_"):
-            setting_name = query.data[7:]  # Remove "toggle_" prefix
+            user_data["current_menu"] = "delete_account"
+        elif data.startswith("toggle_"):
+            setting_name = data[7:]  # Remove "toggle_" prefix
             await toggle_setting(update, context, setting_name)
-        elif query.data.startswith("set_currency_"):
-            currency = query.data[13:]  # Remove "set_currency_" prefix
+        elif data.startswith("set_currency_"):
+            currency = data[13:]  # Remove "set_currency_" prefix
             await set_currency(update, context, currency)
-    elif query.data == "settings":
+    elif data == "settings":
+        push_if_forward("settings")
         # Handle settings menu
         await settings_command(update, context)
-    elif query.data in ["retry", "cancel_send", "confirm_send"]:
+        user_data["current_menu"] = "settings"
+    elif data in ["retry", "cancel_send", "confirm_send"]:
         # Handle special callback data
-        if query.data == "retry":
+        if data == "retry":
             await query.message.edit_text(
                 "🔄 <b>Retry</b>\n\nPlease try your last action again.",
                 parse_mode=ParseMode.HTML,
                 reply_markup=keyboards.main_menu()
             )
-        elif query.data == "cancel_send":
+        elif data == "cancel_send":
             await query.message.edit_text(
                 "❌ <b>Transaction Cancelled</b>\n\nTransaction has been cancelled.",
                 parse_mode=ParseMode.HTML,
                 reply_markup=keyboards.main_menu()
             )
-        elif query.data == "confirm_send":
+        elif data == "confirm_send":
             # Handle transaction confirmation
             logger.info("Transaction confirmation requested")
             await query.message.edit_text(
