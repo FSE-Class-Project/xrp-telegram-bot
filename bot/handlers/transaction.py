@@ -1,5 +1,12 @@
 # bot/handlers/transaction.py
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardRemove,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.constants import ParseMode
 import httpx
@@ -14,6 +21,7 @@ from ..utils.formatting import (
     format_xrp_address,
     escape_html,
 )
+from ..keyboards.menus import keyboards
 
 # --- Conversation States ---
 # Define states for the multi-step "send" process
@@ -22,8 +30,16 @@ AMOUNT, ADDRESS, CONFIRM = range(3)
 # --- Conversation Handlers ---
 
 async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Starts the /send conversation flow."""
-    if not update.message or not update.effective_user or context.user_data is None:
+    """Starts the send conversation flow (via /send or inline button)."""
+    # If triggered from an inline button, answer the callback
+    if update.callback_query:
+        try:
+            await update.callback_query.answer()
+        except Exception:
+            pass
+
+    msg = update.effective_message
+    if not msg or not update.effective_user or context.user_data is None:
         return ConversationHandler.END
 
     # Use context.user_data for state management
@@ -37,11 +53,11 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             address = context.args[1]
 
             if amount <= 0:
-                await update.message.reply_text("❌ <b>Invalid Amount</b>\n\nPlease enter a positive number.", parse_mode=ParseMode.HTML)
+                await msg.reply_text("❌ <b>Invalid Amount</b>\n\nPlease enter a positive number.", parse_mode=ParseMode.HTML)
                 return ConversationHandler.END
 
             if not re.match(r'^r[a-zA-Z0-9]{24,33}$', address):
-                await update.message.reply_text("❌ <b>Invalid Address</b>\n\nThe XRP address format is incorrect.", parse_mode=ParseMode.HTML)
+                await msg.reply_text("❌ <b>Invalid Address</b>\n\nThe XRP address format is incorrect.", parse_mode=ParseMode.HTML)
                 return ConversationHandler.END
 
             # Store data in the user-specific context
@@ -53,16 +69,19 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             
             fee = 0.00001  # Standard fee
             message = format_transaction_confirmation(address, amount, fee)
-            await update.message.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+            await msg.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
             return CONFIRM
         except (ValueError, IndexError):
-            await update.message.reply_text("Invalid command format. Use <code>/send [amount] [address]</code> or just <code>/send</code>.", parse_mode=ParseMode.HTML)
+            await msg.reply_text("Invalid command format. Use <code>/send [amount] [address]</code> or just <code>/send</code>.", parse_mode=ParseMode.HTML)
             return ConversationHandler.END
     else:
         # --- Interactive mode ---
-        await update.message.reply_text(
+        cancel_markup = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")]]
+        )
+        await msg.reply_text(
             "💵 <b>Send XRP</b>\n\nHow much XRP would you like to send?",
-            reply_markup=ReplyKeyboardRemove(),
+            reply_markup=cancel_markup,
             parse_mode=ParseMode.HTML
         )
         return AMOUNT
@@ -79,7 +98,14 @@ async def amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return AMOUNT
 
         context.user_data.setdefault('transaction', {})['amount'] = amount
-        await update.message.reply_text("📬 <b>Recipient Address</b>\n\nEnter the destination XRP address.", parse_mode=ParseMode.HTML)
+        cancel_markup = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")]]
+        )
+        await update.message.reply_text(
+            "📬 <b>Recipient Address</b>\n\nEnter the destination XRP address.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=cancel_markup,
+        )
         return ADDRESS
     except ValueError:
         await update.message.reply_text("That's not a valid number. Please try again.", parse_mode=ParseMode.HTML)
@@ -173,11 +199,42 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Cancels the transaction conversation."""
-    if not update.message or context.user_data is None:
-        return ConversationHandler.END
-    context.user_data.pop('transaction', None)
-    await update.message.reply_text("❌ Transaction cancelled.", reply_markup=ReplyKeyboardRemove())
+    """Cancels the transaction conversation (works with /cancel or inline button)."""
+    # Support cancel via callback button
+    if update.callback_query:
+        try:
+            await update.callback_query.answer()
+        except Exception:
+            pass
+        cq_msg = update.callback_query.message
+    else:
+        msg = update.message
+
+    if context.user_data is not None:
+        context.user_data.pop('transaction', None)
+        # Update nav state to main menu for consistency
+        try:
+            context.user_data["current_menu"] = "main_menu"
+        except Exception:
+            pass
+
+    # Show main menu after cancellation
+    try:
+        if update.callback_query and cq_msg:
+            await cq_msg.edit_text(
+                "❌ <b>Transaction Cancelled</b>\n\n🏠 <b>Main Menu</b>\n\nWhat would you like to do?",
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboards.main_menu(),
+            )
+        elif msg:
+            await msg.reply_text(
+                "❌ <b>Transaction Cancelled</b>\n\n🏠 <b>Main Menu</b>\n\nWhat would you like to do?",
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboards.main_menu(),
+            )
+    except Exception:
+        # Silent fallback
+        pass
     return ConversationHandler.END
 
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -234,4 +291,3 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         error_msg = format_error_message(f"Could not retrieve history: {str(e)}")
         await update.message.reply_text(error_msg, parse_mode=ParseMode.HTML)
-
