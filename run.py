@@ -33,14 +33,14 @@ def print_banner():
 def check_requirements():
     """Check if all requirements are installed with version verification"""
     required_packages = [
-        ("fastapi", "0.95.0"),
-        ("telegram", "20.0.0"), 
-        ("xrpl", "2.0.0"),
-        ("sqlalchemy", "2.0.0"),
-        ("cryptography", "3.0.0"),
-        ("httpx", "0.24.0"),
-        ("uvicorn", "0.20.0"),
-        ("pydantic", "2.0.0")
+        ("fastapi", "0.109.0"),
+        ("telegram", "20.3.0"), 
+        ("xrpl", "2.5.0"),
+        ("sqlalchemy", "2.0.25"),
+        ("cryptography", "41.0.7"),
+        ("httpx", "0.24.1"),
+        ("uvicorn", "0.27.0"),
+        ("pydantic", "2.5.3")
     ]
     
     missing_packages = []
