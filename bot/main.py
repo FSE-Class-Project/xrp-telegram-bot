@@ -433,13 +433,29 @@ def main():
 
     # Conversation handler for the /send command
     send_conversation_handler = ConversationHandler(
-        entry_points=[CommandHandler("send", send_command)],
+        entry_points=[
+            CommandHandler("send", send_command),
+            # Start the send flow from inline buttons like "📤 Send" / "📤 Send XRP"
+            CallbackQueryHandler(send_command, pattern=r"^(send|send_xrp)$"),
+        ],
         states={
-            AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, amount_handler)],
-            ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, address_handler)],
+            AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, amount_handler),
+                # Allow inline cancel during amount step
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
+            ADDRESS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, address_handler),
+                # Allow inline cancel during address step
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
             CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_handler)],
         },
-        fallbacks=[CommandHandler("cancel", cancel_handler)],
+        fallbacks=[
+            CommandHandler("cancel", cancel_handler),
+            # Catch cancel button from anywhere in the flow
+            CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$")
+        ],
     )
 
     # Add all handlers to the application
