@@ -1,43 +1,44 @@
 """Services module initialization."""
-from __future__ import annotations
 
-# Import services for easy access
-from .xrp_service import xrp_service
-from .user_service import user_service
+from __future__ import annotations
 
 # Import TypedDict type definitions from types.py
 from .types import (
+    AddressValidationDict,
+    # API types
+    BalanceResponseDict,
+    # Cache types
+    CacheEntryDict,
+    FaucetResponseDict,
+    PriceDataDict,
+    SendTransactionRequestDict,
+    # Error and validation types
+    ServiceErrorDict,
+    TransactionHistoryDict,
+    TransactionHistoryItemDict,
+    TransactionResponseDict,
     # Transaction types
     TransactionResultDict,
-    XRPBalanceDict,
-    TransactionHistoryItemDict,
-    TransactionHistoryDict,
-    PriceDataDict,
-    WalletCreationResultDict,
     # User types
     UserCreationDataDict,
     UserDataDict,
-    # API types
-    BalanceResponseDict,
-    SendTransactionRequestDict,
-    TransactionResponseDict,
-    # XRP Ledger types
-    XRPAccountInfoDict,
-    XRPTransactionMetadataDict,
-    FaucetResponseDict,
     # Settings types
     UserSettingsDict,
-    # Error and validation types
-    ServiceErrorDict,
-    AddressValidationDict,
-    # Cache types
-    CacheEntryDict,
+    WalletCreationResultDict,
+    # XRP Ledger types
+    XRPAccountInfoDict,
+    XRPBalanceDict,
+    XRPTransactionMetadataDict,
     # Utility functions
     decimal_to_float,
-    float_to_decimal,
     drops_to_xrp,
+    float_to_decimal,
     xrp_to_drops,
 )
+from .user_service import user_service
+
+# Import services for easy access
+from .xrp_service import xrp_service
 
 __all__ = [
     # Services

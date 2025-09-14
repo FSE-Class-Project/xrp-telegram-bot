@@ -41,6 +41,8 @@ extend-exclude = '''
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -56,10 +58,10 @@ ignore = [
     "C901",  # too complex
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-third-party = ["xrpl", "telegram", "fastapi", "sqlalchemy"]
 
 [tool.pytest.ini_options]
@@ -102,8 +104,8 @@ dependencies = [
     "cryptography>=41.0.7",
     "python-dotenv>=1.0.0",
     "pydantic>=2.5.3",
-    "psycopg2-binary>=2.9.9",
-    "httpx>=0.26.0",
+    "psycopg[binary]>=3.1.18",
+    "httpx==0.24.1",
     "requests>=2.31.0",
     "redis>=5.0.1",
 ]

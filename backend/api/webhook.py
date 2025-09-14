@@ -1,222 +1,181 @@
-"""Telegram webhook handler"""
-from __future__ import annotations
-from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.orm import Session
-import hmac
+"""Telegram webhook endpoint for production deployment."""
 
-from backend.database.connection import get_db
-from backend.services.user_service import user_service
-from backend.services.telegram_service import telegram_service
-from backend.config import settings
+import logging
+from typing import Any, Optional
 
-webhook_router = APIRouter(prefix="/telegram", tags=["Telegram"])
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi.responses import JSONResponse
+from telegram import Update
+from telegram.ext import Application
 
-def verify_telegram_signature(
-    x_telegram_bot_api_secret_token: str = Header(None)
-) -> bool:
-    """Verify webhook came from Telegram"""
-    if not x_telegram_bot_api_secret_token:
-        raise HTTPException(status_code=401, detail="Missing signature")
-    
-    expected = settings.TELEGRAM_WEBHOOK_SECRET
-    if not hmac.compare_digest(x_telegram_bot_api_secret_token, expected):
-        raise HTTPException(status_code=401, detail="Invalid signature")
-    return True
+logger = logging.getLogger(__name__)
 
-@webhook_router.post("/webhook")
-async def handle_webhook(
-    update: dict[str, Any],
-    _: bool = Depends(verify_telegram_signature),
-    db: Session = Depends(get_db)
-) -> dict:
-    """Main webhook handler"""
-    
-    # Extract message or callback query
-    message = update.get("message")
-    
-    if message:
-        # Handle commands
-        text = message.get("text", "")
-        chat_id = message["chat"]["id"]
-        user_id = message["from"]["id"]
-        
-        if text.startswith("/start"):
-            return await handle_start_command(db, user_id, chat_id)
-        elif text.startswith("/balance"):
-            return await handle_balance_command(db, user_id, chat_id)
-        elif text.startswith("/send"):
-            return await handle_send_command(db, user_id, chat_id, text)
-        elif text.startswith("/price"):
-            return await handle_price_command(chat_id)
-        elif text.startswith("/help"):
-            return await handle_help_command(chat_id)
-    
-    return {"ok": True}
+# Global application instance (will be set by the main backend)
+telegram_app: Optional[Application] = None
 
-async def handle_start_command(db: Session, user_id: int, chat_id: int) -> dict:
-    """Handle /start command"""
-    # Register user if new
-    user = await user_service.create_or_get_user(
-        db=db,
-        telegram_id=str(user_id),
-        telegram_username=None  # Get from update if available
-    )
-    
-    # Send welcome message
-    if user.wallet:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text=f"Welcome! Your XRP address: `{user.wallet.xrp_address}`",
-            parse_mode="MarkdownV2"
-        )
-    else:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text="Welcome! Setting up your wallet\\.\\.\\.",
-            parse_mode="MarkdownV2"
-        )
-    
-    return {"ok": True}
+# Create webhook router
+webhook_router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
-async def handle_balance_command(db: Session, user_id: int, chat_id: int) -> dict:
-    """Handle /balance command"""
-    # Get user
-    user = user_service.get_user_by_telegram_id(db, str(user_id))
-    if not user:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text="Please use /start to register first\\.",
-            parse_mode="MarkdownV2"
-        )
-        return {"ok": True}
-    
-    # Update and get balance
-    balance = await user_service.update_balance(db, user)
-    
-    # Send balance message
-    await telegram_service.send_message(
-        chat_id=chat_id,
-        text=f"💰 *Balance:* {balance:.6f} XRP",
-        parse_mode="MarkdownV2"
-    )
-    
-    return {"ok": True}
 
-async def handle_send_command(db: Session, user_id: int, chat_id: int, text: str) -> dict:
-    """Handle /send command"""
-    # Parse command: /send <address> <amount>
-    parts = text.split()
-    if len(parts) != 3:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text="Usage: /send \\<address\\> \\<amount\\>",
-            parse_mode="MarkdownV2"
-        )
-        return {"ok": True}
-    
-    _, recipient_address, amount_str = parts
-    
+def set_telegram_app(app: Application) -> None:
+    """Set the Telegram application instance for webhook handling."""
+    global telegram_app
+    telegram_app = app
+    logger.info("Telegram application instance set for webhook handling")
+
+
+@webhook_router.post("/{bot_token}")
+async def telegram_webhook(
+    bot_token: str, request: Request, background_tasks: BackgroundTasks
+) -> JSONResponse:
+    """
+    Handle incoming Telegram webhook updates.
+
+    Args:
+        bot_token: Bot token from URL path
+        request: FastAPI request object
+        background_tasks: Background task handler
+
+    Returns:
+        JSON response indicating success/failure
+    """
     try:
-        amount = float(amount_str)
-    except ValueError:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text="Invalid amount\\. Please enter a number\\.",
-            parse_mode="MarkdownV2"
-        )
-        return {"ok": True}
-    
-    # Get user
-    user = user_service.get_user_by_telegram_id(db, str(user_id))
-    if not user:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text="Please use /start to register first\\.",
-            parse_mode="MarkdownV2"
-        )
-        return {"ok": True}
-    
-    # Send XRP
-    result = await user_service.send_xrp(
-        db=db,
-        sender=user,
-        recipient_address=recipient_address,
-        amount=amount
-    )
-    
-    if result["success"]:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text=f"✅ Sent {amount} XRP to `{recipient_address}`\\nTx: `{result.get('tx_hash', 'N/A')}`",
-            parse_mode="MarkdownV2"
-        )
-    else:
-        error_msg = result.get("error", "Transaction failed").replace(".", "\\.")
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text=f"❌ Failed: {error_msg}",
-            parse_mode="MarkdownV2"
-        )
-    
-    return {"ok": True}
+        # Validate that we have a telegram app instance
+        if not telegram_app:
+            logger.error("Telegram application not initialized")
+            raise HTTPException(status_code=503, detail="Telegram bot not ready")
 
-async def handle_price_command(chat_id: int) -> dict:
-    """Handle /price command"""
-    # Get current XRP price using httpx directly
-    import httpx
-    
+        # Validate bot token
+        expected_token = telegram_app.bot.token
+        if bot_token != expected_token:
+            logger.warning(f"Invalid bot token received: {bot_token[:10]}...")
+            raise HTTPException(status_code=401, detail="Invalid bot token")
+
+        # Parse the update
+        try:
+            update_data = await request.json()
+            logger.debug(f"Received webhook update: {update_data}")
+        except Exception as e:
+            logger.error(f"Failed to parse webhook JSON: {e}")
+            raise HTTPException(status_code=400, detail="Invalid JSON") from e
+
+        # Create Telegram Update object
+        try:
+            update = Update.de_json(update_data, telegram_app.bot)
+            if not update:
+                logger.warning("Failed to parse Telegram update")
+                raise HTTPException(status_code=400, detail="Invalid update format")
+        except Exception as e:
+            logger.error(f"Failed to create Update object: {e}")
+            raise HTTPException(status_code=400, detail="Invalid update structure") from e
+
+        # Process update in background to avoid blocking the webhook response
+        background_tasks.add_task(process_update, update)
+
+        # Return success response quickly
+        return JSONResponse({"ok": True}, status_code=200)
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in webhook handler: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+async def process_update(update: Update) -> None:
+    """
+    Process a Telegram update in the background.
+
+    Args:
+        update: Telegram Update object
+    """
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.coingecko.com/api/v3/simple/price",
-                params={
-                    "ids": "ripple",
-                    "vs_currencies": "usd",
-                    "include_24hr_change": "true"
-                }
-            )
-            
-            if response.status_code == 200:
-                data = response.json()["ripple"]
-                price = data.get("usd", 0)
-                change_24h = data.get("usd_24h_change", 0)
-                change_emoji = "📈" if change_24h > 0 else "📉"
-                
-                await telegram_service.send_message(
-                    chat_id=chat_id,
-                    text=f"💱 *XRP Price*\n\n"
-                         f"USD: \\${price:.4f}\n"
-                         f"24h Change: {change_emoji} {change_24h:.2f}%",
-                    parse_mode="MarkdownV2"
-                )
-            else:
-                raise Exception("Failed to fetch price")
-    except Exception:
-        await telegram_service.send_message(
-            chat_id=chat_id,
-            text="Unable to fetch price data\\. Please try again later\\.",
-            parse_mode="MarkdownV2"
-        )
-    
-    return {"ok": True}
+        if not telegram_app:
+            logger.error("Telegram application not available for update processing")
+            return
 
-async def handle_help_command(chat_id: int) -> dict:
-    """Handle /help command"""
-    help_text = (
-        "*XRP Telegram Bot Commands*\n\n"
-        "/start \\- Register and get your XRP wallet\n"
-        "/balance \\- Check your XRP balance\n"
-        "/send \\<address\\> \\<amount\\> \\- Send XRP\n"
-        "/price \\- Get current XRP price\n"
-        "/help \\- Show this help message\n\n"
-        "_Your wallet is automatically created and funded on testnet_"
-    )
-    
-    await telegram_service.send_message(
-        chat_id=chat_id,
-        text=help_text,
-        parse_mode="MarkdownV2"
-    )
-    
-    return {"ok": True}
+        # Process the update using the application's update queue
+        await telegram_app.process_update(update)
+        logger.debug(f"Successfully processed update {update.update_id}")
+
+    except Exception as e:
+        logger.error(f"Error processing Telegram update {update.update_id}: {e}", exc_info=True)
+
+
+@webhook_router.get("/health")
+async def webhook_health() -> dict[str, Any]:
+    """
+    Health check endpoint for the webhook service.
+
+    Returns:
+        Health status information
+    """
+    is_healthy = telegram_app is not None
+
+    return {
+        "status": "healthy" if is_healthy else "unhealthy",
+        "service": "telegram-webhook",
+        "telegram_app_ready": is_healthy,
+        "bot_username": telegram_app.bot.username if telegram_app else None,
+    }
+
+
+@webhook_router.get("/info")
+async def webhook_info() -> dict[str, Any]:
+    """
+    Get webhook information and status.
+
+    Returns:
+        Webhook configuration info
+    """
+    if not telegram_app:
+        return {"error": "Telegram application not initialized"}
+
+    try:
+        # Get current webhook info from Telegram
+        webhook_info = await telegram_app.bot.get_webhook_info()
+
+        return {
+            "webhook_url": webhook_info.url,
+            "has_custom_certificate": webhook_info.has_custom_certificate,
+            "pending_update_count": webhook_info.pending_update_count,
+            "last_error_date": webhook_info.last_error_date,
+            "last_error_message": webhook_info.last_error_message,
+            "max_connections": webhook_info.max_connections,
+            "allowed_updates": webhook_info.allowed_updates,
+        }
+    except Exception as e:
+        logger.error(f"Failed to get webhook info: {e}")
+        return {"error": str(e)}
+
+
+# Webhook management endpoints (for debugging/administration)
+@webhook_router.delete("/{bot_token}")
+async def delete_webhook(bot_token: str) -> dict[str, Any]:
+    """
+    Delete the current webhook (for debugging purposes).
+
+    Args:
+        bot_token: Bot token for verification
+
+    Returns:
+        Deletion status
+    """
+    try:
+        if not telegram_app:
+            raise HTTPException(status_code=503, detail="Telegram bot not ready")
+
+        # Validate bot token
+        if bot_token != telegram_app.bot.token:
+            raise HTTPException(status_code=401, detail="Invalid bot token")
+
+        # Delete webhook
+        await telegram_app.bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Webhook deleted successfully")
+
+        return {"ok": True, "message": "Webhook deleted"}
+
+    except Exception as e:
+        logger.error(f"Failed to delete webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
