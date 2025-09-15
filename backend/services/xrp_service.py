@@ -6,7 +6,7 @@ import asyncio
 from typing import Any
 
 from xrpl.asyncio.clients import AsyncJsonRpcClient
-from xrpl.asyncio.transaction import sign, submit_and_wait
+from xrpl.asyncio.transaction import sign, submit_and_wait, autofill
 from xrpl.models.requests import AccountInfo, AccountTx
 from xrpl.models.transactions import Payment
 from xrpl.utils import drops_to_xrp, xrp_to_drops
@@ -127,27 +127,33 @@ class XRPService:
             if sender_balance is None or sender_balance < amount + 0.00001:
                 return {"success": False, "error": "Insufficient balance"}
 
-            # Create payment transaction
+            # Create payment transaction (let autofill set Fee/Sequence/LastLedgerSequence)
             payment = Payment(
                 account=wallet.classic_address,
                 destination=to_address,
                 amount=xrp_to_drops(amount),
-                fee="10",  # 10 drops = 0.00001 XRP
             )
 
-            # Sign and submit transaction
-            signed_tx = sign(payment, wallet)
+            # Autofill required fields then sign
+            prepared = await autofill(payment, self.client)
+            signed_tx = sign(prepared, wallet)
 
-            # Submit and wait for validation
+            # Submit and wait for validation (reliable submission)
             response = await submit_and_wait(signed_tx, self.client)
 
             if response.is_successful():
                 result = response.result
+                # Try both top-level and tx_json fields for returned data
+                tx_json = result.get("tx_json") or {}
+                fee_drops = result.get("Fee") or tx_json.get("Fee") or "0"
+                tx_hash = result.get("hash") or tx_json.get("hash")
+                ledger_index = result.get("ledger_index") or tx_json.get("ledger_index")
+
                 return {
                     "success": True,
-                    "tx_hash": result.get("hash"),
-                    "ledger_index": result.get("ledger_index"),
-                    "fee": float(drops_to_xrp(result.get("Fee", "0"))),
+                    "tx_hash": tx_hash,
+                    "ledger_index": ledger_index,
+                    "fee": float(drops_to_xrp(fee_drops)),
                     "amount": amount,
                 }
             else:
