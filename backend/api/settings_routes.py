@@ -38,7 +38,7 @@ class SettingsUpdate(BaseModel):
 
     price_alerts: bool | None = None
     transaction_notifications: bool | None = None
-    currency_display: str | None = Field(None, pattern="^(USD|EUR|GBP|JPY|BTC|ETH)$")
+    currency_display: str | None = Field(None, pattern="^(USD|EUR|GBP|ZAR|JPY|BTC|ETH)$")
     language: str | None = Field(None, pattern="^(en|es|fr|de|pt|zh|ja)$")
     two_factor_enabled: bool | None = None
     pin_code: str | None = Field(None, min_length=4, max_length=8)
@@ -67,7 +67,7 @@ class UserExportData(BaseModel):
 
 
 @settings_router.get(
-    "/settings/{user_id}",
+    "/settings/{telegram_id}",
     response_model=SettingsResponse,
     dependencies=[Depends(verify_api_key)],
     responses={
@@ -78,12 +78,12 @@ class UserExportData(BaseModel):
 )
 @limiter.limit("60/minute")
 async def get_user_settings(
-    request: Request, response: Response, user_id: int, db: Session = Depends(get_db)
+    request: Request, response: Response, telegram_id: str, db: Session = Depends(get_db)
 ) -> SettingsResponse:
     """Get user settings."""
     try:
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -110,14 +110,14 @@ async def get_user_settings(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting user settings for user {user_id}: {e}")
+        logger.error(f"Error getting user settings for telegram_id {telegram_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         ) from e
 
 
 @settings_router.put(
-    "/settings/{user_id}",
+    "/settings/{telegram_id}",
     response_model=SettingsResponse,
     dependencies=[Depends(verify_api_key)],
     responses={
@@ -131,14 +131,14 @@ async def get_user_settings(
 async def update_user_settings(
     request: Request,
     response: Response,
-    user_id: int,
+    telegram_id: str,
     settings_update: SettingsUpdate,
     db: Session = Depends(get_db),
 ) -> SettingsResponse:
     """Update user settings."""
     try:
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -166,7 +166,7 @@ async def update_user_settings(
         db.commit()
         db.refresh(settings)
 
-        logger.info(f"Updated settings for user {user_id}")
+        logger.info(f"Updated settings for user telegram_id {telegram_id}")
 
         return SettingsResponse(
             user_id=user.id,  # type: ignore[arg-type]
@@ -183,14 +183,14 @@ async def update_user_settings(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating settings for user {user_id}: {e}")
+        logger.error(f"Error updating settings for telegram_id {telegram_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         ) from e
 
 
 @settings_router.post(
-    "/settings/{user_id}/toggle",
+    "/settings/{telegram_id}/toggle",
     response_model=SettingsResponse,
     dependencies=[Depends(verify_api_key)],
     responses={
@@ -204,14 +204,14 @@ async def update_user_settings(
 async def toggle_user_setting(
     request: Request,
     response: Response,
-    user_id: int,
+    telegram_id: str,
     toggle_request: ToggleSettingRequest,
     db: Session = Depends(get_db),
 ) -> SettingsResponse:
     """Toggle a boolean setting."""
     try:
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -231,7 +231,7 @@ async def toggle_user_setting(
             db.commit()
             db.refresh(settings)
 
-            logger.info(f"Toggled {setting_name} for user {user_id}: {not current_value}")
+            logger.info(f"Toggled {setting_name} for user telegram_id {telegram_id}: {not current_value}")
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -253,14 +253,14 @@ async def toggle_user_setting(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error toggling setting for user {user_id}: {e}")
+        logger.error(f"Error toggling setting for telegram_id {telegram_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         ) from e
 
 
 @settings_router.post(
-    "/export/{user_id}",
+    "/export/{telegram_id}",
     response_model=UserExportData,
     dependencies=[Depends(verify_api_key)],
     responses={
@@ -271,12 +271,12 @@ async def toggle_user_setting(
 )
 @limiter.limit("5/hour")  # Limit data exports
 async def export_user_data(
-    request: Request, response: Response, user_id: int, db: Session = Depends(get_db)
+    request: Request, response: Response, telegram_id: str, db: Session = Depends(get_db)
 ) -> UserExportData:
     """Export user data."""
     try:
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -318,7 +318,7 @@ async def export_user_data(
                 "has_pin": user.settings.pin_code is not None,
             }
 
-        logger.info(f"Exported data for user {user_id}")
+        logger.info(f"Exported data for telegram_id {telegram_id}")
 
         return UserExportData(
             user_id=user.id,  # type: ignore[arg-type]
@@ -335,14 +335,14 @@ async def export_user_data(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error exporting data for user {user_id}: {e}")
+        logger.error(f"Error exporting data for telegram_id {telegram_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         ) from e
 
 
 @settings_router.delete(
-    "/{user_id}",
+    "/{telegram_id}",
     dependencies=[Depends(verify_api_key)],
     responses={
         200: {"description": "User account deleted successfully"},
@@ -352,18 +352,18 @@ async def export_user_data(
 )
 @limiter.limit("1/hour")  # Very strict limit for account deletion
 async def delete_user_account(
-    request: Request, response: Response, user_id: int, db: Session = Depends(get_db)
+    request: Request, response: Response, telegram_id: str, db: Session = Depends(get_db)
 ) -> dict[str, str]:
     """Delete user account and all associated data."""
     try:
         # Get user from database
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         # Log the deletion for audit purposes
         logger.warning(
-            f"User account deletion requested for user {user_id} (telegram_id: {user.telegram_id})"
+            f"User account deletion requested for telegram_id {telegram_id} (db_user_id: {user.id})"
         )
 
         # In a real implementation, you might want to:
@@ -382,14 +382,14 @@ async def delete_user_account(
 
         db.commit()
 
-        logger.warning(f"User account {user_id} marked as deleted")
+        logger.warning(f"User account telegram_id {telegram_id} marked as deleted")
 
         return {"message": "Account successfully deleted"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting account for user {user_id}: {e}")
+        logger.error(f"Error deleting account for telegram_id {telegram_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         ) from e

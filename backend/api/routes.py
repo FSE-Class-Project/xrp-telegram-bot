@@ -229,6 +229,12 @@ class PriceInfo(BaseModel):
     """Price information model."""
 
     price_usd: Decimal
+    price_btc: Decimal | None = None
+    price_eur: Decimal | None = None
+    price_gbp: Decimal | None = None
+    price_zar: Decimal | None = None
+    price_jpy: Decimal | None = None
+    price_eth: Decimal | None = None
     change_24h: Decimal | None = None
     market_cap: Decimal | None = None
     volume_24h: Decimal | None = None
@@ -684,7 +690,7 @@ async def get_current_price(request: Request, response: Response) -> PriceInfo:
                 "https://api.coingecko.com/api/v3/simple/price",
                 params={
                     "ids": "ripple",
-                    "vs_currencies": "usd",
+                    "vs_currencies": "usd,eur,gbp,zar,jpy,btc,eth",
                     "include_24hr_change": "true",
                     "include_market_cap": "true",
                     "include_24hr_vol": "true",
@@ -694,7 +700,13 @@ async def get_current_price(request: Request, response: Response) -> PriceInfo:
             if api_response.status_code == 200:
                 data = api_response.json()["ripple"]
                 return PriceInfo(
-                    price_usd=Decimal(str(data["usd"])),
+                    price_usd=Decimal(str(data.get("usd", 0))),
+                    price_btc=Decimal(str(data.get("btc", 0))) if data.get("btc") is not None else None,
+                    price_eur=Decimal(str(data.get("eur", 0))) if data.get("eur") is not None else None,
+                    price_gbp=Decimal(str(data.get("gbp", 0))) if data.get("gbp") is not None else None,
+                    price_zar=Decimal(str(data.get("zar", 0))) if data.get("zar") is not None else None,
+                    price_jpy=Decimal(str(data.get("jpy", 0))) if data.get("jpy") is not None else None,
+                    price_eth=Decimal(str(data.get("eth", 0))) if data.get("eth") is not None else None,
                     change_24h=Decimal(str(data.get("usd_24h_change", 0))),
                     market_cap=Decimal(str(data.get("usd_market_cap", 0))),
                     volume_24h=Decimal(str(data.get("usd_24h_vol", 0))),

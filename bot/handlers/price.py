@@ -38,13 +38,23 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         api_url = context.bot_data.get('api_url', 'http://localhost:8000')
         api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
         
+        # Fetch user currency
+        user_id = (update.effective_user.id if update.effective_user else None) or (update.callback_query.from_user.id if update.callback_query else None)  # type: ignore[attr-defined]
+        currency = "USD"
+        if user_id:
+            async with httpx.AsyncClient() as client:
+                headers = {"X-API-Key": api_key}
+                resp = await client.get(f"{api_url}/api/v1/user/settings/{user_id}", headers=headers, timeout=10.0)
+                if resp.status_code == 200:
+                    currency = str(resp.json().get("currency_display", "USD")).upper()
+
         # Fetch price data with market stats
         price_data = await fetch_price_data(api_url, api_key)
         market_data = await fetch_market_stats(api_url, api_key)
         
         if price_data:
             # Format and send price message with enhanced data
-            message = format_enhanced_price_message(price_data, market_data)
+            message = format_enhanced_price_message(price_data, market_data, currency)
             
             await reply_func(
                 message,
@@ -120,7 +130,7 @@ async def fetch_market_stats(api_url: str, api_key: str) -> Optional[Dict[str, A
         logger.error(f"Error fetching market stats: {e}")
     return None
 
-def format_enhanced_price_message(price_data: Dict[str, Any], market_data: Optional[Dict[str, Any]] = None) -> str:
+def format_enhanced_price_message(price_data: Dict[str, Any], market_data: Optional[Dict[str, Any]] = None, currency: str = "USD") -> str:
     """
     Format enhanced price data into an HTML Telegram message.
     
@@ -134,6 +144,21 @@ def format_enhanced_price_message(price_data: Dict[str, Any], market_data: Optio
     # Extract values with defaults
     price_usd = float(price_data.get('price_usd', 0))
     price_btc = float(price_data.get('price_btc', 0))
+    price_map = {
+        "USD": price_data.get("price_usd"),
+        "EUR": price_data.get("price_eur"),
+        "GBP": price_data.get("price_gbp"),
+        "ZAR": price_data.get("price_zar"),
+        "JPY": price_data.get("price_jpy"),
+        "ETH": price_data.get("price_eth"),
+        "BTC": price_data.get("price_btc"),
+    }
+    sel_price = float(price_map.get(currency.upper(), price_usd) or price_usd)
+    symbols = {"USD": "$", "EUR": "€", "GBP": "£", "ZAR": "R", "JPY": "¥"}
+    if currency.upper() in ("BTC", "ETH"):
+        sym = "₿" if currency.upper() == "BTC" else "Ξ"
+    else:
+        sym = symbols.get(currency.upper(), "$")
     change_24h = float(price_data.get('change_24h_percent', price_data.get('change_24h', 0)))
     market_cap = float(price_data.get('market_cap_usd', price_data.get('market_cap', 0)))
     volume_24h = float(price_data.get('volume_24h_usd', price_data.get('volume_24h', 0)))
@@ -145,7 +170,7 @@ def format_enhanced_price_message(price_data: Dict[str, Any], market_data: Optio
     message = f"""
 📊 <b>XRP Market Data</b>
 
-💵 <b>Price:</b> ${price_usd:.4f}
+💵 <b>Price:</b> {sym}{sel_price:.4f} ({currency})
 ₿ <b>BTC:</b> {price_btc:.8f} BTC
 {change_emoji} <b>24h:</b> {change_24h:+.2f}%
 
@@ -258,10 +283,18 @@ async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_T
         # Fetch updated price data
         price_data = await fetch_price_data(api_url, api_key)
         market_data = await fetch_market_stats(api_url, api_key)
+        # Get user currency
+        currency = "USD"
+        user_id = query.from_user.id
+        async with httpx.AsyncClient() as client:
+            headers = {"X-API-Key": api_key}
+            resp = await client.get(f"{api_url}/api/v1/user/settings/{user_id}", headers=headers, timeout=10.0)
+            if resp.status_code == 200:
+                currency = str(resp.json().get("currency_display", "USD")).upper()
         
         if price_data and query.message:
             # Update the existing message
-            message = format_enhanced_price_message(price_data, market_data)
+            message = format_enhanced_price_message(price_data, market_data, currency)
             
             await query.message.edit_text(
                 text=message,

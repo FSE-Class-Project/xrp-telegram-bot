@@ -52,22 +52,40 @@ def format_xrp_amount(amount: Union[Decimal, float, str], decimals: int = 6) -> 
     return format(amount, format_spec)
 
 
-def format_usd_amount(amount: Union[Decimal, float, str]) -> str:
+def format_currency_amount(amount: Union[Decimal, float, str], currency: str = "USD") -> str:
     """
-    Format USD amount with proper currency formatting.
-    
+    Format an amount with currency symbol or unit (supports fiat + crypto).
+
+    - Fiat: USD, EUR, GBP, ZAR, JPY → symbol prefix with 2 decimals
+    - Crypto: BTC (8 decimals), ETH (6 decimals) with unit suffix
+
     Args:
-        amount: USD amount to format
-        
+        amount: Numeric amount
+        currency: Currency code
+
     Returns:
-        Formatted USD string
+        Formatted string with currency notation
     """
     if isinstance(amount, str):
         amount = Decimal(amount)
     elif isinstance(amount, float):
         amount = Decimal(str(amount))
-    
-    return f"${amount:,.2f}"
+
+    c = currency.upper()
+    if c in {"BTC", "ETH"}:
+        decimals = 8 if c == "BTC" else 6
+        fmt = f".{decimals}f"
+        return f"{format(amount, fmt)} {c}"
+
+    symbols = {
+        "USD": "$",
+        "EUR": "€",
+        "GBP": "£",
+        "ZAR": "R",
+        "JPY": "¥",
+    }
+    symbol = symbols.get(c, "$")
+    return f"{symbol}{amount:,.2f}"
 
 
 def format_hash(tx_hash: str, length: int = 10) -> str:
@@ -157,7 +175,8 @@ def format_balance_info(
     address: str, 
     balance: Union[Decimal, float, str], 
     available: Union[Decimal, float, str],
-    usd_value: Union[Decimal, float, str],
+    fiat_value: Union[Decimal, float, str],
+    fiat_currency: str = "USD",
     last_updated: Optional[datetime] = None
 ) -> str:
     """
@@ -176,14 +195,14 @@ def format_balance_info(
     formatted_address = format_xrp_address(address)
     formatted_balance = format_xrp_amount(balance)
     formatted_available = format_xrp_amount(available)
-    formatted_usd = format_usd_amount(usd_value)
+    formatted_fiat = format_currency_amount(fiat_value, fiat_currency)
     
     message = (
         "💰 <b>Your Balance</b>\n\n"
         "📬 <b>Address:</b> " + formatted_address + "\n"
         "💵 <b>Balance:</b> " + formatted_balance + " XRP\n"
         "💸 <b>Available:</b> " + formatted_available + " XRP\n"
-        "📈 <b>USD Value:</b> " + formatted_usd + "\n\n"
+        "📈 <b>Value:</b> " + formatted_fiat + "\n\n"
     )
     
     if last_updated:

@@ -155,7 +155,7 @@ Select your preferred currency for displaying XRP values:
 """
             
             # Available currencies
-            currencies = ['USD', 'EUR', 'GBP', 'JPY', 'BTC', 'ETH']
+            currencies = ['USD', 'EUR', 'GBP', 'ZAR', 'JPY', 'BTC', 'ETH']
             keyboard = []
             
             # Create rows of 2 currencies each
