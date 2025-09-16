@@ -231,7 +231,9 @@ async def toggle_user_setting(
             db.commit()
             db.refresh(settings)
 
-            logger.info(f"Toggled {setting_name} for user telegram_id {telegram_id}: {not current_value}")
+            logger.info(
+                f"Toggled {setting_name} for user telegram_id {telegram_id}: {not current_value}"
+            )
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

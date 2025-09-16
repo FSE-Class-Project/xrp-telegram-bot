@@ -53,16 +53,16 @@ def create_db_engine(database_url: str, debug: bool = False) -> Engine:
 def initialize_database_engine(database_url: str, debug: bool = False) -> None:
     """Initialize database engine and session factory."""
     global engine, SessionLocal
-    
+
     if engine is not None:
         logger.warning("Database engine already initialized")
         return
-    
+
     logger.info(f"Initializing database engine with URL: {database_url[:30]}...")
-    
+
     # Create engine
     engine = create_db_engine(database_url, debug)
-    
+
     # Create session factory
     SessionLocal = sessionmaker(
         autocommit=False,
@@ -94,16 +94,16 @@ def get_alembic_config(database_url: str) -> Config:
 def init_database(database_url: str | None = None, debug: bool = False) -> None:
     """Initialize database using Alembic migrations."""
     global engine
-    
+
     # Initialize engine if not already done
     if engine is None:
         if database_url is None:
             raise ValueError("Database URL must be provided when engine is not initialized")
         initialize_database_engine(database_url, debug)
-    
+
     if engine is None:
         raise RuntimeError("Failed to initialize database engine")
-    
+
     try:
         # Check if database needs migrations
         with engine.connect() as connection:
@@ -148,7 +148,7 @@ def get_db() -> Generator[Session, None, None]:
     """
     if SessionLocal is None:
         raise RuntimeError("Database not initialized. Call initialize_database_engine first.")
-    
+
     db = SessionLocal()
     try:
         yield db
@@ -163,7 +163,7 @@ def get_db_session() -> Session:
     """
     if SessionLocal is None:
         raise RuntimeError("Database not initialized. Call initialize_database_engine first.")
-    
+
     return SessionLocal()
 
 
@@ -172,7 +172,7 @@ def check_database_health() -> bool:
     if SessionLocal is None:
         logger.error("Database not initialized")
         return False
-        
+
     try:
         db = SessionLocal()
         try:
@@ -190,7 +190,7 @@ def check_database_health() -> bool:
 def close_database_connections() -> None:
     """Close all database connections gracefully."""
     global engine
-    
+
     if engine is not None:
         logger.info("Closing database connections...")
         engine.dispose()

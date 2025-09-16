@@ -276,7 +276,11 @@ class UserService:
         return result
 
     def get_transaction_history(
-        self, db: Session, user: User, limit: int = 10, offset: int = 0  # Added offset parameter
+        self,
+        db: Session,
+        user: User,
+        limit: int = 10,
+        offset: int = 0,  # Added offset parameter
     ) -> list[dict[str, Any]]:
         """
         Get user's transaction history from database.

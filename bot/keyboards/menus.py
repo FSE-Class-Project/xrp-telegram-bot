@@ -2,9 +2,10 @@
 # bot/keyboards/menus.py
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+
 class Keyboards:
     """Enhanced keyboard layouts for the XRP Telegram bot."""
-    
+
     def main_menu(self) -> InlineKeyboardMarkup:
         """Returns the main menu keyboard."""
         keyboard = [
@@ -37,10 +38,10 @@ class Keyboards:
             [
                 InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
-    
+
     def send_confirmation_menu(self) -> InlineKeyboardMarkup:
         """Returns confirmation menu for transactions."""
         keyboard = [
@@ -51,10 +52,10 @@ class Keyboards:
             [
                 InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
-    
+
     def transaction_result_menu(self) -> InlineKeyboardMarkup:
         """Returns menu after transaction completion."""
         keyboard = [
@@ -66,10 +67,10 @@ class Keyboards:
                 InlineKeyboardButton("📤 Send Again", callback_data="send"),
                 InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
-    
+
     def price_menu(self) -> InlineKeyboardMarkup:
         """Returns menu for price view."""
         keyboard = [
@@ -84,10 +85,10 @@ class Keyboards:
             [
                 InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
-    
+
     def history_menu(self) -> InlineKeyboardMarkup:
         """Returns menu for transaction history."""
         keyboard = [
@@ -99,10 +100,10 @@ class Keyboards:
                 InlineKeyboardButton("📤 Send XRP", callback_data="send"),
                 InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
-    
+
     def profile_menu(self) -> InlineKeyboardMarkup:
         """Returns menu for profile view."""
         keyboard = [
@@ -113,10 +114,10 @@ class Keyboards:
             [
                 InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
-    
+
     def error_menu(self) -> InlineKeyboardMarkup:
         """Returns menu for error messages."""
         keyboard = [
@@ -127,16 +128,21 @@ class Keyboards:
             [
                 InlineKeyboardButton("🔙 Back", callback_data="back"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-            ]
+            ],
         ]
         return InlineKeyboardMarkup(keyboard)
-    
+
     def back_to_main(self) -> InlineKeyboardMarkup:
         """Simple back to main menu keyboard."""
-        return InlineKeyboardMarkup([[
-            InlineKeyboardButton("🔙 Back", callback_data="back"),
-            InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
-        ]])
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("🔙 Back", callback_data="back"),
+                    InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
+                ]
+            ]
+        )
+
 
 # Create a single instance of the Keyboards class to be imported elsewhere
 keyboards = Keyboards()

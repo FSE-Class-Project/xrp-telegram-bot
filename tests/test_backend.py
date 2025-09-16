@@ -1,9 +1,12 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from backend.database.models import Base, User, Wallet
 from backend.services.user_service import UserService
+
 
 class TestUserService:
     """Test user management service"""
@@ -28,7 +31,7 @@ class TestUserService:
     @pytest.mark.asyncio
     async def test_create_user(self, user_service, test_db):
         """Test user creation with wallet"""
-        with patch('backend.services.xrp_service.XRPService.create_wallet') as mock_wallet:
+        with patch("backend.services.xrp_service.XRPService.create_wallet") as mock_wallet:
             mock_wallet.return_value = ("rTestAddress123", "encrypted_secret")
 
             user = await user_service.create_user(
@@ -36,7 +39,7 @@ class TestUserService:
                 telegram_id="123456789",
                 telegram_username="testuser",
                 telegram_first_name="Test",
-                telegram_last_name="User"
+                telegram_last_name="User",
             )
 
             assert user.telegram_id == "123456789"
@@ -48,7 +51,7 @@ class TestUserService:
     async def test_duplicate_user_returns_existing(self, user_service, test_db):
         """Test that creating duplicate user returns existing"""
         # Patch the wallet creation as it's not the focus of this test
-        with patch('backend.services.xrp_service.XRPService.create_wallet') as mock_wallet:
+        with patch("backend.services.xrp_service.XRPService.create_wallet") as mock_wallet:
             mock_wallet.return_value = ("rTestAddress1", "secret1")
             # Create first user
             user1 = await user_service.create_user(
@@ -56,7 +59,7 @@ class TestUserService:
                 telegram_id="123456789",
                 telegram_username="testuser",
                 telegram_first_name="Test",
-                telegram_last_name="User"
+                telegram_last_name="User",
             )
 
             mock_wallet.return_value = ("rTestAddress2", "secret2")
@@ -66,7 +69,7 @@ class TestUserService:
                 telegram_id="123456789",
                 telegram_username="testuser",
                 telegram_first_name="Test",
-                telegram_last_name="User"
+                telegram_last_name="User",
             )
 
         assert user1.id == user2.id
@@ -90,20 +93,15 @@ class TestUserService:
         sender = User(
             telegram_id="111111111",
             wallet=Wallet(
-                xrp_address="rSenderAddress",
-                encrypted_secret="encrypted",
-                balance=100.0
-            )
+                xrp_address="rSenderAddress", encrypted_secret="encrypted", balance=100.0
+            ),
         )
         test_db.add(sender)
         test_db.commit()
 
         # Test invalid recipient address
         result = await user_service.send_xrp(
-            db=test_db,
-            sender=sender,
-            recipient_address="invalid_address",
-            amount=10.0
+            db=test_db, sender=sender, recipient_address="invalid_address", amount=10.0
         )
 
         assert result["success"] is False

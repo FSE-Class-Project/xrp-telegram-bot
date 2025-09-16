@@ -1,14 +1,16 @@
 """Redis caching service for improved performance."""
 
+import builtins
 import json
 import logging
 import pickle
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Any, Set, Callable, Generator
+from typing import Any
 
 import redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import RedisError, LockError
+from redis.exceptions import LockError, RedisError
 
 from ..config import settings
 
@@ -237,7 +239,7 @@ class RedisCache:
         result = self._safe_execute(self.client.srem, key, *members)
         return result or 0
 
-    def smembers(self, key: str) -> Set[Any]:
+    def smembers(self, key: str) -> builtins.set[Any]:
         """Get all set members."""
         result = self._safe_execute(self.client.smembers, key)
         return result or set()
