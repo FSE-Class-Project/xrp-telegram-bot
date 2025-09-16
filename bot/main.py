@@ -66,7 +66,7 @@ from .handlers.transaction import (
     address_handler,
     confirm_handler,
     cancel_handler,
-    history_command, # This is now defined in transaction.py
+    history_command,  # This is now defined in transaction.py
     MODE,
     BENEFICIARY_SELECT,
     BENEFICIARY_ADD_ALIAS,
@@ -77,7 +77,7 @@ from .handlers.transaction import (
 )
 from .handlers.price import price_command
 from .handlers.settings import settings_command
-from .keyboards.menus import keyboards # Import the keyboards object
+from .keyboards.menus import keyboards  # Import the keyboards object
 
 
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -455,11 +455,15 @@ def setup_handlers(application: Application):
         ],
         states={
             MODE: [
-                CallbackQueryHandler(send_mode_handler, pattern=r"^send_mode_(beneficiary|address)$"),
+                CallbackQueryHandler(
+                    send_mode_handler, pattern=r"^send_mode_(beneficiary|address)$"
+                ),
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             BENEFICIARY_SELECT: [
-                CallbackQueryHandler(beneficiary_selection_handler, pattern=r"^beneficiary_(select:.*|add)$"),
+                CallbackQueryHandler(
+                    beneficiary_selection_handler, pattern=r"^beneficiary_(select:.*|add)$"
+                ),
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             BENEFICIARY_ADD_ALIAS: [

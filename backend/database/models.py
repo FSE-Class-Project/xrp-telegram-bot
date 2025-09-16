@@ -64,9 +64,7 @@ class User(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    settings = relationship(
-        "UserSettings", back_populates="user", uselist=False, lazy="selectin"
-    )
+    settings = relationship("UserSettings", back_populates="user", uselist=False, lazy="selectin")
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, telegram_id={self.telegram_id}, username={self.telegram_username})>"
@@ -154,9 +152,7 @@ class Beneficiary(Base):
     """Beneficiary aliases for quick transactions."""
 
     __tablename__ = "beneficiaries"
-    __table_args__ = (
-        UniqueConstraint("user_id", "alias", name="uq_beneficiary_user_alias"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "alias", name="uq_beneficiary_user_alias"),)
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)

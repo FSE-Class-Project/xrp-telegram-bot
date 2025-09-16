@@ -26,7 +26,15 @@ from ..utils.formatting import (
 
 # --- Conversation States ---
 # Define states for the multi-step "send" process
-MODE, BENEFICIARY_SELECT, BENEFICIARY_ADD_ALIAS, BENEFICIARY_ADD_ADDRESS, AMOUNT, ADDRESS, CONFIRM = range(7)
+(
+    MODE,
+    BENEFICIARY_SELECT,
+    BENEFICIARY_ADD_ALIAS,
+    BENEFICIARY_ADD_ADDRESS,
+    AMOUNT,
+    ADDRESS,
+    CONFIRM,
+) = range(7)
 
 
 async def _send_prompt(message, text: str, reply_markup=None, edit: bool = False) -> None:
@@ -42,6 +50,7 @@ async def _send_prompt(message, text: str, reply_markup=None, edit: bool = False
             pass
 
     await message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+
 
 # --- Conversation Handlers ---
 
@@ -61,10 +70,9 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     # Use context.user_data for state management
 
-    context.user_data['transaction'] = {}
-    context.user_data.pop('beneficiaries', None)
-    context.user_data.pop('beneficiary_add', None)
-    
+    context.user_data["transaction"] = {}
+    context.user_data.pop("beneficiaries", None)
+    context.user_data.pop("beneficiary_add", None)
 
     # context.args is guaranteed to exist, so we can check its length
     if context.args and len(context.args) == 2:
@@ -132,12 +140,12 @@ async def send_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
 
     choice = query.data or ""
-    transaction_state = context.user_data.setdefault('transaction', {})
+    transaction_state = context.user_data.setdefault("transaction", {})
 
     if choice == "send_mode_address":
         # Reset any beneficiary-specific data and prompt for amount
-        transaction_state.pop('address', None)
-        transaction_state.pop('beneficiary_alias', None)
+        transaction_state.pop("address", None)
+        transaction_state.pop("beneficiary_alias", None)
 
         cancel_markup = InlineKeyboardMarkup(
             [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")]]
@@ -164,8 +172,8 @@ async def _show_beneficiary_list(callback_query, context: ContextTypes.DEFAULT_T
     user_id = str(callback_query.from_user.id)
     try:
         async with httpx.AsyncClient() as client:
-            api_url = context.bot_data.get('api_url', 'http://localhost:8000')
-            api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
+            api_url = context.bot_data.get("api_url", "http://localhost:8000")
+            api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
             headers = {"X-API-Key": api_key}
             response = await client.get(
                 f"{api_url}/api/v1/beneficiaries/{user_id}",
@@ -190,14 +198,14 @@ async def _show_beneficiary_list(callback_query, context: ContextTypes.DEFAULT_T
         )
         return ConversationHandler.END
 
-    beneficiaries = payload.get('beneficiaries', []) if isinstance(payload, dict) else []
+    beneficiaries = payload.get("beneficiaries", []) if isinstance(payload, dict) else []
     beneficiary_map: dict[str, dict[str, str]] = {}
     keyboard_rows: list[list[InlineKeyboardButton]] = []
 
     for entry in beneficiaries:
-        b_id = str(entry.get('id'))
-        alias = str(entry.get('alias', ''))
-        address = str(entry.get('address', ''))
+        b_id = str(entry.get("id"))
+        alias = str(entry.get("alias", ""))
+        address = str(entry.get("address", ""))
         if not b_id or not alias or not address:
             continue
 
@@ -206,10 +214,12 @@ async def _show_beneficiary_list(callback_query, context: ContextTypes.DEFAULT_T
             [InlineKeyboardButton(f"📇 {alias}", callback_data=f"beneficiary_select:{b_id}")]
         )
 
-    keyboard_rows.append([InlineKeyboardButton("➕ Add Beneficiary", callback_data="beneficiary_add")])
+    keyboard_rows.append(
+        [InlineKeyboardButton("➕ Add Beneficiary", callback_data="beneficiary_add")]
+    )
     keyboard_rows.append([InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")])
 
-    context.user_data['beneficiaries'] = beneficiary_map
+    context.user_data["beneficiaries"] = beneficiary_map
 
     if beneficiary_map:
         message_text = (
@@ -240,10 +250,10 @@ async def beneficiary_selection_handler(update: Update, context: ContextTypes.DE
     await query.answer()
 
     data = query.data or ""
-    transaction_state = context.user_data.setdefault('transaction', {})
+    transaction_state = context.user_data.setdefault("transaction", {})
 
     if data == "beneficiary_add":
-        context.user_data['beneficiary_add'] = {}
+        context.user_data["beneficiary_add"] = {}
         prompt_text = (
             "➕ <b>Add Beneficiary</b>\n\n"
             "Send me a nickname for this beneficiary (e.g. <code>Mom</code>, <code>Cold Wallet</code>)."
@@ -256,7 +266,7 @@ async def beneficiary_selection_handler(update: Update, context: ContextTypes.DE
 
     if data.startswith("beneficiary_select:"):
         beneficiary_id = data.split(":", 1)[1]
-        beneficiary_map = context.user_data.get('beneficiaries', {}) or {}
+        beneficiary_map = context.user_data.get("beneficiaries", {}) or {}
         beneficiary = beneficiary_map.get(beneficiary_id)
 
         if not beneficiary:
@@ -267,8 +277,8 @@ async def beneficiary_selection_handler(update: Update, context: ContextTypes.DE
                 )
             return BENEFICIARY_SELECT
 
-        transaction_state['address'] = beneficiary['address']
-        transaction_state['beneficiary_alias'] = beneficiary['alias']
+        transaction_state["address"] = beneficiary["address"]
+        transaction_state["beneficiary_alias"] = beneficiary["alias"]
 
         cancel_markup = InlineKeyboardMarkup(
             [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")]]
@@ -307,7 +317,7 @@ async def beneficiary_add_alias_handler(update: Update, context: ContextTypes.DE
         )
         return BENEFICIARY_ADD_ALIAS
 
-    context.user_data.setdefault('beneficiary_add', {})['alias'] = alias
+    context.user_data.setdefault("beneficiary_add", {})["alias"] = alias
 
     cancel_markup = InlineKeyboardMarkup(
         [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")]]
@@ -320,21 +330,28 @@ async def beneficiary_add_alias_handler(update: Update, context: ContextTypes.DE
     return BENEFICIARY_ADD_ADDRESS
 
 
-async def beneficiary_add_address_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def beneficiary_add_address_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
     """Collect address for a new beneficiary and save it via the API."""
-    if not update.message or not update.message.text or context.user_data is None or not update.effective_user:
+    if (
+        not update.message
+        or not update.message.text
+        or context.user_data is None
+        or not update.effective_user
+    ):
         return ConversationHandler.END
 
     address = update.message.text.strip()
-    if not re.match(r'^r[a-zA-Z0-9]{24,33}$', address):
+    if not re.match(r"^r[a-zA-Z0-9]{24,33}$", address):
         await update.message.reply_text(
             "Invalid address format. XRP addresses start with 'r'. Please try again.",
             parse_mode=ParseMode.HTML,
         )
         return BENEFICIARY_ADD_ADDRESS
 
-    pending_data = context.user_data.get('beneficiary_add') or {}
-    alias = pending_data.get('alias')
+    pending_data = context.user_data.get("beneficiary_add") or {}
+    alias = pending_data.get("alias")
     if not alias:
         await update.message.reply_text(
             format_error_message("Alias information missing. Please start again."),
@@ -344,8 +361,8 @@ async def beneficiary_add_address_handler(update: Update, context: ContextTypes.
 
     try:
         async with httpx.AsyncClient() as client:
-            api_url = context.bot_data.get('api_url', 'http://localhost:8000')
-            api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
+            api_url = context.bot_data.get("api_url", "http://localhost:8000")
+            api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
             headers = {"X-API-Key": api_key}
             response = await client.post(
                 f"{api_url}/api/v1/beneficiaries/{update.effective_user.id}",
@@ -365,7 +382,7 @@ async def beneficiary_add_address_handler(update: Update, context: ContextTypes.
         try:
             error_payload = response.json()
             if isinstance(error_payload, dict):
-                error_detail = str(error_payload.get('detail') or error_payload.get('error') or "")
+                error_detail = str(error_payload.get("detail") or error_payload.get("error") or "")
         except ValueError:
             error_detail = response.text
 
@@ -377,22 +394,22 @@ async def beneficiary_add_address_handler(update: Update, context: ContextTypes.
         return BENEFICIARY_ADD_ADDRESS
 
     data = response.json() if response.content else {}
-    beneficiary_id = str(data.get('id', ''))
-    saved_alias = data.get('alias', alias)
-    saved_address = data.get('address', address)
+    beneficiary_id = str(data.get("id", ""))
+    saved_alias = data.get("alias", alias)
+    saved_address = data.get("address", address)
 
-    beneficiary_map = context.user_data.setdefault('beneficiaries', {})
+    beneficiary_map = context.user_data.setdefault("beneficiaries", {})
     if beneficiary_id:
         beneficiary_map[beneficiary_id] = {
             "alias": saved_alias,
             "address": saved_address,
         }
 
-    transaction_state = context.user_data.setdefault('transaction', {})
-    transaction_state['address'] = saved_address
-    transaction_state['beneficiary_alias'] = saved_alias
+    transaction_state = context.user_data.setdefault("transaction", {})
+    transaction_state["address"] = saved_address
+    transaction_state["beneficiary_alias"] = saved_alias
 
-    context.user_data.pop('beneficiary_add', None)
+    context.user_data.pop("beneficiary_add", None)
 
     cancel_markup = InlineKeyboardMarkup(
         [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")]]
@@ -421,20 +438,24 @@ async def amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             return AMOUNT
 
-        transaction_state = context.user_data.setdefault('transaction', {})
-        transaction_state['amount'] = amount
+        transaction_state = context.user_data.setdefault("transaction", {})
+        transaction_state["amount"] = amount
 
-        if transaction_state.get('address'):
+        if transaction_state.get("address"):
             keyboard = [[KeyboardButton("✅ YES"), KeyboardButton("❌ NO")]]
-            reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+            reply_markup = ReplyKeyboardMarkup(
+                keyboard, one_time_keyboard=True, resize_keyboard=True
+            )
 
             fee = 0.00001  # Standard fee
-            message = format_transaction_confirmation(transaction_state['address'], amount, fee)
-            alias = transaction_state.get('beneficiary_alias')
+            message = format_transaction_confirmation(transaction_state["address"], amount, fee)
+            alias = transaction_state.get("beneficiary_alias")
             if alias:
                 message = f"📇 <b>Beneficiary:</b> {escape_html(alias)}\n\n" + message
 
-            await update.message.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
+            await update.message.reply_text(
+                message, parse_mode=ParseMode.HTML, reply_markup=reply_markup
+            )
             return CONFIRM
 
         cancel_markup = InlineKeyboardMarkup(
@@ -465,11 +486,11 @@ async def address_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             parse_mode=ParseMode.HTML,
         )
         return ADDRESS
-    
-    transaction_state = context.user_data.setdefault('transaction', {})
-    transaction_state['address'] = address
-    transaction_state.pop('beneficiary_alias', None)
-    amount = transaction_state.get('amount', 0)
+
+    transaction_state = context.user_data.setdefault("transaction", {})
+    transaction_state["address"] = address
+    transaction_state.pop("beneficiary_alias", None)
+    amount = transaction_state.get("amount", 0)
 
     keyboard = [[KeyboardButton("✅ YES"), KeyboardButton("❌ NO")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
@@ -536,9 +557,7 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     response_json = response.json()
                     if isinstance(response_json, dict):
                         error_detail = str(
-                            response_json.get("detail")
-                            or response_json.get("error")
-                            or ""
+                            response_json.get("detail") or response_json.get("error") or ""
                         )
                 except ValueError:
                     error_detail = ""
@@ -610,7 +629,7 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Support cancel via callback button
     cq_msg = None
     msg = None
-    
+
     if update.callback_query:
         try:
             await update.callback_query.answer()
@@ -622,9 +641,9 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if context.user_data is not None:
 
-        context.user_data.pop('transaction', None)
-        context.user_data.pop('beneficiaries', None)
-        context.user_data.pop('beneficiary_add', None)
+        context.user_data.pop("transaction", None)
+        context.user_data.pop("beneficiaries", None)
+        context.user_data.pop("beneficiary_add", None)
 
         # Update nav state to main menu for consistency
         try:
