@@ -1,0 +1,11 @@
+{
+  "network": "testnet",
+  "address": "rnfn5udAby2D6vkrxwgxm42w3FsZtBbfqE",
+  "public_key": "ED635BDED203FF4C3E46FA5877C6DF507345C51D29185AD5D32959F9757FA5C3FB",
+  "private_key": "ED54FA537247A2074143F35686EAB24CD1E959CEA843F0A58F3D2D0B36F188DBCA",
+  "seed": "sEd7vM6wVAr8ugLG6NLdUGVL7uwbY2p",
+  "balance_xrp": 10.0,
+  "rpc_url": "https://s.altnet.rippletest.net:51234",
+  "websocket_url": "wss://s.altnet.rippletest.net:51233",
+  "faucet_url": "https://faucet.altnet.rippletest.net/accounts"
+}
