@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import (
     declarative_base,
@@ -58,6 +59,12 @@ class User(Base):
     )
     sent_transactions = relationship(
         "Transaction", foreign_keys="Transaction.sender_id", back_populates="sender", lazy="select"
+    )
+    beneficiaries = relationship(
+        "Beneficiary",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
     settings = relationship(
         "UserSettings", back_populates="user", uselist=False, lazy="selectin"
@@ -155,6 +162,35 @@ class Transaction(Base):
 
     def __repr__(self) -> str:
         return f"<Transaction(id={self.id}, hash={self.tx_hash}, amount={self.amount}, status={self.status})>"
+
+
+class Beneficiary(Base):
+    """Beneficiary aliases for quick transactions."""
+
+    __tablename__ = "beneficiaries"
+    __table_args__ = (
+        UniqueConstraint("user_id", "alias", name="uq_beneficiary_user_alias"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    alias = Column(String(100), nullable=False)
+    address = Column(String(255), nullable=False)
+
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    user = relationship("User", back_populates="beneficiaries")
+
+    def __repr__(self) -> str:
+        return f"<Beneficiary(id={self.id}, alias={self.alias}, address={self.address})>"
 
 
 class PriceHistory(Base):

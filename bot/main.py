@@ -58,11 +58,19 @@ from .handlers.start import start_command, help_command
 from .handlers.wallet import balance_command, profile_command
 from .handlers.transaction import (
     send_command,
+    send_mode_handler,
+    beneficiary_selection_handler,
+    beneficiary_add_alias_handler,
+    beneficiary_add_address_handler,
     amount_handler,
     address_handler,
     confirm_handler,
     cancel_handler,
     history_command, # This is now defined in transaction.py
+    MODE,
+    BENEFICIARY_SELECT,
+    BENEFICIARY_ADD_ALIAS,
+    BENEFICIARY_ADD_ADDRESS,
     AMOUNT,
     ADDRESS,
     CONFIRM,
@@ -439,14 +447,28 @@ def main():
             CallbackQueryHandler(send_command, pattern=r"^(send|send_xrp)$"),
         ],
         states={
+            MODE: [
+                CallbackQueryHandler(send_mode_handler, pattern=r"^send_mode_(beneficiary|address)$"),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
+            BENEFICIARY_SELECT: [
+                CallbackQueryHandler(beneficiary_selection_handler, pattern=r"^beneficiary_(select:.*|add)$"),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
+            BENEFICIARY_ADD_ALIAS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, beneficiary_add_alias_handler),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
+            BENEFICIARY_ADD_ADDRESS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, beneficiary_add_address_handler),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
             AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, amount_handler),
-                # Allow inline cancel during amount step
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             ADDRESS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, address_handler),
-                # Allow inline cancel during address step
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_handler)],
