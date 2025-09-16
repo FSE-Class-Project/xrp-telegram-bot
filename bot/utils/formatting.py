@@ -3,7 +3,6 @@
 import html
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional, Union
 
 
 def escape_html(text: str) -> str:
@@ -32,7 +31,7 @@ def format_xrp_address(address: str) -> str:
     return f"<code>{escape_html(address)}</code>"
 
 
-def format_xrp_amount(amount: Union[Decimal, float, str], decimals: int = 6) -> str:
+def format_xrp_amount(amount: Decimal | float | str, decimals: int = 6) -> str:
     """
     Format XRP amount with consistent decimal places.
 
@@ -52,7 +51,7 @@ def format_xrp_amount(amount: Union[Decimal, float, str], decimals: int = 6) -> 
     return format(amount, format_spec)
 
 
-def format_currency_amount(amount: Union[Decimal, float, str], currency: str = "USD") -> str:
+def format_currency_amount(amount: Decimal | float | str, currency: str = "USD") -> str:
     """
     Format an amount with currency symbol or unit (supports fiat + crypto).
 
@@ -108,7 +107,7 @@ def format_hash(tx_hash: str, length: int = 10) -> str:
     return f"<code>{escape_html(tx_hash[:length])}...</code>"
 
 
-def format_username(username: Optional[str]) -> str:
+def format_username(username: str | None) -> str:
     """
     Format Telegram username with safe escaping.
 
@@ -173,11 +172,11 @@ def format_warning_message(title: str, message: str) -> str:
 
 def format_balance_info(
     address: str,
-    balance: Union[Decimal, float, str],
-    available: Union[Decimal, float, str],
-    fiat_value: Union[Decimal, float, str],
+    balance: Decimal | float | str,
+    available: Decimal | float | str,
+    fiat_value: Decimal | float | str,
     fiat_currency: str = "USD",
-    last_updated: Optional[datetime] = None,
+    last_updated: datetime | None = None,
 ) -> str:
     """
     Format balance information with consistent styling.
@@ -216,7 +215,7 @@ def format_balance_info(
 
 
 def format_transaction_confirmation(
-    recipient: str, amount: Union[Decimal, float, str], fee: Union[Decimal, float, str]
+    recipient: str, amount: Decimal | float | str, fee: Decimal | float | str
 ) -> str:
     """
     Format transaction confirmation message.
@@ -247,7 +246,7 @@ def format_transaction_confirmation(
     )
 
 
-def format_transaction_success(tx_hash: str, explorer_url: Optional[str] = None) -> str:
+def format_transaction_success(tx_hash: str, explorer_url: str | None = None) -> str:
     """
     Format successful transaction message.
 
@@ -268,9 +267,7 @@ def format_transaction_success(tx_hash: str, explorer_url: Optional[str] = None)
     return message
 
 
-def format_funding_instructions(
-    balance: Union[Decimal, float, str], is_mainnet: bool = False
-) -> str:
+def format_funding_instructions(balance: Decimal | float | str, is_mainnet: bool = False) -> str:
     """
     Format funding instructions based on current balance and network.
 

@@ -2,7 +2,7 @@
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 from telegram import Message, Update
 from telegram.constants import ParseMode
@@ -46,11 +46,11 @@ def ensure_callback_query(func: F) -> F:
 
 
 async def safe_reply_text(
-    message: Optional[Message],
+    message: Message | None,
     text: str,
-    parse_mode: Optional[str] = ParseMode.MARKDOWN_V2,
+    parse_mode: str | None = ParseMode.MARKDOWN_V2,
     **kwargs,
-) -> Optional[Message]:
+) -> Message | None:
     """
     Safely reply to a message with proper error handling.
 
@@ -121,7 +121,7 @@ class MessageBuilder:
     """Helper class to build formatted messages safely."""
 
     @staticmethod
-    def error_message(error: str, details: Optional[str] = None) -> str:
+    def error_message(error: str, details: str | None = None) -> str:
         """Build an error message."""
         message = f"❌ *Error*\n\n{escape_markdown_v2(error)}"
         if details:

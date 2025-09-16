@@ -1,6 +1,6 @@
 # bot/handlers/price.py
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -80,7 +80,7 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 
-async def fetch_price_data(api_url: str, api_key: str) -> Optional[dict[str, Any]]:
+async def fetch_price_data(api_url: str, api_key: str) -> dict[str, Any] | None:
     """
     Fetch price data from the API.
 
@@ -115,7 +115,7 @@ async def fetch_price_data(api_url: str, api_key: str) -> Optional[dict[str, Any
         return None
 
 
-async def fetch_market_stats(api_url: str, api_key: str) -> Optional[dict[str, Any]]:
+async def fetch_market_stats(api_url: str, api_key: str) -> dict[str, Any] | None:
     """Fetch market statistics from API."""
     try:
         async with httpx.AsyncClient() as client:
@@ -131,7 +131,7 @@ async def fetch_market_stats(api_url: str, api_key: str) -> Optional[dict[str, A
 
 
 def format_enhanced_price_message(
-    price_data: dict[str, Any], market_data: Optional[dict[str, Any]] = None, currency: str = "USD"
+    price_data: dict[str, Any], market_data: dict[str, Any] | None = None, currency: str = "USD"
 ) -> str:
     """
     Format enhanced price data into an HTML Telegram message.

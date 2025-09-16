@@ -3,7 +3,7 @@ import os
 
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.constants import ParseMode  # Use HTML for consistency
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -35,7 +35,7 @@ else:
     # Development: Reduce polling noise but keep important messages
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("telegram.ext.ExtBot").setLevel(logging.INFO)  # Hide DEBUG polling messages
+    logging.getLogger("telegram.ext.ExtBot").setLevel(logging.INFO)
     logging.getLogger("telegram.ext.Updater").setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 BOT_API_KEY = None  # Will be initialized later
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL")
-RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")  # Render provides this automatically
+RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
 PORT = int(os.getenv("PORT", 8443))
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
@@ -53,11 +53,10 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_RENDER = os.getenv("RENDER") is not None
 
 # --- Import Handlers & Keyboards ---
-# These imports will now work because we are creating the files.
-from .handlers.price import price_command
-from .handlers.settings import settings_command
-from .handlers.start import help_command, start_command
-from .handlers.transaction import (
+from .handlers.price import price_command  # noqa: E402
+from .handlers.settings import settings_command  # noqa: E402
+from .handlers.start import help_command, start_command  # noqa: E402
+from .handlers.transaction import (  # noqa: E402
     ADDRESS,
     AMOUNT,
     CONFIRM,
@@ -65,13 +64,11 @@ from .handlers.transaction import (
     amount_handler,
     cancel_handler,
     confirm_handler,
-    history_command,  # This is now defined in transaction.py
+    history_command,
     send_command,
 )
-from .handlers.wallet import balance_command, profile_command
-from .keyboards.menus import keyboards  # Import the keyboards object
-
-# --- Handlers ---
+from .handlers.wallet import balance_command, profile_command  # noqa: E402
+from .keyboards.menus import keyboards  # noqa: E402
 
 
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,7 +81,6 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     await query.answer()
 
     # --- Navigation stack management ---
-    # Keep per-user navigation stack and current menu id
     user_data = context.user_data
     nav_stack = user_data.setdefault("nav_stack", [])
     current_menu = user_data.get("current_menu", "main_menu")
@@ -107,12 +103,10 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         if menu_id == "balance":
             await balance_command(update, context)
         elif menu_id == "send" or menu_id == "send_xrp":
-            # Conversation flows are best started via /send; try anyway
             await send_command(update, context)
         elif menu_id == "price":
             await price_command(update, context)
         elif menu_id == "history":
-            # Prefer enhanced history pagination if available
             try:
                 from .handlers.history import history_command as hist_cmd
 
@@ -159,7 +153,6 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             elif menu_id == "delete_account":
                 await delete_account_warning(update, context)
         else:
-            # Fallback to main menu if unknown
             await route_to("main_menu")
             return
 
@@ -169,8 +162,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         await route_to(target)
         return
 
-    # Route to appropriate handler based on the button's callback_data
-    # Determine if this is an in-place action (won't change page)
+    # Determine if this is an in-place action
     is_refresh = (
         data.startswith("refresh_") or data.startswith("history_page_") or data in ("page_info",)
     )
@@ -181,6 +173,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             if current_menu and current_menu != "main_menu":
                 nav_stack.append(current_menu)
 
+    # Route based on callback data
     if data == "balance":
         push_if_forward("balance")
         await balance_command(update, context)
@@ -224,7 +217,6 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         if data == "refresh_balance":
             await balance_command(update, context)
         elif data == "refresh_price":
-            # Import price refresh handler
             from .handlers.price import price_refresh_callback
 
             await price_refresh_callback(update, context)
@@ -236,12 +228,10 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
 
             await history_page(update, context)
         except Exception:
-            # Fallback: just reload history
             await history_command(update, context)
         user_data["current_menu"] = "history"
     elif data == "market_stats":
         push_if_forward("market_stats")
-        # Import market stats handler
         from .handlers.price import market_stats_callback
 
         await market_stats_callback(update, context)
@@ -259,7 +249,6 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             "setup_",
         )
     ):
-        # Handle settings-related callbacks
         from .handlers.settings import (
             currency_settings,
             delete_account_warning,
@@ -296,18 +285,16 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             await delete_account_warning(update, context)
             user_data["current_menu"] = "delete_account"
         elif data.startswith("toggle_"):
-            setting_name = data[7:]  # Remove "toggle_" prefix
+            setting_name = data[7:]
             await toggle_setting(update, context, setting_name)
         elif data.startswith("set_currency_"):
-            currency = data[13:]  # Remove "set_currency_" prefix
+            currency = data[13:]
             await set_currency(update, context, currency)
     elif data == "settings":
         push_if_forward("settings")
-        # Handle settings menu
         await settings_command(update, context)
         user_data["current_menu"] = "settings"
     elif data in ["retry", "cancel_send", "confirm_send"]:
-        # Handle special callback data
         if data == "retry":
             await query.message.edit_text(
                 "🔄 <b>Retry</b>\n\nPlease try your last action again.",
@@ -321,7 +308,6 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
                 reply_markup=keyboards.main_menu(),
             )
         elif data == "confirm_send":
-            # Handle transaction confirmation
             logger.info("Transaction confirmation requested")
             await query.message.edit_text(
                 "✅ <b>Transaction Confirmed</b>\n\nProcessing your transaction...",
@@ -336,9 +322,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f'Update "{update}" caused error "{error}"', exc_info=error)
 
     if isinstance(update, Update):
-        # Determine if this is a callback query or message
         if update.callback_query:
-            # Handle callback query errors with retry logic
             max_retries = 3
             for attempt in range(max_retries):
                 try:
@@ -351,13 +335,11 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                     if attempt == max_retries - 1:
                         logger.error("All callback query answer attempts failed")
 
-        # Send error message to user with proper error classification
         if update.effective_message:
             try:
                 from .keyboards.menus import keyboards
                 from .utils.formatting import format_error_message
 
-                # Classify and handle different error types
                 error_str = str(error).lower()
 
                 if "timeout" in error_str or "asyncio.timeouterror" in error_str:
@@ -389,7 +371,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                         "An unexpected error occurred. Please try again later.",
                     )
 
-                # Try to send error message with fallback
                 try:
                     await update.effective_message.reply_text(
                         error_msg,
@@ -397,7 +378,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                         reply_markup=keyboards.error_menu() if "keyboards" in locals() else None,
                     )
                 except Exception as send_error:
-                    # Fallback: send simple text message
                     logger.error(f"Failed to send formatted error message: {send_error}")
                     try:
                         await update.effective_message.reply_text(
@@ -408,7 +388,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
             except ImportError as import_error:
                 logger.error(f"Import error in error handler: {import_error}")
-                # Minimal fallback when imports fail
                 try:
                     await update.effective_message.reply_text(
                         "⚠️ Service temporarily unavailable. Please try again."
@@ -417,20 +396,18 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                     logger.error(f"Final fallback error message failed: {e}")
             except Exception as e:
                 logger.error(f"Error in error message handling: {e}")
-                # Absolute fallback
                 try:
                     await update.effective_message.reply_text(
                         "⚠️ Error occurred. Please restart with /start."
                     )
-                except:
-                    pass  # Nothing more we can do
+                except Exception:
+                    pass
 
 
 async def post_init(application: Application):
     """Initialize bot data after application starts."""
     global BOT_API_KEY
 
-    # Initialize API key from backend settings
     if not BOT_API_KEY:
         try:
             from backend.config import initialize_settings
@@ -449,7 +426,6 @@ async def post_init(application: Application):
     logger.info(f"🌐 Environment: {ENVIRONMENT}")
     logger.info(f"🔧 Render deployment: {IS_RENDER}")
 
-    # Determine execution mode based on environment
     if IS_RENDER or ENVIRONMENT == "production":
         logger.info("Production mode detected - bot should only run via webhook")
         if __name__ == "__main__":
@@ -459,44 +435,28 @@ async def post_init(application: Application):
         logger.info("Development mode - using polling")
 
 
-def main():
-    """Start the bot."""
-    if not BOT_TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN not found in environment variables!")
-        return
+def setup_handlers(application: Application):
+    """Setup all bot handlers - can be called from backend for webhook mode."""
 
-    # Check if we should be running in production mode
-    if IS_RENDER or ENVIRONMENT == "production":
-        logger.error("❌ This script should not be run directly in production!")
-        logger.error("❌ In production, the bot runs via webhooks through the backend service")
-        logger.info("💡 Use the backend service instead: python -m backend.main")
-        return
-
-    application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
-
-    # Conversation handler for the /send command
+    # Create conversation handler for send command
     send_conversation_handler = ConversationHandler(
         entry_points=[
             CommandHandler("send", send_command),
-            # Start the send flow from inline buttons like "📤 Send" / "📤 Send XRP"
             CallbackQueryHandler(send_command, pattern=r"^(send|send_xrp)$"),
         ],
         states={
             AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, amount_handler),
-                # Allow inline cancel during amount step
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             ADDRESS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, address_handler),
-                # Allow inline cancel during address step
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_handler)],
         },
         fallbacks=[
             CommandHandler("cancel", cancel_handler),
-            # Catch cancel button from anywhere in the flow
             CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
         ],
     )
@@ -513,7 +473,26 @@ def main():
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_error_handler(error_handler)
 
-    # Start the bot in development polling mode
+    logger.info("✅ Bot handlers configured successfully")
+
+
+def main():
+    """Start the bot."""
+    if not BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN not found in environment variables!")
+        return
+
+    if IS_RENDER or ENVIRONMENT == "production":
+        logger.error("❌ This script should not be run directly in production!")
+        logger.error("❌ In production, the bot runs via webhooks through the backend service")
+        logger.info("💡 Use the backend service instead: python -m backend.main")
+        return
+
+    application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
+
+    # Setup handlers
+    setup_handlers(application)
+
     logger.info("🏠 Starting bot in development polling mode...")
     try:
         application.run_polling(

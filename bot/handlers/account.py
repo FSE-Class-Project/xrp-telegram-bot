@@ -105,7 +105,7 @@ If you ever want to use the bot again, simply send /start to create a new accoun
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
-    user_id = update.effective_user.id if update.effective_user else None
+    # user_id = update.effective_user.id if update.effective_user else None
 
     message = """
 🆘 <b>XRP Telegram Bot Help</b>
@@ -276,7 +276,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
                         created_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                         created_formatted = created_date.strftime("%Y-%m-%d")
-                    except:
+                    except (ValueError, TypeError, AttributeError):
                         created_formatted = created_at[:10]
                 else:
                     created_formatted = "Unknown"

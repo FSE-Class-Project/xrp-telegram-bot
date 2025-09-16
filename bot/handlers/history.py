@@ -165,7 +165,7 @@ def format_transaction_history(
             try:
                 dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                 formatted_time = dt.strftime("%m/%d %H:%M")
-            except:
+            except (ValueError, TypeError):
                 formatted_time = timestamp[:16].replace("T", " ")
         else:
             formatted_time = "Unknown"

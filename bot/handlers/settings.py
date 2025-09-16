@@ -1,6 +1,6 @@
 # bot/handlers/settings.py
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -306,7 +306,7 @@ async def set_currency(update: Update, context: ContextTypes.DEFAULT_TYPE, curre
         await query.answer("An error occurred", show_alert=True)
 
 
-async def fetch_user_settings(api_url: str, api_key: str, user_id: int) -> Optional[dict[str, Any]]:
+async def fetch_user_settings(api_url: str, api_key: str, user_id: int) -> dict[str, Any] | None:
     """Fetch user settings from API."""
     try:
         async with httpx.AsyncClient() as client:
