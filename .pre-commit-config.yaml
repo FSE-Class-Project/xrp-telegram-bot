@@ -1,0 +1,114 @@
+# Pre-commit hooks for XRP Telegram Bot
+# Windows, Mac, and Linux
+
+# Exclude directories that shouldn't be checked
+exclude: |
+  (?x)^(
+    \.venv/.*|
+    venv/.*|
+    \.env|
+    __pycache__/.*|
+    \.pytest_cache/.*|
+    htmlcov/.*|
+    \.coverage|
+    .*\.egg-info/.*|
+    build/.*|
+    dist/.*|
+    \.git/.*|
+    \.mypy_cache/.*|
+    \.tox/.*|
+    alembic/versions/.*\.py$|
+    migrations/.*
+  )$
+
+repos:
+  # Black - Python code formatter (reads settings from pyproject.toml)
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        # Black will read line-length=100 from your pyproject.toml
+
+  # Ruff - Fast Python linter (replaces flake8, isort, and more)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Run the formatter (Ruff's Black-compatible formatter)
+      - id: ruff-format
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-json
+        exclude: .*/settings\.local\.json$
+      - id: check-yaml
+        exclude: render.yaml  # Render might have special syntax
+      - id: check-toml
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)^(
+            .*\.md$|
+            LICENSE$|
+            .*\.txt$
+          )$
+      - id: trailing-whitespace
+        exclude: |
+          (?x)^(
+            .*\.md$|
+            .*\.txt$
+          )$
+      - id: check-merge-conflict
+      - id: detect-private-key
+        exclude: |
+          (?x)^(
+            tests/.*|
+            .*\.example$
+          )$
+      - id: mixed-line-ending
+        args: [--fix=lf]  # Standardize on LF line endings
+        exclude: |
+          (?x)^(
+            .*\.bat$|
+            .*\.ps1$|
+            .*\.cmd$
+          )$
+      - id: debug-statements  # Check for leftover print/debugger statements
+        exclude: |
+          (?x)^(
+            format\.py$|
+            debug_.*\.py$|
+            dev_utils\.py$|
+            run\.py$
+          )$
+      - id: check-docstring-first
+        exclude: |
+          (?x)^(
+            alembic/.*|
+            tests/.*
+          )$
+      - id: check-executables-have-shebangs
+        exclude: |
+          (?x)^(
+            .*\.py$
+          )$
+      - id: check-shebang-scripts-are-executable
+        exclude: |
+          (?x)^(
+            .*\.py$
+          )$
+
+# Use system Python (works across platforms)
+default_language_version:
+  python: python
+
+# Don't run on commit if CI is set (for automated commits)
+ci:
+  skip: [trailing-whitespace, end-of-file-fixer, mixed-line-ending]
+  autofix_prs: false
+  autoupdate_schedule: monthly

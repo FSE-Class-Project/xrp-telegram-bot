@@ -1,7 +1,7 @@
 """Telegram webhook endpoint for production deployment."""
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -11,7 +11,7 @@ from telegram.ext import Application
 logger = logging.getLogger(__name__)
 
 # Global application instance (will be set by the main backend)
-telegram_app: Optional[Application] = None
+telegram_app: Application | None = None
 
 # Create webhook router
 webhook_router = APIRouter(prefix="/webhook", tags=["Webhook"])

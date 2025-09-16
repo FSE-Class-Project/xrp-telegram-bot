@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -19,7 +20,6 @@ from sqlalchemy.orm import (
     declarative_base,
     relationship,
 )
-from sqlalchemy import Column
 
 if TYPE_CHECKING:
     # This prevents circular imports while still providing type hints
@@ -54,9 +54,7 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Relationships - use string references to avoid circular imports
-    wallet = relationship(
-        "Wallet", back_populates="user", uselist=False, lazy="selectin"
-    )
+    wallet = relationship("Wallet", back_populates="user", uselist=False, lazy="selectin")
     sent_transactions = relationship(
         "Transaction", foreign_keys="Transaction.sender_id", back_populates="sender", lazy="select"
     )
@@ -80,9 +78,7 @@ class Wallet(Base):
     __tablename__ = "wallets"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(
-        Integer, ForeignKey("users.id"), unique=True, nullable=False
-    )
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
     # XRP Account Details
     xrp_address = Column(String(255), unique=True, nullable=False, index=True)
@@ -90,9 +86,7 @@ class Wallet(Base):
 
     # Balance tracking (cached for performance)
     balance = Column(Float, default=0.0, nullable=False)
-    last_balance_update = Column(
-        DateTime(timezone=True), nullable=True, default=None
-    )
+    last_balance_update = Column(DateTime(timezone=True), nullable=True, default=None)
 
     # Security
     encryption_version = Column(Integer, default=1, nullable=False)
@@ -123,9 +117,7 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True)
 
     # Transaction parties
-    sender_id = Column(
-        Integer, ForeignKey("users.id"), nullable=True, default=None
-    )
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=True, default=None)
     sender_address = Column(String(255), nullable=False)
     recipient_address = Column(String(255), nullable=False)
 
@@ -134,14 +126,10 @@ class Transaction(Base):
     fee = Column(Float, default=0.00001, nullable=False)
 
     # Idempotency key for preventing duplicate transactions
-    idempotency_key = Column(
-        String(255), unique=True, index=True, nullable=True, default=None
-    )
+    idempotency_key = Column(String(255), unique=True, index=True, nullable=True, default=None)
 
     # XRP Ledger details
-    tx_hash = Column(
-        String(255), unique=True, index=True, nullable=True, default=None
-    )
+    tx_hash = Column(String(255), unique=True, index=True, nullable=True, default=None)
     ledger_index = Column(Integer, nullable=True, default=None)
 
     # Status tracking
@@ -153,9 +141,7 @@ class Transaction(Base):
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    confirmed_at = Column(
-        DateTime(timezone=True), nullable=True, default=None
-    )
+    confirmed_at = Column(DateTime(timezone=True), nullable=True, default=None)
 
     # Relationships
     sender = relationship("User", back_populates="sent_transactions")
@@ -232,12 +218,8 @@ class IdempotencyRecord(Base):
     id = Column(Integer, primary_key=True)
 
     # Idempotency tracking
-    idempotency_key = Column(
-        String(255), unique=True, index=True, nullable=False
-    )
-    user_id = Column(
-        Integer, ForeignKey("users.id"), nullable=True, default=None
-    )
+    idempotency_key = Column(String(255), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, default=None)
     operation_type = Column(String(50), nullable=False)
 
     # Request data for comparison
@@ -245,15 +227,11 @@ class IdempotencyRecord(Base):
     request_data = Column(Text, nullable=False)  # JSON string
 
     # Response tracking
-    response_status = Column(
-        String(20), nullable=False
-    )  # success, error, processing
+    response_status = Column(String(20), nullable=False)  # success, error, processing
     response_data = Column(Text, nullable=True, default=None)
 
     # Related records
-    transaction_id = Column(
-        Integer, ForeignKey("transactions.id"), nullable=True, default=None
-    )
+    transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True, default=None)
 
     # Timestamps
     created_at = Column(
@@ -275,9 +253,7 @@ class UserSettings(Base):
     __tablename__ = "user_settings"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(
-        Integer, ForeignKey("users.id"), unique=True, nullable=False
-    )
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
     # Notification preferences
     price_alerts = Column(Boolean, default=False, nullable=False)

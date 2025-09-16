@@ -1,17 +1,16 @@
 # bot/handlers/account.py
 """Account management handlers for deletion, help, and support."""
 
-from typing import Optional, Dict, Any
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+
+import httpx
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-import httpx
-import logging
 
 from ..utils.formatting import (
     escape_html,
     format_error_message,
-    format_success_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -22,23 +21,21 @@ async def confirm_delete_account(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     if not query:
         return
-    
+
     await query.answer()
     user_id = query.from_user.id
-    
+
     try:
-        api_url = context.bot_data.get('api_url', 'http://localhost:8000')
-        api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
-        
+        api_url = context.bot_data.get("api_url", "http://localhost:8000")
+        api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
+
         # Delete account via API
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.delete(
-                f"{api_url}/api/v1/user/{user_id}",
-                headers=headers,
-                timeout=30.0
+                f"{api_url}/api/v1/user/{user_id}", headers=headers, timeout=30.0
             )
-            
+
             if response.status_code == 200:
                 message = """
 ✅ <b>Account Deleted Successfully</b>
@@ -47,7 +44,7 @@ Your XRP Telegram Bot account has been permanently deleted.
 
 <b>What was deleted:</b>
 • Your wallet and private keys
-• All transaction history  
+• All transaction history
 • Personal settings and data
 • Cached information
 
@@ -57,20 +54,17 @@ If you ever want to use the bot again, simply send /start to create a new accoun
 
 <i>This conversation will remain, but all your bot data has been removed.</i>
 """
-                
+
                 if query.message:
-                    await query.message.edit_text(
-                        message,
-                        parse_mode=ParseMode.HTML
-                    )
-                
+                    await query.message.edit_text(message, parse_mode=ParseMode.HTML)
+
                 # Log the deletion
                 logger.warning(f"Account deleted for user {user_id} via Telegram bot")
-                
+
             else:
                 error_data = response.json() if response.status_code != 500 else {}
-                error_message = error_data.get('detail', 'Unknown error occurred')
-                
+                error_message = error_data.get("detail", "Unknown error occurred")
+
                 await query.answer("Account deletion failed", show_alert=True)
                 if query.message:
                     await query.message.edit_text(
@@ -79,12 +73,18 @@ If you ever want to use the bot again, simply send /start to create a new accoun
                             "Please try again or contact support if the problem persists."
                         ),
                         parse_mode=ParseMode.HTML,
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔄 Try Again", callback_data="delete_account")],
-                            [InlineKeyboardButton("🔙 Back to Settings", callback_data="back")]
-                        ])
+                        reply_markup=InlineKeyboardMarkup(
+                            [
+                                [
+                                    InlineKeyboardButton(
+                                        "🔄 Try Again", callback_data="delete_account"
+                                    )
+                                ],
+                                [InlineKeyboardButton("🔙 Back to Settings", callback_data="back")],
+                            ]
+                        ),
                     )
-                
+
     except Exception as e:
         logger.error(f"Error deleting account for user {user_id}: {e}", exc_info=True)
         await query.answer("An error occurred during deletion", show_alert=True)
@@ -94,17 +94,19 @@ If you ever want to use the bot again, simply send /start to create a new accoun
                     "Deletion Error: An unexpected error occurred. Please try again later or contact support."
                 ),
                 parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔄 Try Again", callback_data="delete_account")],
-                    [InlineKeyboardButton("🔙 Back to Settings", callback_data="back")]
-                ])
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🔄 Try Again", callback_data="delete_account")],
+                        [InlineKeyboardButton("🔙 Back to Settings", callback_data="back")],
+                    ]
+                ),
             )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
-    user_id = update.effective_user.id if update.effective_user else None
-    
+    # user_id = update.effective_user.id if update.effective_user else None
+
     message = """
 🆘 <b>XRP Telegram Bot Help</b>
 
@@ -114,7 +116,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 <b>Available Commands:</b>
 • /balance - Check your XRP balance
-• /send - Send XRP to another address  
+• /send - Send XRP to another address
 • /price - View current XRP price
 • /history - View transaction history
 • /settings - Manage bot settings
@@ -135,35 +137,31 @@ You can send XRP in two ways:
 <b>Need Support?</b>
 Contact our support team for assistance!
 """
-    
-    keyboard = InlineKeyboardMarkup([
+
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("💰 Check Balance", callback_data="balance"),
-            InlineKeyboardButton("💸 Send XRP", callback_data="send_xrp")
-        ],
-        [
-            InlineKeyboardButton("📊 View Price", callback_data="price"),
-            InlineKeyboardButton("⚙️ Settings", callback_data="settings")
-        ],
-        [
-            InlineKeyboardButton("📞 Contact Support", callback_data="contact_support"),
-            InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
+            [
+                InlineKeyboardButton("💰 Check Balance", callback_data="balance"),
+                InlineKeyboardButton("💸 Send XRP", callback_data="send_xrp"),
+            ],
+            [
+                InlineKeyboardButton("📊 View Price", callback_data="price"),
+                InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+            ],
+            [
+                InlineKeyboardButton("📞 Contact Support", callback_data="contact_support"),
+                InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
+            ],
         ]
-    ])
-    
+    )
+
     if update.message:
-        await update.message.reply_text(
-            message,
-            parse_mode=ParseMode.HTML,
-            reply_markup=keyboard
-        )
+        await update.message.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
     elif update.callback_query:
         await update.callback_query.answer()
         if update.callback_query.message:
             await update.callback_query.message.edit_text(
-                message,
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboard
+                message, parse_mode=ParseMode.HTML, reply_markup=keyboard
             )
 
 
@@ -172,9 +170,9 @@ async def contact_support(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     if not query:
         return
-    
+
     await query.answer()
-    
+
     message = """
 📞 <b>Contact Support</b>
 
@@ -185,7 +183,7 @@ Need help? We're here for you!
 🔸 <b>Email Support</b>
 Send us an email: support@fse-group3.co.za
 
-🔸 <b>FAQ & Documentation</b>  
+🔸 <b>FAQ & Documentation</b>
 Check our comprehensive FAQ for common questions
 
 🔸 <b>Bug Reports</b>
@@ -203,34 +201,42 @@ View development progress and updates
 
 <i>Please include your Telegram username and describe your issue clearly.</i>
 """
-    
-    keyboard = InlineKeyboardMarkup([
+
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("📧 Email Support", url="mailto:support@fse-group3.co.za"),
-            InlineKeyboardButton("📚 FAQ", url="https://github.com/FSE-Class-Project/xrp-telegram-bot/blob/main/FAQ.md")
-        ],
-        [
-            InlineKeyboardButton("🐛 Report Bug", url="https://github.com/FSE-Class-Project/xrp-telegram-bot/issues"),
-            InlineKeyboardButton("📊 Project Board", url="https://github.com/orgs/FSE-Class-Project/projects/1/views/1")
-        ],
-        [
-            InlineKeyboardButton("🆘 Help", callback_data="help"),
-            InlineKeyboardButton("🔙 Back", callback_data="main_menu")
+            [
+                InlineKeyboardButton("📧 Email Support", url="mailto:support@fse-group3.co.za"),
+                InlineKeyboardButton(
+                    "📚 FAQ",
+                    url="https://github.com/FSE-Class-Project/xrp-telegram-bot/blob/main/FAQ.md",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🐛 Report Bug",
+                    url="https://github.com/FSE-Class-Project/xrp-telegram-bot/issues",
+                ),
+                InlineKeyboardButton(
+                    "📊 Project Board",
+                    url="https://github.com/orgs/FSE-Class-Project/projects/1/views/1",
+                ),
+            ],
+            [
+                InlineKeyboardButton("🆘 Help", callback_data="help"),
+                InlineKeyboardButton("🔙 Back", callback_data="main_menu"),
+            ],
         ]
-    ])
-    
+    )
+
     if query.message:
-        await query.message.edit_text(
-            message,
-            parse_mode=ParseMode.HTML,
-            reply_markup=keyboard
-        )
+        await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
 
 async def withdraw_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /withdraw command - alias for /send."""
     # Simply call the send command since withdrawal is the same as sending
     from .transaction import send_command
+
     await send_command(update, context)
 
 
@@ -239,45 +245,42 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user = update.effective_user
     if not user:
         return
-    
+
     try:
-        api_url = context.bot_data.get('api_url', 'http://localhost:8000')
-        api_key = context.bot_data.get('api_key', 'dev-bot-api-key-change-in-production')
-        
+        api_url = context.bot_data.get("api_url", "http://localhost:8000")
+        api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
+
         # Fetch user profile data
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
-            
+
             # Get user settings (includes profile info)
             settings_response = await client.get(
-                f"{api_url}/api/v1/user/settings/{user.id}",
-                headers=headers,
-                timeout=10.0
+                f"{api_url}/api/v1/user/settings/{user.id}", headers=headers, timeout=10.0
             )
-            
+
             # Get wallet balance
             balance_response = await client.get(
-                f"{api_url}/api/v1/wallet/balance/{user.id}",
-                headers=headers,
-                timeout=10.0
+                f"{api_url}/api/v1/wallet/balance/{user.id}", headers=headers, timeout=10.0
             )
-            
+
             if settings_response.status_code == 200 and balance_response.status_code == 200:
                 settings_data = settings_response.json()
                 balance_data = balance_response.json()
-                
+
                 # Format creation date
-                created_at = settings_data.get('created_at', 'Unknown')
-                if created_at != 'Unknown':
+                created_at = settings_data.get("created_at", "Unknown")
+                if created_at != "Unknown":
                     try:
                         from datetime import datetime
-                        created_date = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                        created_formatted = created_date.strftime('%Y-%m-%d')
-                    except:
+
+                        created_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                        created_formatted = created_date.strftime("%Y-%m-%d")
+                    except (ValueError, TypeError, AttributeError):
                         created_formatted = created_at[:10]
                 else:
-                    created_formatted = 'Unknown'
-                
+                    created_formatted = "Unknown"
+
                 message = f"""
 👤 <b>Your Profile</b>
 
@@ -300,52 +303,52 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 <i>Manage your settings and preferences below.</i>
 """
-                
-                keyboard = InlineKeyboardMarkup([
+
+                keyboard = InlineKeyboardMarkup(
                     [
-                        InlineKeyboardButton("💰 Balance", callback_data="balance"),
-                        InlineKeyboardButton("💸 Send XRP", callback_data="send_xrp")
-                    ],
-                    [
-                        InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
-                        InlineKeyboardButton("📊 History", callback_data="history")
-                    ],
-                    [
-                        InlineKeyboardButton("🆘 Help", callback_data="help"),
-                        InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")
+                        [
+                            InlineKeyboardButton("💰 Balance", callback_data="balance"),
+                            InlineKeyboardButton("💸 Send XRP", callback_data="send_xrp"),
+                        ],
+                        [
+                            InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+                            InlineKeyboardButton("📊 History", callback_data="history"),
+                        ],
+                        [
+                            InlineKeyboardButton("🆘 Help", callback_data="help"),
+                            InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
+                        ],
                     ]
-                ])
-                
+                )
+
             else:
                 message = format_error_message(
                     "Profile Unavailable: Could not load your profile information. Please try again later."
                 )
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔄 Try Again", callback_data="profile")],
-                    [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
-                ])
-            
+                keyboard = InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🔄 Try Again", callback_data="profile")],
+                        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
+                    ]
+                )
+
             if update.message:
                 await update.message.reply_text(
-                    message,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=keyboard
+                    message, parse_mode=ParseMode.HTML, reply_markup=keyboard
                 )
             elif update.callback_query:
                 await update.callback_query.answer()
                 if update.callback_query.message:
                     await update.callback_query.message.edit_text(
-                        message,
-                        parse_mode=ParseMode.HTML,
-                        reply_markup=keyboard
+                        message, parse_mode=ParseMode.HTML, reply_markup=keyboard
                     )
-                
+
     except Exception as e:
         logger.error(f"Error in profile_command: {e}", exc_info=True)
         error_message = format_error_message(
             "Profile Error: An error occurred while loading your profile."
         )
-        
+
         if update.message:
             await update.message.reply_text(error_message, parse_mode=ParseMode.HTML)
         elif update.callback_query:

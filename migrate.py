@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Database migration management script."""
 
-import sys
 import argparse
 import logging
+import sys
 from pathlib import Path
 
-from alembic.config import Config
 from alembic import command
-from alembic.script import ScriptDirectory
 from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 
 # Add the project root to the path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -59,19 +58,19 @@ def show_current_revision() -> None:
         with engine.connect() as connection:
             context = MigrationContext.configure(connection)
             current_rev = context.get_current_revision()
-            
+
         alembic_cfg = get_alembic_config()
         script = ScriptDirectory.from_config(alembic_cfg)
         head_rev = script.get_current_head()
-        
+
         logger.info(f"Current revision: {current_rev or 'None'}")
         logger.info(f"Head revision: {head_rev}")
-        
+
         if current_rev != head_rev:
             logger.warning("Database is not up to date!")
         else:
             logger.info("Database is up to date!")
-            
+
     except Exception as e:
         logger.error(f"Failed to check revision: {e}")
         sys.exit(1)
@@ -109,7 +108,9 @@ def main():
 
     # Upgrade
     upgrade_parser = subparsers.add_parser("upgrade", help="Upgrade database")
-    upgrade_parser.add_argument("revision", nargs="?", default="head", help="Target revision (default: head)")
+    upgrade_parser.add_argument(
+        "revision", nargs="?", default="head", help="Target revision (default: head)"
+    )
 
     # Downgrade
     downgrade_parser = subparsers.add_parser("downgrade", help="Downgrade database")

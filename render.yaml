@@ -1,31 +1,64 @@
+# Render Blueprint Specification
+# This file defines the infrastructure for the XRP Telegram Bot
+
 services:
-  # Backend API
+  # Backend API with integrated Telegram webhook handler
   - type: web
     name: xrp-bot-api
     runtime: python
     plan: starter
+    region: oregon
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
-      python -c "from backend.database.connection import init_database; init_database()"
-    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    startCommand: |
+      uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
+      # Python Configuration
       - key: PYTHON_VERSION
         value: "3.11.0"
-      - key: DATABASE_URL
-        sync: false
+
+      # Application Environment
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
         value: "false"
+      - key: APP_NAME
+        value: "XRP Telegram Bot"
+      - key: APP_VERSION
+        value: "1.0.0"
+
+      # Database (uses internal connection from Render PostgreSQL)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: xrp-bot-db
+          property: connectionString
+
+      # Security Keys (auto-generated on first deploy)
       - key: ENCRYPTION_KEY
         generateValue: true
       - key: JWT_SECRET
         generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+
+      # API Keys for internal security
       - key: BOT_API_KEY
         generateValue: true
       - key: ADMIN_API_KEY
         generateValue: true
+
+      # Telegram Configuration
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false  # Set manually in Render dashboard
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: WEBHOOK_URL
+        value: https://xrp-bot-api.onrender.com/api/v1/webhook/telegram
+
+      # XRP Ledger Configuration (TestNet)
       - key: XRP_NETWORK
         value: testnet
       - key: XRP_WEBSOCKET_URL
@@ -34,51 +67,73 @@ services:
         value: https://s.altnet.rippletest.net:51234
       - key: XRP_FAUCET_URL
         value: https://faucet.altnet.rippletest.net/accounts
+
+      # API Configuration
       - key: API_HOST
         value: "0.0.0.0"
       - key: API_PORT
-        value: "8000"
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-    healthCheckPath: /api/v1/health
-    autoDeploy: true
-
-  # Telegram Bot Worker
-  - type: worker
-    name: xrp-telegram-bot
-    runtime: python
-    plan: starter
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-    startCommand: python -m bot.main
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.0"
-      - key: DATABASE_URL
-        sync: false
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
+        value: "10000"
       - key: API_URL
-        fromService:
-          type: web
-          name: xrp-bot-api
-          property: hostport
-      - key: ENVIRONMENT
-        value: production
-      - key: DEBUG
-        value: "false"
-      - key: ENCRYPTION_KEY
-        sync: false
-      - key: BOT_API_KEY
-        sync: false
-      - key: XRP_NETWORK
-        value: testnet
+        value: https://xrp-bot-api.onrender.com
+      - key: API_PREFIX
+        value: /api/v1
+
+      # External APIs
+      - key: PRICE_API_URL
+        value: https://api.coingecko.com/api/v3
+      - key: PRICE_API_KEY
+        sync: false  # Set manually in Render dashboard for security
+
+      # Redis Configuration (optional - remove if not using)
+      - key: REDIS_URL
+        value: ""  # Leave empty if not using Redis
+      - key: CACHE_TTL
+        value: "300"
+
+      # Rate Limiting
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_REQUESTS
+        value: "100"
+      - key: RATE_LIMIT_PERIOD
+        value: "60"
+
+      # Monitoring (optional)
+      - key: SENTRY_DSN
+        value: ""  # Add Sentry DSN if using error tracking
+      - key: LOG_LEVEL
+        value: INFO
+
+    # Health check configuration
+    healthCheckPath: /api/v1/health
+    numInstances: 1
+
+    # Build configuration
+    buildFilter:
+      paths:
+        - backend/**
+        - bot/**
+        - requirements.txt
+        - render.yaml
+
+    # Auto-deploy when pushing to branch
     autoDeploy: true
+    branch: main
 
 databases:
+  # PostgreSQL Database
   - name: xrp-bot-db
     plan: starter
+    region: oregon  # Should match service region
     databaseName: xrp_bot
     user: xrp_user
-    ipAllowList: []  # Allow connections from Render services only
+
+    # IP Allow List - Empty array means only Render services can connect
+    ipAllowList: []
+
+# Environment Groups (optional - for shared configuration)
+envVarGroups: []
+
+# Preview Environments (optional)
+previewsEnabled: true
+previewsExpireAfterDays: 3
