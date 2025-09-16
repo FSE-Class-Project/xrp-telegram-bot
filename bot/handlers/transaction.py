@@ -194,7 +194,14 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             parse_mode=ParseMode.HTML
         )
     finally:
-        context.user_data.pop('transaction', None)
+        context.user_data.pop("transaction", None)
+
+        # 👉 Always show main menu at the end
+        await update.message.reply_text(
+            "🏠 <b>Main Menu</b>\n\nWhat would you like to do?",
+            parse_mode=ParseMode.HTML,
+            reply_markup=keyboards.main_menu(),
+        )
     
     return ConversationHandler.END
 

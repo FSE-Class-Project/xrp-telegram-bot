@@ -186,7 +186,7 @@ def format_transaction_history(transactions: List[Dict[str, Any]], page: int, to
         
         message += f"""
 {status_emoji} <b>Transaction #{start_index + i}</b>
-💰 Amount: {amount:.6f} XRP
+💰 Amount: {float(amount):.6f} XRP
 📍 To: <code>{recipient_short}</code>
 🏷️ Hash: <code>{hash_short}</code>
 🕐 Time: {formatted_time}

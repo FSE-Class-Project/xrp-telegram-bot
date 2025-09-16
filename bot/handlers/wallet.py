@@ -135,7 +135,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if balance_xrp < 20:
                 message += (
                     f"⚠️ <b>Wallet needs funding to transact</b>\n"
-                    f"Visit: <a href='https://xrpl.org/xrp-testnet-faucet.html'>XRPL Testnet Faucet</a>\n\n"
+                    f"Visit: <a href='https://test.bithomp.com/en/faucet'>XRPL Testnet Faucet</a>\n\n"
                 )
             
             message += "Use /balance for detailed funding instructions."
