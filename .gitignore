@@ -36,6 +36,7 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Test wallets
 test_wallet.json
 test_wallet*.json
 *.wallet.json
