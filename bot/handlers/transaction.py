@@ -246,10 +246,11 @@ async def beneficiary_selection_handler(update: Update, context: ContextTypes.DE
         beneficiary = beneficiary_map.get(beneficiary_id)
 
         if not beneficiary:
-            await query.message.reply_text(
-                format_error_message("That beneficiary could not be found. Please try again."),
-                parse_mode=ParseMode.HTML,
-            )
+            if query.message:
+                await query.message.reply_text(
+                    format_error_message("That beneficiary could not be found. Please try again."),
+                    parse_mode=ParseMode.HTML,
+                )
             return BENEFICIARY_SELECT
 
         transaction_state['address'] = beneficiary['address']
@@ -572,6 +573,9 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels the transaction conversation (works with /cancel or inline button)."""
     # Support cancel via callback button
+    cq_msg = None
+    msg = None
+    
     if update.callback_query:
         try:
             await update.callback_query.answer()

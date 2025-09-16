@@ -736,12 +736,12 @@ async def list_beneficiaries(
     records = user_service.get_beneficiaries(db, user)
     beneficiaries = [
         BeneficiaryResponse(
-            id=record.id,
-            user_id=int(record.user_id),
-            alias=record.alias,
-            address=record.address,
-            created_at=record.created_at,
-            updated_at=record.updated_at,
+            id=cast(int, record.id),
+            user_id=cast(int, record.user_id),
+            alias=cast(str, record.alias),
+            address=cast(str, record.address),
+            created_at=cast(datetime, record.created_at),
+            updated_at=cast(datetime, record.updated_at),
         )
         for record in records
     ]
@@ -772,12 +772,12 @@ async def create_beneficiary(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     return BeneficiaryResponse(
-        id=record.id,
-        user_id=int(record.user_id),
-        alias=record.alias,
-        address=record.address,
-        created_at=record.created_at,
-        updated_at=record.updated_at,
+        id=cast(int, record.id),
+        user_id=cast(int, record.user_id),
+        alias=cast(str, record.alias),
+        address=cast(str, record.address),
+        created_at=cast(datetime, record.created_at),
+        updated_at=cast(datetime, record.updated_at),
     )
 
 
