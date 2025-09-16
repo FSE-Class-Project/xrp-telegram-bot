@@ -10,7 +10,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-from telegram.constants import ParseMode # Use HTML for consistency
+from telegram.constants import ParseMode  # Use HTML for consistency
 from html import escape
 from dotenv import load_dotenv
 
@@ -62,16 +62,17 @@ from .handlers.transaction import (
     address_handler,
     confirm_handler,
     cancel_handler,
-    history_command, # This is now defined in transaction.py
+    history_command,  # This is now defined in transaction.py
     AMOUNT,
     ADDRESS,
     CONFIRM,
 )
 from .handlers.price import price_command
 from .handlers.settings import settings_command
-from .keyboards.menus import keyboards # Import the keyboards object
+from .keyboards.menus import keyboards  # Import the keyboards object
 
 # --- Handlers ---
+
 
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle all inline keyboard button presses."""
@@ -114,6 +115,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             # Prefer enhanced history pagination if available
             try:
                 from .handlers.history import history_command as hist_cmd
+
                 await hist_cmd(update, context)
             except Exception:
                 await history_command(update, context)
@@ -125,12 +127,25 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             await settings_command(update, context)
         elif menu_id == "market_stats":
             from .handlers.price import market_stats_callback
+
             await market_stats_callback(update, context)
-        elif menu_id in ("notification_settings", "currency_settings", "security_settings", "language_settings", "export_data", "delete_account"):
+        elif menu_id in (
+            "notification_settings",
+            "currency_settings",
+            "security_settings",
+            "language_settings",
+            "export_data",
+            "delete_account",
+        ):
             from .handlers.settings import (
-                notification_settings, currency_settings, security_settings, language_settings,
-                export_data, delete_account_warning
+                notification_settings,
+                currency_settings,
+                security_settings,
+                language_settings,
+                export_data,
+                delete_account_warning,
             )
+
             if menu_id == "notification_settings":
                 await notification_settings(update, context)
             elif menu_id == "currency_settings":
@@ -156,7 +171,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     # Route to appropriate handler based on the button's callback_data
     # Determine if this is an in-place action (won't change page)
-    is_refresh = data.startswith("refresh_") or data.startswith("history_page_") or data in ("page_info",)
+    is_refresh = (
+        data.startswith("refresh_") or data.startswith("history_page_") or data in ("page_info",)
+    )
 
     # Before navigating forward, push current menu onto stack
     def push_if_forward(target_id: str):
@@ -180,6 +197,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         push_if_forward("history")
         try:
             from .handlers.history import history_command as hist_cmd
+
             await hist_cmd(update, context)
         except Exception:
             await history_command(update, context)
@@ -208,12 +226,14 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         elif data == "refresh_price":
             # Import price refresh handler
             from .handlers.price import price_refresh_callback
+
             await price_refresh_callback(update, context)
         elif data == "refresh_history":
             await history_command(update, context)
     elif data.startswith("history_page_"):
         try:
             from .handlers.history import history_page
+
             await history_page(update, context)
         except Exception:
             # Fallback: just reload history
@@ -223,15 +243,34 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         push_if_forward("market_stats")
         # Import market stats handler
         from .handlers.price import market_stats_callback
+
         await market_stats_callback(update, context)
         user_data["current_menu"] = "market_stats"
-    elif data.startswith(("notification_", "currency_", "security_", "language_", "export_", "delete_", "toggle_", "set_", "setup_")):
+    elif data.startswith(
+        (
+            "notification_",
+            "currency_",
+            "security_",
+            "language_",
+            "export_",
+            "delete_",
+            "toggle_",
+            "set_",
+            "setup_",
+        )
+    ):
         # Handle settings-related callbacks
         from .handlers.settings import (
-            notification_settings, currency_settings, security_settings, language_settings,
-            export_data, delete_account_warning, toggle_setting, set_currency
+            notification_settings,
+            currency_settings,
+            security_settings,
+            language_settings,
+            export_data,
+            delete_account_warning,
+            toggle_setting,
+            set_currency,
         )
-        
+
         if data == "notification_settings":
             push_if_forward("notification_settings")
             await notification_settings(update, context)
@@ -273,13 +312,13 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             await query.message.edit_text(
                 "🔄 <b>Retry</b>\n\nPlease try your last action again.",
                 parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu()
+                reply_markup=keyboards.main_menu(),
             )
         elif data == "cancel_send":
             await query.message.edit_text(
                 "❌ <b>Transaction Cancelled</b>\n\nTransaction has been cancelled.",
                 parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu()
+                reply_markup=keyboards.main_menu(),
             )
         elif data == "confirm_send":
             # Handle transaction confirmation
@@ -287,8 +326,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             await query.message.edit_text(
                 "✅ <b>Transaction Confirmed</b>\n\nProcessing your transaction...",
                 parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu()
+                reply_markup=keyboards.main_menu(),
             )
+
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Enhanced error handler with detailed logging and user-friendly messages."""
@@ -303,110 +343,112 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
             for attempt in range(max_retries):
                 try:
                     await update.callback_query.answer(
-                        "⚠️ An error occurred. Please try again.", 
-                        show_alert=True
+                        "⚠️ An error occurred. Please try again.", show_alert=True
                     )
                     break
                 except Exception as e:
                     logger.error(f"Failed to answer callback query (attempt {attempt + 1}): {e}")
                     if attempt == max_retries - 1:
                         logger.error("All callback query answer attempts failed")
-        
+
         # Send error message to user with proper error classification
         if update.effective_message:
             try:
                 from .utils.formatting import format_error_message
                 from .keyboards.menus import keyboards
-                
+
                 # Classify and handle different error types
                 error_str = str(error).lower()
-                
+
                 if "timeout" in error_str or "asyncio.timeouterror" in error_str:
                     error_msg = format_error_message(
                         "Request Timeout",
-                        "The request took too long to complete. Please try again."
+                        "The request took too long to complete. Please try again.",
                     )
                 elif "connection" in error_str or "connect" in error_str:
                     error_msg = format_error_message(
                         "Connection Error",
-                        "Unable to connect to backend services. Please try again in a moment."
+                        "Unable to connect to backend services. Please try again in a moment.",
                     )
                 elif "forbidden" in error_str or "unauthorized" in error_str:
                     error_msg = format_error_message(
-                        "Access Error",
-                        "Authentication failed. Please restart the bot with /start."
+                        "Access Error", "Authentication failed. Please restart the bot with /start."
                     )
                 elif "badrequest" in error_str or "bad request" in error_str:
                     error_msg = format_error_message(
                         "Invalid Request",
-                        "The request was invalid. Please check your input and try again."
+                        "The request was invalid. Please check your input and try again.",
                     )
                 elif "network" in error_str or "dns" in error_str:
                     error_msg = format_error_message(
-                        "Network Error",
-                        "Network connectivity issue. Please check your connection."
+                        "Network Error", "Network connectivity issue. Please check your connection."
                     )
                 else:
                     error_msg = format_error_message(
                         "Something Went Wrong",
-                        "An unexpected error occurred. Please try again later."
+                        "An unexpected error occurred. Please try again later.",
                     )
-                
+
                 # Try to send error message with fallback
                 try:
                     await update.effective_message.reply_text(
                         error_msg,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboards.error_menu() if 'keyboards' in locals() else None
+                        reply_markup=keyboards.error_menu() if "keyboards" in locals() else None,
                     )
                 except Exception as send_error:
                     # Fallback: send simple text message
                     logger.error(f"Failed to send formatted error message: {send_error}")
                     try:
                         await update.effective_message.reply_text(
-                            "⚠️ An error occurred. Please try again later.",
-                            reply_markup=None
+                            "⚠️ An error occurred. Please try again later.", reply_markup=None
                         )
                     except Exception as final_error:
                         logger.error(f"Failed to send fallback error message: {final_error}")
-            
+
             except ImportError as import_error:
                 logger.error(f"Import error in error handler: {import_error}")
                 # Minimal fallback when imports fail
                 try:
-                    await update.effective_message.reply_text("⚠️ Service temporarily unavailable. Please try again.")
+                    await update.effective_message.reply_text(
+                        "⚠️ Service temporarily unavailable. Please try again."
+                    )
                 except Exception as e:
                     logger.error(f"Final fallback error message failed: {e}")
             except Exception as e:
                 logger.error(f"Error in error message handling: {e}")
                 # Absolute fallback
                 try:
-                    await update.effective_message.reply_text("⚠️ Error occurred. Please restart with /start.")
+                    await update.effective_message.reply_text(
+                        "⚠️ Error occurred. Please restart with /start."
+                    )
                 except:
                     pass  # Nothing more we can do
+
 
 async def post_init(application: Application):
     """Initialize bot data after application starts."""
     global BOT_API_KEY
-    
+
     # Initialize API key from backend settings
     if not BOT_API_KEY:
         try:
             from backend.config import initialize_settings
+
             settings = initialize_settings()
             BOT_API_KEY = settings.BOT_API_KEY
             logger.info("✅ API key synchronized with backend settings")
         except Exception as e:
             logger.warning(f"⚠️ Could not get API key from backend settings: {e}")
             BOT_API_KEY = os.getenv("BOT_API_KEY", "dev-bot-fallback-key")
-    
+
     application.bot_data["api_url"] = API_URL
     application.bot_data["api_key"] = BOT_API_KEY
-    
+
     logger.info(f"🤖 Bot initialized with API URL: {API_URL}")
     logger.info(f"🌐 Environment: {ENVIRONMENT}")
     logger.info(f"🔧 Render deployment: {IS_RENDER}")
-    
+
     # Determine execution mode based on environment
     if IS_RENDER or ENVIRONMENT == "production":
         logger.info("Production mode detected - bot should only run via webhook")
@@ -415,6 +457,7 @@ async def post_init(application: Application):
             logger.warning("⚠️ Webhooks are handled by the backend service")
     else:
         logger.info("Development mode - using polling")
+
 
 def main():
     """Start the bot."""
@@ -454,7 +497,7 @@ def main():
         fallbacks=[
             CommandHandler("cancel", cancel_handler),
             # Catch cancel button from anywhere in the flow
-            CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$")
+            CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
         ],
     )
 
@@ -474,14 +517,14 @@ def main():
     logger.info("🏠 Starting bot in development polling mode...")
     try:
         application.run_polling(
-            drop_pending_updates=True,
-            allowed_updates=["message", "callback_query", "inline_query"]
+            drop_pending_updates=True, allowed_updates=["message", "callback_query", "inline_query"]
         )
     except KeyboardInterrupt:
         logger.info("👋 Bot stopped by user")
     except Exception as e:
         logger.error(f"❌ Bot error: {e}")
         raise
+
 
 if __name__ == "__main__":
     main()

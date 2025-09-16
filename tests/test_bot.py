@@ -1,4 +1,5 @@
 """Bot tests."""
+
 import pytest
 
 

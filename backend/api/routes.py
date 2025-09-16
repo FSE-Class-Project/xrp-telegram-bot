@@ -701,12 +701,24 @@ async def get_current_price(request: Request, response: Response) -> PriceInfo:
                 data = api_response.json()["ripple"]
                 return PriceInfo(
                     price_usd=Decimal(str(data.get("usd", 0))),
-                    price_btc=Decimal(str(data.get("btc", 0))) if data.get("btc") is not None else None,
-                    price_eur=Decimal(str(data.get("eur", 0))) if data.get("eur") is not None else None,
-                    price_gbp=Decimal(str(data.get("gbp", 0))) if data.get("gbp") is not None else None,
-                    price_zar=Decimal(str(data.get("zar", 0))) if data.get("zar") is not None else None,
-                    price_jpy=Decimal(str(data.get("jpy", 0))) if data.get("jpy") is not None else None,
-                    price_eth=Decimal(str(data.get("eth", 0))) if data.get("eth") is not None else None,
+                    price_btc=(
+                        Decimal(str(data.get("btc", 0))) if data.get("btc") is not None else None
+                    ),
+                    price_eur=(
+                        Decimal(str(data.get("eur", 0))) if data.get("eur") is not None else None
+                    ),
+                    price_gbp=(
+                        Decimal(str(data.get("gbp", 0))) if data.get("gbp") is not None else None
+                    ),
+                    price_zar=(
+                        Decimal(str(data.get("zar", 0))) if data.get("zar") is not None else None
+                    ),
+                    price_jpy=(
+                        Decimal(str(data.get("jpy", 0))) if data.get("jpy") is not None else None
+                    ),
+                    price_eth=(
+                        Decimal(str(data.get("eth", 0))) if data.get("eth") is not None else None
+                    ),
                     change_24h=Decimal(str(data.get("usd_24h_change", 0))),
                     market_cap=Decimal(str(data.get("usd_market_cap", 0))),
                     volume_24h=Decimal(str(data.get("usd_24h_vol", 0))),

@@ -19,7 +19,7 @@ from .formatting import (
 __all__ = [
     "escape_html",
     "format_xrp_address",
-    "format_xrp_amount", 
+    "format_xrp_amount",
     "format_currency_amount",
     "format_hash",
     "format_username",

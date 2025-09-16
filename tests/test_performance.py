@@ -14,17 +14,14 @@ import pandas as pd
 from datetime import datetime
 from faker import Faker
 
+
 class PerformanceTestSuite:
     """Performance testing for XRP Telegram Bot"""
 
     def __init__(self, api_url: str = "http://localhost:8000"):
         self.api_url = api_url
         self.faker = Faker()
-        self.results = {
-            "signups": [],
-            "transactions": [],
-            "balance_checks": []
-        }
+        self.results = {"signups": [], "transactions": [], "balance_checks": []}
 
     def generate_synthetic_user(self) -> Dict[str, Any]:
         """Generate synthetic user data"""
@@ -33,7 +30,7 @@ class PerformanceTestSuite:
             "telegram_id": telegram_id,
             "telegram_username": self.faker.user_name(),
             "telegram_first_name": self.faker.first_name(),
-            "telegram_last_name": self.faker.last_name()
+            "telegram_last_name": self.faker.last_name(),
         }
 
     async def signup_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -42,10 +39,7 @@ class PerformanceTestSuite:
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                response = await client.post(
-                    f"{self.api_url}/api/v1/user/register",
-                    json=user_data
-                )
+                response = await client.post(f"{self.api_url}/api/v1/user/register", json=user_data)
 
                 elapsed_time = time.time() - start_time
 
@@ -55,7 +49,7 @@ class PerformanceTestSuite:
                     "response_time": elapsed_time,
                     "status_code": response.status_code,
                     "data": response.json() if response.status_code == 200 else None,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             except Exception as e:
                 return {
@@ -63,7 +57,7 @@ class PerformanceTestSuite:
                     "user_id": user_data["telegram_id"],
                     "response_time": time.time() - start_time,
                     "error": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
     async def send_payment(self, from_id: str, to_address: str, amount: float) -> Dict[str, Any]:
@@ -74,11 +68,7 @@ class PerformanceTestSuite:
             try:
                 response = await client.post(
                     f"{self.api_url}/api/v1/transaction/send",
-                    json={
-                        "from_telegram_id": from_id,
-                        "to_address": to_address,
-                        "amount": amount
-                    }
+                    json={"from_telegram_id": from_id, "to_address": to_address, "amount": amount},
                 )
 
                 elapsed_time = time.time() - start_time
@@ -90,7 +80,7 @@ class PerformanceTestSuite:
                     "amount": amount,
                     "response_time": elapsed_time,
                     "status_code": response.status_code,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             except Exception as e:
                 return {
@@ -98,7 +88,7 @@ class PerformanceTestSuite:
                     "from_id": from_id,
                     "response_time": time.time() - start_time,
                     "error": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
     async def check_balance(self, telegram_id: str) -> Dict[str, Any]:
@@ -107,9 +97,7 @@ class PerformanceTestSuite:
 
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.get(
-                    f"{self.api_url}/api/v1/wallet/balance/{telegram_id}"
-                )
+                response = await client.get(f"{self.api_url}/api/v1/wallet/balance/{telegram_id}")
 
                 elapsed_time = time.time() - start_time
 
@@ -118,7 +106,7 @@ class PerformanceTestSuite:
                     "user_id": telegram_id,
                     "response_time": elapsed_time,
                     "status_code": response.status_code,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             except Exception as e:
                 return {
@@ -126,7 +114,7 @@ class PerformanceTestSuite:
                     "user_id": telegram_id,
                     "response_time": time.time() - start_time,
                     "error": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
     async def test_concurrent_signups(self, num_users: int = 10) -> List[Dict[str, Any]]:
@@ -154,7 +142,9 @@ class PerformanceTestSuite:
 
         return results
 
-    async def test_concurrent_payments(self, users: List[Dict], num_payments: int = 20) -> List[Dict[str, Any]]:
+    async def test_concurrent_payments(
+        self, users: List[Dict], num_payments: int = 20
+    ) -> List[Dict[str, Any]]:
         """Test concurrent P2P payments"""
         print(f"\n💸 Testing {num_payments} concurrent P2P payments...")
 
@@ -169,21 +159,20 @@ class PerformanceTestSuite:
             to_user = random.choice([u for u in users if u != from_user])
 
             if from_user.get("data") and to_user.get("data"):
-                payments.append({
-                    "from_id": from_user["data"]["telegram_id"],
-                    "to_address": to_user["data"]["xrp_address"],
-                    "amount": round(random.uniform(1, 10), 2)
-                })
+                payments.append(
+                    {
+                        "from_id": from_user["data"]["telegram_id"],
+                        "to_address": to_user["data"]["xrp_address"],
+                        "amount": round(random.uniform(1, 10), 2),
+                    }
+                )
 
         if not payments:
             print("⚠️ No valid payment pairs found.")
             return []
 
         # Run payments concurrently
-        tasks = [
-            self.send_payment(p["from_id"], p["to_address"], p["amount"])
-            for p in payments
-        ]
+        tasks = [self.send_payment(p["from_id"], p["to_address"], p["amount"]) for p in payments]
         results = await asyncio.gather(*tasks)
 
         self.results["transactions"].extend(results)
@@ -230,7 +219,7 @@ class PerformanceTestSuite:
                     result = await self.send_payment(
                         from_user["data"]["telegram_id"],
                         to_user["data"]["xrp_address"],
-                        round(random.uniform(1, 5), 2)
+                        round(random.uniform(1, 5), 2),
                     )
                     self.results["transactions"].append(result)
 
@@ -244,9 +233,9 @@ class PerformanceTestSuite:
     def generate_report(self) -> str:
         """Generate performance test report"""
         report = []
-        report.append("\n" + "="*60)
+        report.append("\n" + "=" * 60)
         report.append("📊 PERFORMANCE TEST REPORT")
-        report.append("="*60)
+        report.append("=" * 60)
         report.append(f"Generated: {datetime.now().isoformat()}")
 
         # Signup statistics
@@ -256,7 +245,7 @@ class PerformanceTestSuite:
             failed_signups = [s for s in signups if not s["success"]]
 
             report.append("\n📝 USER SIGNUPS")
-            report.append("-"*40)
+            report.append("-" * 40)
             report.append(f"Total attempts: {len(signups)}")
             report.append(f"Successful: {len(successful_signups)}")
             report.append(f"Failed: {len(failed_signups)}")
@@ -275,7 +264,7 @@ class PerformanceTestSuite:
             failed_tx = [t for t in transactions if not t["success"]]
 
             report.append("\n💸 P2P PAYMENTS")
-            report.append("-"*40)
+            report.append("-" * 40)
             report.append(f"Total attempts: {len(transactions)}")
             report.append(f"Successful: {len(successful_tx)}")
             report.append(f"Failed: {len(failed_tx)}")
@@ -295,7 +284,7 @@ class PerformanceTestSuite:
             successful_checks = [b for b in balance_checks if b["success"]]
 
             report.append("\n💰 BALANCE CHECKS")
-            report.append("-"*40)
+            report.append("-" * 40)
             report.append(f"Total checks: {len(balance_checks)}")
             report.append(f"Successful: {len(successful_checks)}")
 
@@ -303,7 +292,7 @@ class PerformanceTestSuite:
                 response_times = [b["response_time"] for b in successful_checks]
                 report.append(f"Avg response time: {sum(response_times)/len(response_times):.2f}s")
 
-        report.append("\n" + "="*60)
+        report.append("\n" + "=" * 60)
 
         return "\n".join(report)
 
@@ -311,7 +300,7 @@ class PerformanceTestSuite:
         """Save test results to file"""
         import json
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(self.results, f, indent=2)
 
         print(f"💾 Results saved to {filename}")
@@ -323,7 +312,7 @@ async def main():
     tester = PerformanceTestSuite()
 
     print("🏁 Starting Performance Tests for XRP Telegram Bot")
-    print("="*60)
+    print("=" * 60)
 
     # Test 1: Concurrent user signups
     signup_results = await tester.test_concurrent_signups(num_users=20)

@@ -14,7 +14,11 @@ from .api.routes import router
 from .api.settings_routes import settings_router
 from .api.webhook import set_telegram_app, webhook_router
 from .config import settings, initialize_settings
-from .database.connection import initialize_database_engine, init_database, close_database_connections
+from .database.connection import (
+    initialize_database_engine,
+    init_database,
+    close_database_connections,
+)
 
 # Check if running on Render
 IS_RENDER = os.getenv("RENDER") is not None
@@ -32,7 +36,7 @@ async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     # Initialize settings first
     initialize_settings()
-    
+
     # Startup
     logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"🌍 Environment: {settings.ENVIRONMENT}")
@@ -62,8 +66,9 @@ async def lifespan(app: FastAPI):
                 logger.warning("⚠️ Generated new ENCRYPTION_KEY - add this to your .env file!")
                 # Only show key in development mode and only first few characters
                 logger.info(f"   ENCRYPTION_KEY={encryption_key[:8]}...{encryption_key[-4:]}")
-        
+
         from .utils.encryption import encryption_service
+
         # encryption_service is already an instance, just verify it exists
         encryption_service.generate_key()
         logger.info("✅ Encryption service initialized")
@@ -140,7 +145,7 @@ if settings.ENVIRONMENT == "production":
     render_url = os.getenv("RENDER_EXTERNAL_URL")
     if render_url and render_url not in allowed_origins:
         allowed_origins.append(render_url)
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,

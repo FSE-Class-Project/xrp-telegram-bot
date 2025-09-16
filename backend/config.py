@@ -74,7 +74,7 @@ class Settings(BaseSettings):
             else:
                 # In development, use SQLite
                 self.DATABASE_URL = "sqlite:///./xrp_bot.db"
-        
+
         # Configure security settings based on environment
         self._configure_security_settings()
 
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     def _configure_security_settings(self) -> None:
         """Configure security settings based on environment"""
         import secrets
-        
+
         # Generate development defaults if in development mode
         if self.ENVIRONMENT != "production" and not os.getenv("RENDER"):
             if not self.JWT_SECRET:
@@ -110,9 +110,11 @@ class Settings(BaseSettings):
                 missing_secrets.append("ADMIN_API_KEY")
             if not self.TELEGRAM_WEBHOOK_SECRET:
                 missing_secrets.append("TELEGRAM_WEBHOOK_SECRET")
-                
+
             if missing_secrets:
-                raise ValueError(f"Production environment requires these secrets: {', '.join(missing_secrets)}")
+                raise ValueError(
+                    f"Production environment requires these secrets: {', '.join(missing_secrets)}"
+                )
 
     @staticmethod
     def generate_encryption_key() -> str:
@@ -120,11 +122,12 @@ class Settings(BaseSettings):
         from cryptography.fernet import Fernet
 
         return Fernet.generate_key().decode()
-    
+
     @staticmethod
     def generate_secure_secret(length: int = 32) -> str:
         """Generate a secure random secret"""
         import secrets
+
         return secrets.token_urlsafe(length)
 
     class Config:
@@ -134,6 +137,7 @@ class Settings(BaseSettings):
 
 # Create settings instance
 settings = Settings()
+
 
 # Configure based on environment (call this explicitly)
 def initialize_settings():
