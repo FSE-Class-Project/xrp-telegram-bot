@@ -46,14 +46,29 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             balance_data = response.json()
             
-            # Get current price for USD value
-            price_response = await client.get(f"{api_url}/api/v1/price/current")
+            # Get user settings to determine display currency
+            settings_resp = await client.get(f"{api_url}/api/v1/user/settings/{user_id}", headers=headers)
+            settings_json = settings_resp.json() if settings_resp.status_code == 200 else {}
+            currency = settings_json.get("currency_display", "USD").upper()
+
+            # Get current price (multi-currency supported by backend)
+            price_response = await client.get(f"{api_url}/api/v1/price/current", headers=headers)
             price_data = price_response.json() if price_response.status_code == 200 else {}
             
             balance_xrp = float(balance_data.get('balance', 0))
             available_balance = float(balance_data.get('available_balance', 0))
-            price_usd = float(price_data.get('price_usd', 0))
-            usd_value = balance_xrp * price_usd
+            # Determine per-currency XRP price
+            currency_key = {
+                "USD": "price_usd",
+                "EUR": "price_eur",
+                "GBP": "price_gbp",
+                "ZAR": "price_zar",
+                "JPY": "price_jpy",
+                "BTC": "price_btc",
+                "ETH": "price_eth",
+            }.get(currency, "price_usd")
+            price_per_xrp = float(price_data.get(currency_key, price_data.get("price_usd", 0)))
+            display_value = balance_xrp * price_per_xrp
             wallet_address = balance_data.get('address', 'N/A')
             
             # Format message using utility functions
@@ -61,7 +76,8 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 address=wallet_address,
                 balance=balance_xrp,
                 available=available_balance,
-                usd_value=usd_value
+                fiat_value=display_value,
+                fiat_currency=currency
             )
             
             # Add funding guidance if needed
