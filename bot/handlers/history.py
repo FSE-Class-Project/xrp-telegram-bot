@@ -1,18 +1,18 @@
 # bot/handlers/history.py
 """Transaction history handlers with pagination."""
 
-from typing import Optional, Dict, Any, List
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
-import httpx
 import logging
 from datetime import datetime
+from typing import Any
+
+import httpx
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
 
 from ..utils.formatting import (
     escape_html,
     format_error_message,
-    format_success_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ async def history_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 def format_transaction_history(
-    transactions: List[Dict[str, Any]], page: int, total_count: int, limit: int
+    transactions: list[dict[str, Any]], page: int, total_count: int, limit: int
 ) -> str:
     """Format transaction history for display."""
     start_index = page * limit + 1

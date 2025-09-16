@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from backend.database.models import Base, User, Wallet
 from backend.services.user_service import UserService
 

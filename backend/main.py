@@ -13,11 +13,11 @@ from .api.middleware import add_idempotency_middleware, setup_rate_limiting
 from .api.routes import router
 from .api.settings_routes import settings_router
 from .api.webhook import set_telegram_app, webhook_router
-from .config import settings, initialize_settings
+from .config import initialize_settings, settings
 from .database.connection import (
-    initialize_database_engine,
-    init_database,
     close_database_connections,
+    init_database,
+    initialize_database_engine,
 )
 
 # Check if running on Render

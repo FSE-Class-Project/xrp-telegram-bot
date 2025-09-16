@@ -1,18 +1,19 @@
 # bot/handlers/start.py
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
-import httpx
 import logging
 
+import httpx
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
+
+from ..keyboards.menus import keyboards
 from ..utils.formatting import (
     escape_html,
-    format_xrp_address,
-    format_funding_instructions,
     format_error_message,
+    format_funding_instructions,
     format_success_message,
+    format_xrp_address,
 )
-from ..keyboards.menus import keyboards
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,7 @@ Example: <code>/send 10 rN7n7...</code>
 
 Or just type /send and follow the prompts!
 
-<i>Need assistance?</i> 
+<i>Need assistance?</i>
 Visit the <a href="https://xrpl.org">XRP Ledger Docs</a>.
     """
 

@@ -3,12 +3,13 @@
 import json
 import logging
 import pickle
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Any, Set, Callable, Generator
+from typing import Any, Set
 
 import redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import RedisError, LockError
+from redis.exceptions import LockError, RedisError
 
 from ..config import settings
 

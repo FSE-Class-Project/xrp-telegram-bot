@@ -6,12 +6,13 @@ Performance tests:
 """
 
 import asyncio
-import time
 import random
-from typing import List, Dict, Any
+import time
+from datetime import datetime
+from typing import Any
+
 import httpx
 import pandas as pd
-from datetime import datetime
 from faker import Faker
 
 
@@ -23,7 +24,7 @@ class PerformanceTestSuite:
         self.faker = Faker()
         self.results = {"signups": [], "transactions": [], "balance_checks": []}
 
-    def generate_synthetic_user(self) -> Dict[str, Any]:
+    def generate_synthetic_user(self) -> dict[str, Any]:
         """Generate synthetic user data"""
         telegram_id = str(random.randint(100000000, 999999999))
         return {
@@ -33,7 +34,7 @@ class PerformanceTestSuite:
             "telegram_last_name": self.faker.last_name(),
         }
 
-    async def signup_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def signup_user(self, user_data: dict[str, Any]) -> dict[str, Any]:
         """Simulate user signup"""
         start_time = time.time()
 
@@ -60,7 +61,7 @@ class PerformanceTestSuite:
                     "timestamp": datetime.now().isoformat(),
                 }
 
-    async def send_payment(self, from_id: str, to_address: str, amount: float) -> Dict[str, Any]:
+    async def send_payment(self, from_id: str, to_address: str, amount: float) -> dict[str, Any]:
         """Simulate P2P payment"""
         start_time = time.time()
 
@@ -91,7 +92,7 @@ class PerformanceTestSuite:
                     "timestamp": datetime.now().isoformat(),
                 }
 
-    async def check_balance(self, telegram_id: str) -> Dict[str, Any]:
+    async def check_balance(self, telegram_id: str) -> dict[str, Any]:
         """Simulate balance check"""
         start_time = time.time()
 
@@ -117,7 +118,7 @@ class PerformanceTestSuite:
                     "timestamp": datetime.now().isoformat(),
                 }
 
-    async def test_concurrent_signups(self, num_users: int = 10) -> List[Dict[str, Any]]:
+    async def test_concurrent_signups(self, num_users: int = 10) -> list[dict[str, Any]]:
         """Test concurrent user signups"""
         print(f"\n🚀 Testing {num_users} concurrent user signups...")
 
@@ -143,8 +144,8 @@ class PerformanceTestSuite:
         return results
 
     async def test_concurrent_payments(
-        self, users: List[Dict], num_payments: int = 20
-    ) -> List[Dict[str, Any]]:
+        self, users: list[dict], num_payments: int = 20
+    ) -> list[dict[str, Any]]:
         """Test concurrent P2P payments"""
         print(f"\n💸 Testing {num_payments} concurrent P2P payments...")
 

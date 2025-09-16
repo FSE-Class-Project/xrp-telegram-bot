@@ -1,17 +1,16 @@
 # bot/handlers/account.py
 """Account management handlers for deletion, help, and support."""
 
-from typing import Optional, Dict, Any
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+
+import httpx
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-import httpx
-import logging
 
 from ..utils.formatting import (
     escape_html,
     format_error_message,
-    format_success_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,7 +44,7 @@ Your XRP Telegram Bot account has been permanently deleted.
 
 <b>What was deleted:</b>
 • Your wallet and private keys
-• All transaction history  
+• All transaction history
 • Personal settings and data
 • Cached information
 
@@ -117,7 +116,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 <b>Available Commands:</b>
 • /balance - Check your XRP balance
-• /send - Send XRP to another address  
+• /send - Send XRP to another address
 • /price - View current XRP price
 • /history - View transaction history
 • /settings - Manage bot settings
@@ -184,7 +183,7 @@ Need help? We're here for you!
 🔸 <b>Email Support</b>
 Send us an email: support@fse-group3.co.za
 
-🔸 <b>FAQ & Documentation</b>  
+🔸 <b>FAQ & Documentation</b>
 Check our comprehensive FAQ for common questions
 
 🔸 <b>Bug Reports</b>

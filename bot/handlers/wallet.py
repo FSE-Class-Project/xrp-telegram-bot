@@ -1,20 +1,19 @@
 # bot/handlers/wallet.py
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
-import httpx
-from datetime import datetime
 import logging
 
+import httpx
+from telegram import Update
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
+
+from ..keyboards.menus import keyboards
 from ..utils.formatting import (
     format_balance_info,
-    format_funding_instructions,
     format_error_message,
-    format_xrp_address,
+    format_funding_instructions,
     format_username,
-    escape_html,
+    format_xrp_address,
 )
-from ..keyboards.menus import keyboards
 
 logger = logging.getLogger(__name__)
 
@@ -165,8 +164,8 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Add funding guidance if balance is low
             if balance_xrp < 20:
                 message += (
-                    f"⚠️ <b>Wallet needs funding to transact</b>\n"
-                    f"Visit: <a href='https://test.bithomp.com/en/faucet'>XRPL Testnet Faucet</a>\n\n"
+                    "⚠️ <b>Wallet needs funding to transact</b>\n"
+                    "Visit: <a href='https://test.bithomp.com/en/faucet'>XRPL Testnet Faucet</a>\n\n"
                 )
 
             message += "Use /balance for detailed funding instructions."

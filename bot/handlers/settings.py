@@ -1,15 +1,14 @@
 # bot/handlers/settings.py
-from typing import Optional, Dict, Any
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+from typing import Any, Optional
+
+import httpx
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-import httpx
-import logging
 
 from ..utils.formatting import (
-    escape_html,
     format_error_message,
-    format_success_message,
 )
 
 logger = logging.getLogger(__name__)
@@ -93,13 +92,13 @@ async def notification_settings(update: Update, context: ContextTypes.DEFAULT_TY
                     [
                         InlineKeyboardButton(
                             f"📊 Price Alerts: {'✅' if price_alerts else '❌'}",
-                            callback_data=f"toggle_price_alerts",
+                            callback_data="toggle_price_alerts",
                         )
                     ],
                     [
                         InlineKeyboardButton(
                             f"💸 Transactions: {'✅' if tx_notifications else '❌'}",
-                            callback_data=f"toggle_tx_notifications",
+                            callback_data="toggle_tx_notifications",
                         )
                     ],
                     [
@@ -307,7 +306,7 @@ async def set_currency(update: Update, context: ContextTypes.DEFAULT_TYPE, curre
         await query.answer("An error occurred", show_alert=True)
 
 
-async def fetch_user_settings(api_url: str, api_key: str, user_id: int) -> Optional[Dict[str, Any]]:
+async def fetch_user_settings(api_url: str, api_key: str, user_id: int) -> Optional[dict[str, Any]]:
     """Fetch user settings from API."""
     try:
         async with httpx.AsyncClient() as client:
@@ -359,7 +358,7 @@ async def update_user_setting(
         return False
 
 
-def format_settings_menu(settings_data: Dict[str, Any]) -> str:
+def format_settings_menu(settings_data: dict[str, Any]) -> str:
     """Format the main settings menu message."""
     price_alerts = settings_data.get("price_alerts", False)
     tx_notifications = settings_data.get("transaction_notifications", True)
@@ -428,7 +427,7 @@ async def language_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 We're working on adding support for:
 • Spanish 🇪🇸
-• French 🇫🇷  
+• French 🇫🇷
 • German 🇩🇪
 • Portuguese 🇵🇹
 • Chinese 🇨🇳
@@ -485,7 +484,7 @@ Your data export has been prepared:
 
 <b>Export Options:</b>
 • Transaction history (CSV)
-• Account settings (JSON)  
+• Account settings (JSON)
 • Complete profile data (JSON)
 
 <i>Your data is ready for download. Contact support to receive your export file.</i>

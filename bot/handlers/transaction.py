@@ -1,27 +1,27 @@
 # bot/handlers/transaction.py
-from telegram import (
-    Update,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardRemove,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-)
-from telegram.ext import ContextTypes, ConversationHandler
-from telegram.constants import ParseMode
-import httpx
 import re
 import uuid
 
+import httpx
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+)
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes, ConversationHandler
+
+from ..keyboards.menus import keyboards
 from ..utils.formatting import (
-    format_transaction_confirmation,
-    format_transaction_success,
     format_error_message,
     format_hash,
+    format_transaction_confirmation,
+    format_transaction_success,
     format_xrp_address,
-    escape_html,
 )
-from ..keyboards.menus import keyboards
 
 # --- Conversation States ---
 # Define states for the multi-step "send" process

@@ -1,9 +1,9 @@
 """Telegram HTML formatting utilities for safe and consistent message formatting."""
 
 import html
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Union
-from datetime import datetime
 
 
 def escape_html(text: str) -> str:
@@ -286,25 +286,25 @@ def format_funding_instructions(
     if balance_decimal < Decimal("20"):  # Below minimum reserve
         if is_mainnet:
             return (
-                f"\n\n⚠️ <b>Wallet Needs Activation</b>\n"
-                f"Your wallet needs at least 20 XRP to activate and transact.\n\n"
-                f"<b>To fund your wallet:</b>\n"
-                f"1. Copy your address above\n"
-                f"2. Buy XRP from an exchange (Coinbase, Binance, etc.)\n"
-                f"3. Send XRP to your address\n"
-                f"4. Check balance again after confirmation\n\n"
-                f"<i>💡 Minimum purchase usually covers activation costs.</i>"
+                "\n\n⚠️ <b>Wallet Needs Activation</b>\n"
+                "Your wallet needs at least 20 XRP to activate and transact.\n\n"
+                "<b>To fund your wallet:</b>\n"
+                "1. Copy your address above\n"
+                "2. Buy XRP from an exchange (Coinbase, Binance, etc.)\n"
+                "3. Send XRP to your address\n"
+                "4. Check balance again after confirmation\n\n"
+                "<i>💡 Minimum purchase usually covers activation costs.</i>"
             )
         else:
             return (
-                f"\n\n⚠️ <b>Wallet Needs Activation</b>\n"
-                f"Your wallet needs at least 20 XRP to activate and transact.\n\n"
-                f"<b>To fund your wallet:</b>\n"
-                f"1. Copy your address above\n"
-                f"2. Visit: <a href='https://xrpl.org/xrp-testnet-faucet.html'>XRPL Testnet Faucet</a>\n"
-                f"3. Paste your address and request 1000 TestNet XRP\n"
-                f"4. Check balance again in 5-10 seconds\n\n"
-                f"<i>💡 On mainnet, you'd buy XRP from an exchange instead.</i>"
+                "\n\n⚠️ <b>Wallet Needs Activation</b>\n"
+                "Your wallet needs at least 20 XRP to activate and transact.\n\n"
+                "<b>To fund your wallet:</b>\n"
+                "1. Copy your address above\n"
+                "2. Visit: <a href='https://xrpl.org/xrp-testnet-faucet.html'>XRPL Testnet Faucet</a>\n"
+                "3. Paste your address and request 1000 TestNet XRP\n"
+                "4. Check balance again in 5-10 seconds\n\n"
+                "<i>💡 On mainnet, you'd buy XRP from an exchange instead.</i>"
             )
     elif balance_decimal < Decimal("25"):  # Low balance warning
         if is_mainnet:

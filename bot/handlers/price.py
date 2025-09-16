@@ -1,18 +1,16 @@
 # bot/handlers/price.py
-from typing import Optional, Dict, Any
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+from typing import Any, Optional
+
+import httpx
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
-import httpx
-from datetime import datetime
-import logging
 
-from ..utils.formatting import (
-    escape_html,
-    format_error_message,
-    format_success_message,
-)
 from ..keyboards.menus import keyboards
+from ..utils.formatting import (
+    format_error_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +38,9 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
 
         # Fetch user currency
-        user_id = (update.effective_user.id if update.effective_user else None) or (update.callback_query.from_user.id if update.callback_query else None)  # type: ignore[attr-defined]
+        user_id = (update.effective_user.id if update.effective_user else None) or (
+            update.callback_query.from_user.id if update.callback_query else None
+        )  # type: ignore[attr-defined]
         currency = "USD"
         if user_id:
             async with httpx.AsyncClient() as client:
@@ -80,7 +80,7 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 
-async def fetch_price_data(api_url: str, api_key: str) -> Optional[Dict[str, Any]]:
+async def fetch_price_data(api_url: str, api_key: str) -> Optional[dict[str, Any]]:
     """
     Fetch price data from the API.
 
@@ -115,7 +115,7 @@ async def fetch_price_data(api_url: str, api_key: str) -> Optional[Dict[str, Any
         return None
 
 
-async def fetch_market_stats(api_url: str, api_key: str) -> Optional[Dict[str, Any]]:
+async def fetch_market_stats(api_url: str, api_key: str) -> Optional[dict[str, Any]]:
     """Fetch market statistics from API."""
     try:
         async with httpx.AsyncClient() as client:
@@ -131,7 +131,7 @@ async def fetch_market_stats(api_url: str, api_key: str) -> Optional[Dict[str, A
 
 
 def format_enhanced_price_message(
-    price_data: Dict[str, Any], market_data: Optional[Dict[str, Any]] = None, currency: str = "USD"
+    price_data: dict[str, Any], market_data: Optional[dict[str, Any]] = None, currency: str = "USD"
 ) -> str:
     """
     Format enhanced price data into an HTML Telegram message.

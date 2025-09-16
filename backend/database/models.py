@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -18,7 +19,6 @@ from sqlalchemy.orm import (
     declarative_base,
     relationship,
 )
-from sqlalchemy import Column
 
 if TYPE_CHECKING:
     # This prevents circular imports while still providing type hints

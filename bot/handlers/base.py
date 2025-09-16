@@ -1,10 +1,12 @@
 # bot/handlers/base.py
-from typing import Optional, TypeVar, Callable, Any
-from functools import wraps
-from telegram import Update, Message
-from telegram.ext import ContextTypes
-from telegram.constants import ParseMode
 import logging
+from collections.abc import Callable
+from functools import wraps
+from typing import Any, Optional, TypeVar
+
+from telegram import Message, Update
+from telegram.constants import ParseMode
+from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 

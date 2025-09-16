@@ -1,18 +1,18 @@
-import os
 import logging
+import os
+
+from dotenv import load_dotenv
 from telegram import Update
+from telegram.constants import ParseMode  # Use HTML for consistency
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
+    ContextTypes,
     ConversationHandler,
     MessageHandler,
-    CallbackQueryHandler,
     filters,
-    ContextTypes,
 )
-from telegram.constants import ParseMode  # Use HTML for consistency
-from html import escape
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -54,21 +54,21 @@ IS_RENDER = os.getenv("RENDER") is not None
 
 # --- Import Handlers & Keyboards ---
 # These imports will now work because we are creating the files.
-from .handlers.start import start_command, help_command
-from .handlers.wallet import balance_command, profile_command
-from .handlers.transaction import (
-    send_command,
-    amount_handler,
-    address_handler,
-    confirm_handler,
-    cancel_handler,
-    history_command,  # This is now defined in transaction.py
-    AMOUNT,
-    ADDRESS,
-    CONFIRM,
-)
 from .handlers.price import price_command
 from .handlers.settings import settings_command
+from .handlers.start import help_command, start_command
+from .handlers.transaction import (
+    ADDRESS,
+    AMOUNT,
+    CONFIRM,
+    address_handler,
+    amount_handler,
+    cancel_handler,
+    confirm_handler,
+    history_command,  # This is now defined in transaction.py
+    send_command,
+)
+from .handlers.wallet import balance_command, profile_command
 from .keyboards.menus import keyboards  # Import the keyboards object
 
 # --- Handlers ---
@@ -138,12 +138,12 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             "delete_account",
         ):
             from .handlers.settings import (
-                notification_settings,
                 currency_settings,
-                security_settings,
-                language_settings,
-                export_data,
                 delete_account_warning,
+                export_data,
+                language_settings,
+                notification_settings,
+                security_settings,
             )
 
             if menu_id == "notification_settings":
@@ -261,14 +261,14 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     ):
         # Handle settings-related callbacks
         from .handlers.settings import (
-            notification_settings,
             currency_settings,
-            security_settings,
-            language_settings,
-            export_data,
             delete_account_warning,
-            toggle_setting,
+            export_data,
+            language_settings,
+            notification_settings,
+            security_settings,
             set_currency,
+            toggle_setting,
         )
 
         if data == "notification_settings":
@@ -354,8 +354,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
         # Send error message to user with proper error classification
         if update.effective_message:
             try:
-                from .utils.formatting import format_error_message
                 from .keyboards.menus import keyboards
+                from .utils.formatting import format_error_message
 
                 # Classify and handle different error types
                 error_str = str(error).lower()
