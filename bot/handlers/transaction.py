@@ -17,6 +17,7 @@ from ..utils.formatting import (
     format_transaction_confirmation,
     format_transaction_success,
     format_error_message,
+    format_warning_message,
     format_hash,
     format_xrp_address,
     escape_html,
@@ -171,7 +172,45 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 headers=headers,
                 timeout=30.0
             )
-            response.raise_for_status()
+            if response.status_code >= 400:
+                await processing_msg.delete()
+
+                error_detail = ""
+                try:
+                    response_json = response.json()
+                    if isinstance(response_json, dict):
+                        error_detail = str(
+                            response_json.get("detail")
+                            or response_json.get("error")
+                            or ""
+                        )
+                except ValueError:
+                    error_detail = ""
+
+                if response.status_code == 402:
+                    reason_text = (
+                        f"Reason: <code>{escape_html(error_detail)}</code>\n\n"
+                        if error_detail
+                        else ""
+                    )
+                    low_funds_message = (
+                        f"{reason_text}Your available balance is too low to complete this transaction. "
+                        "XRPL accounts must keep <b>10 XRP</b> reserved at all times.\n\n"
+                        "Visit the <a href='https://test.bithomp.com/en/faucet'>XRPL Testnet Faucet</a> to top up your funds, then try again."
+                    )
+                    await update.message.reply_text(
+                        format_warning_message("Insufficient Funds", low_funds_message),
+                        parse_mode=ParseMode.HTML,
+                        disable_web_page_preview=False,
+                    )
+                else:
+                    error_text = error_detail or f"HTTP {response.status_code}"
+                    await update.message.reply_text(
+                        format_error_message(f"Transaction Failed\n\nReason: {error_text}"),
+                        parse_mode=ParseMode.HTML,
+                    )
+                return ConversationHandler.END
+
             data = response.json()
 
             await processing_msg.delete()
