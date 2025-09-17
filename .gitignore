@@ -61,3 +61,6 @@ presentation/_site/
 presentation/.quarto/
 docs/
 docs/site_libs/quarto-diagram/mermaid.min.js
+site_libs/
+*.min.js
+*.min.css
