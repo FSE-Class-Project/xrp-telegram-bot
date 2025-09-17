@@ -297,6 +297,51 @@ class TransactionValidationResponse(BaseModel):
     warnings: list[str] = []
 
 
+class BeneficiaryBase(BaseModel):
+    """Shared beneficiary fields."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    alias: str = Field(..., min_length=1, max_length=100)
+    address: XRPAddress
+
+    @field_validator("alias")
+    @classmethod
+    def validate_alias(cls, v: str) -> str:
+        """Ensure alias is human friendly."""
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Alias cannot be empty")
+        return cleaned
+
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, v: str) -> str:
+        """Validate XRP address format."""
+        if not xrp_service.validate_address(v):
+            raise ValueError("Invalid XRP address format")
+        return v
+
+
+class BeneficiaryCreate(BeneficiaryBase):
+    """Beneficiary creation payload."""
+
+
+class BeneficiaryResponse(BeneficiaryBase):
+    """Beneficiary response model."""
+
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class BeneficiaryListResponse(BaseModel):
+    """Beneficiary list response."""
+
+    beneficiaries: list[BeneficiaryResponse]
+
+
 class HealthCheckResponse(BaseModel):
     """Health check response model."""
 
@@ -671,6 +716,69 @@ async def get_transaction_history(
     ]
 
     return TransactionHistoryResponse(transactions=transactions, total_count=len(transactions))
+
+
+@router.get(
+    "/beneficiaries/{telegram_id}",
+    response_model=BeneficiaryListResponse,
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Beneficiaries retrieved"},
+        401: {"description": "Invalid API key"},
+        404: {"description": "User not found"},
+    },
+)
+async def list_beneficiaries(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+) -> BeneficiaryListResponse:
+    """Return all beneficiaries for a user."""
+    records = user_service.get_beneficiaries(db, user)
+    beneficiaries = [
+        BeneficiaryResponse(
+            id=cast(int, record.id),
+            user_id=cast(int, record.user_id),
+            alias=cast(str, record.alias),
+            address=cast(str, record.address),
+            created_at=cast(datetime, record.created_at),
+            updated_at=cast(datetime, record.updated_at),
+        )
+        for record in records
+    ]
+    return BeneficiaryListResponse(beneficiaries=beneficiaries)
+
+
+@router.post(
+    "/beneficiaries/{telegram_id}",
+    response_model=BeneficiaryResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        201: {"description": "Beneficiary created"},
+        400: {"description": "Invalid beneficiary"},
+        401: {"description": "Invalid API key"},
+        404: {"description": "User not found"},
+    },
+)
+async def create_beneficiary(
+    user: Annotated[User, Depends(get_current_user)],
+    beneficiary: BeneficiaryCreate,
+    db: Session = Depends(get_db),
+) -> BeneficiaryResponse:
+    """Create a new beneficiary for a user."""
+    try:
+        record = user_service.add_beneficiary(db, user, beneficiary.alias, beneficiary.address)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return BeneficiaryResponse(
+        id=cast(int, record.id),
+        user_id=cast(int, record.user_id),
+        alias=cast(str, record.alias),
+        address=cast(str, record.address),
+        created_at=cast(datetime, record.created_at),
+        updated_at=cast(datetime, record.updated_at),
+    )
 
 
 @router.get(

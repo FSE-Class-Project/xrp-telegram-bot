@@ -10,7 +10,7 @@ from sqlalchemy import desc  # Import desc directly
 from sqlalchemy.orm import Session
 
 # Use absolute imports to avoid issues
-from backend.database.models import Transaction, User, UserSettings, Wallet
+from backend.database.models import Beneficiary, Transaction, User, UserSettings, Wallet
 from backend.services.cache_service import get_cache_service
 from backend.services.xrp_service import xrp_service
 
@@ -274,6 +274,55 @@ class UserService:
             db.commit()
 
         return result
+
+    def get_beneficiaries(self, db: Session, user: User) -> list[Beneficiary]:
+        """Retrieve all beneficiaries for a user ordered by alias."""
+        if not user.id:
+            return []
+
+        return (
+            db.query(Beneficiary)
+            .filter(Beneficiary.user_id == user.id)
+            .order_by(Beneficiary.alias.asc())
+            .all()
+        )
+
+    def add_beneficiary(self, db: Session, user: User, alias: str, address: str) -> Beneficiary:
+        """Create a new beneficiary for quick sends."""
+        if not user.id:
+            raise ValueError("User must be persisted before adding beneficiaries")
+
+        cleaned_alias = alias.strip()
+        if not cleaned_alias:
+            raise ValueError("Alias cannot be empty")
+
+        if len(cleaned_alias) > 100:
+            raise ValueError("Alias must be 100 characters or fewer")
+
+        if not xrp_service.validate_address(address):
+            raise ValueError("Invalid XRP address format")
+
+        existing_alias = (
+            db.query(Beneficiary)
+            .filter(Beneficiary.user_id == user.id, Beneficiary.alias == cleaned_alias)
+            .first()
+        )
+        if existing_alias:
+            raise ValueError("You already have a beneficiary with this alias")
+
+        existing_address = (
+            db.query(Beneficiary)
+            .filter(Beneficiary.user_id == user.id, Beneficiary.address == address)
+            .first()
+        )
+        if existing_address:
+            raise ValueError("This address is already saved as a beneficiary")
+
+        beneficiary = Beneficiary(user_id=user.id, alias=cleaned_alias, address=address)
+        db.add(beneficiary)
+        db.commit()
+        db.refresh(beneficiary)
+        return beneficiary
 
     def get_transaction_history(
         self,

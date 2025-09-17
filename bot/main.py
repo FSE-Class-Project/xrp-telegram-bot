@@ -53,22 +53,31 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_RENDER = os.getenv("RENDER") is not None
 
 # --- Import Handlers & Keyboards ---
-from .handlers.price import price_command  # noqa: E402
-from .handlers.settings import settings_command  # noqa: E402
-from .handlers.start import help_command, start_command  # noqa: E402
-from .handlers.transaction import (  # noqa: E402
-    ADDRESS,
-    AMOUNT,
-    CONFIRM,
-    address_handler,
-    amount_handler,
-    cancel_handler,
-    confirm_handler,
-    history_command,
+# These imports will now work because we are creating the files.
+from .handlers.start import start_command, help_command
+from .handlers.wallet import balance_command, profile_command
+from .handlers.transaction import (
     send_command,
+    send_mode_handler,
+    beneficiary_selection_handler,
+    beneficiary_add_alias_handler,
+    beneficiary_add_address_handler,
+    amount_handler,
+    address_handler,
+    confirm_handler,
+    cancel_handler,
+    history_command,  # This is now defined in transaction.py
+    MODE,
+    BENEFICIARY_SELECT,
+    BENEFICIARY_ADD_ALIAS,
+    BENEFICIARY_ADD_ADDRESS,
+    AMOUNT,
+    ADDRESS,
+    CONFIRM,
 )
-from .handlers.wallet import balance_command, profile_command  # noqa: E402
-from .keyboards.menus import keyboards  # noqa: E402
+from .handlers.price import price_command
+from .handlers.settings import settings_command
+from .keyboards.menus import keyboards  # Import the keyboards object
 
 
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -445,6 +454,26 @@ def setup_handlers(application: Application):
             CallbackQueryHandler(send_command, pattern=r"^(send|send_xrp)$"),
         ],
         states={
+            MODE: [
+                CallbackQueryHandler(
+                    send_mode_handler, pattern=r"^send_mode_(beneficiary|address)$"
+                ),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
+            BENEFICIARY_SELECT: [
+                CallbackQueryHandler(
+                    beneficiary_selection_handler, pattern=r"^beneficiary_(select:.*|add)$"
+                ),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
+            BENEFICIARY_ADD_ALIAS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, beneficiary_add_alias_handler),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
+            BENEFICIARY_ADD_ADDRESS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, beneficiary_add_address_handler),
+                CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
+            ],
             AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, amount_handler),
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),

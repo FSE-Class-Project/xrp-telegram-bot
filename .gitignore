@@ -22,6 +22,8 @@ env/
 .idea/
 *.swp
 *.swo
+ARCHITECTURE.md
+.github/copilot-instructions.md
 
 # Testing
 .coverage
