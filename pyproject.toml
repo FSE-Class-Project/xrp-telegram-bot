@@ -42,6 +42,21 @@ extend-exclude = '''
 target-version = "py310"
 line-length = 100
 
+# Exclude auto-generated and non-source files
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    "build",
+    "dist",
+    "*.egg-info",
+    "alembic/versions/",  # Ignore all Alembic migration files
+    "docs/",              # Ignore documentation
+    ".env",
+]
+
 [tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
@@ -60,6 +75,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"bot/main.py" = ["E402"]  # Module level imports not at top (needed for path setup)
+"alembic/env.py" = ["E402"]  # Alembic env.py needs specific import order
+"migrate.py" = ["E402"]  # Migration scripts may need path setup first
+"debug_setup.py" = ["F401", "B007"]  # Debug/setup scripts have different requirements
 
 [tool.ruff.lint.isort]
 known-third-party = ["xrpl", "telegram", "fastapi", "sqlalchemy"]

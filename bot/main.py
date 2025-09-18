@@ -17,6 +17,8 @@ from telegram.ext import (
 # Load environment variables
 load_dotenv()
 
+# ruff: noqa: E402
+
 # Configure logging based on environment
 log_level = logging.DEBUG if os.getenv("DEBUG", "").lower() == "true" else logging.INFO
 logging.basicConfig(
@@ -54,29 +56,29 @@ IS_RENDER = os.getenv("RENDER") is not None
 
 # --- Import Handlers & Keyboards ---
 # These imports will now work because we are creating the files.
-from .handlers.start import start_command, help_command
-from .handlers.wallet import balance_command, profile_command
-from .handlers.transaction import (
-    send_command,
-    send_mode_handler,
-    beneficiary_selection_handler,
-    beneficiary_add_alias_handler,
-    beneficiary_add_address_handler,
-    amount_handler,
-    address_handler,
-    confirm_handler,
-    cancel_handler,
-    history_command,  # This is now defined in transaction.py
-    MODE,
-    BENEFICIARY_SELECT,
-    BENEFICIARY_ADD_ALIAS,
-    BENEFICIARY_ADD_ADDRESS,
-    AMOUNT,
-    ADDRESS,
-    CONFIRM,
-)
 from .handlers.price import price_command
 from .handlers.settings import settings_command
+from .handlers.start import help_command, start_command
+from .handlers.transaction import (
+    ADDRESS,
+    AMOUNT,
+    BENEFICIARY_ADD_ADDRESS,
+    BENEFICIARY_ADD_ALIAS,
+    BENEFICIARY_SELECT,
+    CONFIRM,
+    MODE,
+    address_handler,
+    amount_handler,
+    beneficiary_add_address_handler,
+    beneficiary_add_alias_handler,
+    beneficiary_selection_handler,
+    cancel_handler,
+    confirm_handler,
+    history_command,  # This is now defined in transaction.py
+    send_command,
+    send_mode_handler,
+)
+from .handlers.wallet import balance_command, profile_command
 from .keyboards.menus import keyboards  # Import the keyboards object
 
 

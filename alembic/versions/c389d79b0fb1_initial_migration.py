@@ -1,21 +1,21 @@
 """Initial migration
 
 Revision ID: c389d79b0fb1
-Revises: 
+Revises:
 Create Date: 2025-09-09 16:21:04.230986
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'c389d79b0fb1'
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -32,7 +32,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_telegram_id'), 'users', ['telegram_id'], unique=False)
-    
+
     op.create_table('wallets',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -49,7 +49,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('xrp_address')
     )
     op.create_index(op.f('ix_wallets_xrp_address'), 'wallets', ['xrp_address'], unique=False)
-    
+
     op.create_table('transactions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('sender_id', sa.Integer(), nullable=True),
@@ -68,7 +68,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('tx_hash')
     )
     op.create_index(op.f('ix_transactions_tx_hash'), 'transactions', ['tx_hash'], unique=False)
-    
+
     op.create_table('price_history',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('price_usd', sa.Float(), nullable=False),
@@ -81,7 +81,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_price_history_timestamp'), 'price_history', ['timestamp'], unique=False)
-    
+
     op.create_table('user_settings',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
