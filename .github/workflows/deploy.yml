@@ -1,0 +1,42 @@
+# .github/workflows/deploy.yml
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ prod ]
+  workflow_dispatch:  # Allow manual deployment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Deploy to Render
+      env:
+        deploy_url: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      run: |
+        curl -X POST "$deploy_url"
+
+    - name: Wait for deployment
+      run: sleep 30
+
+    - name: Health check
+      run: |
+        max_attempts=10
+        attempt=1
+
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f https://xrp-bot-api.onrender.com/health; then
+            echo "Deployment successful!"
+            exit 0
+          fi
+
+          echo "Attempt $attempt failed, waiting..."
+          sleep 10
+          attempt=$((attempt + 1))
+        done
+
+        echo "Deployment health check failed"
+        exit 1

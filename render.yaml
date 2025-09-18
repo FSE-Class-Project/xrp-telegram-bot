@@ -1,18 +1,24 @@
 # Render Blueprint Specification
-# This file defines the infrastructure for the XRP Telegram Bot
+# XRP Telegram Bot - Webhook Mode with Existing Database
 
 services:
-  # Backend API with integrated Telegram webhook handler
+  # Main Web Service - Backend API with integrated Telegram webhook handler
   - type: web
     name: xrp-bot-api
     runtime: python
-    plan: starter
+    plan: starter  # or 'starter' for production ($7/month)
     region: oregon
+
+    # Build configuration
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
+      python -c "from backend.database.connection import init_database; init_database()"
+
+    # Start command - single worker for webhook handling
     startCommand: |
       uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
+
     envVars:
       # Python Configuration
       - key: PYTHON_VERSION
@@ -28,13 +34,11 @@ services:
       - key: APP_VERSION
         value: "1.0.0"
 
-      # Database (uses internal connection from Render PostgreSQL)
+      # Database - Use existing database connection string from Render
       - key: DATABASE_URL
-        fromDatabase:
-          name: xrp-bot-db
-          property: connectionString
+        sync: false  # Set manually in dashboard from existing DB
 
-      # Security Keys (auto-generated on first deploy)
+      # Security Keys (auto-generated on first deploy, then persist)
       - key: ENCRYPTION_KEY
         generateValue: true
       - key: JWT_SECRET
@@ -50,13 +54,16 @@ services:
       - key: ADMIN_API_KEY
         generateValue: true
 
-      # Telegram Configuration
+      # Telegram Configuration (CRITICAL - Set in Render Dashboard)
       - key: TELEGRAM_BOT_TOKEN
-        sync: false  # Set manually in Render dashboard
+        sync: false  # MUST set manually in Render dashboard
+
+      # Telegram Webhook URL - will be auto-configured
+      - key: TELEGRAM_WEBHOOK_URL
+        value: https://xrp-bot-api.onrender.com
+
       - key: TELEGRAM_WEBHOOK_SECRET
         generateValue: true
-      - key: WEBHOOK_URL
-        value: https://xrp-bot-api.onrender.com/api/v1/webhook/telegram
 
       # XRP Ledger Configuration (TestNet)
       - key: XRP_NETWORK
@@ -71,8 +78,6 @@ services:
       # API Configuration
       - key: API_HOST
         value: "0.0.0.0"
-      - key: API_PORT
-        value: "10000"
       - key: API_URL
         value: https://xrp-bot-api.onrender.com
       - key: API_PREFIX
@@ -82,9 +87,9 @@ services:
       - key: PRICE_API_URL
         value: https://api.coingecko.com/api/v3
       - key: PRICE_API_KEY
-        sync: false  # Set manually in Render dashboard for security
+        sync: false  # Optional - set in dashboard if you have one
 
-      # Redis Configuration (optional - remove if not using)
+      # Redis Configuration (optional caching)
       - key: REDIS_URL
         value: ""  # Leave empty if not using Redis
       - key: CACHE_TTL
@@ -105,35 +110,18 @@ services:
         value: INFO
 
     # Health check configuration
-    healthCheckPath: /api/v1/health
+    healthCheckPath: /health
     numInstances: 1
 
-    # Build configuration
+    # Deploy from prod branch
+    autoDeploy: true
+    branch: prod
+
+    # Build configuration - trigger on relevant file changes
     buildFilter:
       paths:
         - backend/**
         - bot/**
         - requirements.txt
         - render.yaml
-
-    # Auto-deploy when pushing to branch
-    autoDeploy: true
-    branch: main
-
-databases:
-  # PostgreSQL Database
-  - name: xrp-bot-db
-    plan: starter
-    region: oregon  # Should match service region
-    databaseName: xrp_bot
-    user: xrp_user
-
-    # IP Allow List - Empty array means only Render services can connect
-    ipAllowList: []
-
-# Environment Groups (optional - for shared configuration)
-envVarGroups: []
-
-# Preview Environments (optional)
-previewsEnabled: true
-previewsExpireAfterDays: 3
+        - pyproject.toml
