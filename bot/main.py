@@ -353,31 +353,27 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
                 if "timeout" in error_str or "asyncio.timeouterror" in error_str:
                     error_msg = format_error_message(
-                        "Request Timeout",
-                        "The request took too long to complete. Please try again.",
+                        "Request Timeout\n\nThe request took too long to complete. Please try again."
                     )
                 elif "connection" in error_str or "connect" in error_str:
                     error_msg = format_error_message(
-                        "Connection Error",
-                        "Unable to connect to backend services. Please try again in a moment.",
+                        "Connection Error\n\nUnable to connect to backend services. Please try again in a moment."
                     )
                 elif "forbidden" in error_str or "unauthorized" in error_str:
                     error_msg = format_error_message(
-                        "Access Error", "Authentication failed. Please restart the bot with /start."
+                        "Access Error\n\nAuthentication failed. Please restart the bot with /start."
                     )
                 elif "badrequest" in error_str or "bad request" in error_str:
                     error_msg = format_error_message(
-                        "Invalid Request",
-                        "The request was invalid. Please check your input and try again.",
+                        "Invalid Request\n\nThe request was invalid. Please check your input and try again."
                     )
                 elif "network" in error_str or "dns" in error_str:
                     error_msg = format_error_message(
-                        "Network Error", "Network connectivity issue. Please check your connection."
+                        "Network Error\n\nNetwork connectivity issue. Please check your connection."
                     )
                 else:
                     error_msg = format_error_message(
-                        "Something Went Wrong",
-                        "An unexpected error occurred. Please try again later.",
+                        "Something Went Wrong\n\nAn unexpected error occurred. Please try again later."
                     )
 
                 try:

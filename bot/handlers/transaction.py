@@ -16,6 +16,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from ..keyboards.menus import keyboards
 from ..utils.formatting import (
+    escape_html,
     format_error_message,
     format_warning_message,
     format_hash,
