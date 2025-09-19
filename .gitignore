@@ -49,3 +49,18 @@ wallets/
 
 *.seed
 *_private_key*
+
+# Quarto
+/_site/
+/.quarto/
+*.html
+!docs/*.html
+
+# Presentation builds (keep docs for GitHub Pages)
+presentation/_site/
+presentation/.quarto/
+docs/
+docs/site_libs/quarto-diagram/mermaid.min.js
+site_libs/
+*.min.js
+*.min.css

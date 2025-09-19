@@ -18,10 +18,10 @@ from ..keyboards.menus import keyboards
 from ..utils.formatting import (
     escape_html,
     format_error_message,
-    format_warning_message,
     format_hash,
     format_transaction_confirmation,
     format_transaction_success,
+    format_warning_message,
     format_xrp_address,
 )
 
@@ -641,7 +641,6 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         msg = update.message
 
     if context.user_data is not None:
-
         context.user_data.pop("transaction", None)
         context.user_data.pop("beneficiaries", None)
         context.user_data.pop("beneficiary_add", None)

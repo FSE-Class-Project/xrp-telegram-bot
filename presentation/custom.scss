@@ -1,0 +1,152 @@
+/*-- scss:defaults --*/
+
+// System font stack only - no external fonts
+$font-family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif !default;
+$font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace !default;
+
+$presentation-font-family: $font-family-sans-serif !default;
+$presentation-heading-font: $font-family-sans-serif !default;
+$code-block-font-family: $font-family-monospace !default;
+
+// Define colors for consistency
+$primary-color: #0288d1 !default;
+$border-color: #2c82c9 !default;
+
+/*-- scss:rules --*/
+
+.reveal {
+  // Disable external font loading, force system fonts
+  @font-face {
+    font-display: block;
+    font-family: "Font Disabled";
+    src: local("Arial");
+    unicode-range: U+0-10FFFF;
+  }
+
+  font-family: $presentation-font-family !important;
+
+  // Heading styles
+  h1, h2, h3, h4, h5, h6 {
+    font-family: $presentation-heading-font !important;
+    margin: 0.5em 0 0.8em !important;
+    padding-top: 0.2em !important;
+  }
+
+  // Code styles
+  code, pre {
+    font-family: $code-block-font-family !important;
+  }
+
+  // Title slide styles
+  #title-slide {
+    .title {
+      font-size: 2.8em;
+      border-bottom: 2px solid $border-color;
+      padding-bottom: 0.2em;
+    }
+
+    .qrcode-container {
+      margin-top: 2em;
+    }
+  }
+
+  // Slide content positioning
+  .slides section {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    & > *:first-child {
+      margin-top: 0.5em !important;
+    }
+  }
+
+  // Column layout
+  .columns {
+    display: flex;
+    height: 80%;
+    margin-top: 2em;
+    width: 100%;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1em;
+  }
+
+  // Column styles
+  .column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 1em;
+    box-sizing: border-box;
+
+    // Text content (lists, paragraphs, etc.)
+    & > *:not(.chart-container):not(.mermaid):not(.plotly-graph-div):not(iframe):not(img) {
+      font-size: 0.8em !important;
+      line-height: 1.3 !important;
+      text-align: left !important;
+      justify-content: flex-start !important;
+      align-items: flex-start !important;
+      width: 100%;
+      margin: 0 !important;
+      overflow-wrap: break-word !important;
+      word-break: break-word !important;
+    }
+
+    // Chart and diagram containers
+    .chart-container,
+    .mermaid,
+    .plotly-graph-div {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      margin: 0 auto !important;
+      overflow: visible !important;
+      position: relative !important;
+    }
+
+    // Plotly-specific styles
+    .plotly-graph-div {
+      min-height: 400px !important;
+      width: 100% !important;
+      height: auto !important;
+      max-height: 100% !important;
+    }
+
+    // Mermaid-specific styles
+    .mermaid svg {
+      width: 100% !important;
+      height: auto !important;
+      max-height: 100% !important;
+      display: block !important;
+    }
+
+    // Images and iframes
+    img,
+    iframe {
+      display: block !important;
+      margin: 0 auto !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      height: auto !important;
+    }
+  }
+
+  // Slide-specific font size adjustments
+  .slides section[data-state="performance-results-throughput"] .column,
+  .slides section[data-state="performance-results-latency"] .column,
+  .slides section[data-state="performance-results-scalability"] .column,
+  .slides section[data-state="layer-specific-findings"] .column,
+  .slides section[data-state="ycsb-benchmark"] .column,
+  .slides section[data-state="smallbank-benchmark"] .column,
+  .slides section[data-state="etherid-benchmark"] .column {
+    & > *:not(.chart-container):not(.mermaid):not(.plotly-graph-div):not(iframe):not(img) {
+      font-size: 0.75em !important;
+    }
+  }
+}
