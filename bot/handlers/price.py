@@ -16,17 +16,18 @@ logger = logging.getLogger(__name__)
 
 
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Handle /price command to display current XRP price information.
+    """Handle /price command to display current XRP price information.
 
     Args:
+    ----
         update: Telegram update object
         context: Bot context
+
     """
     # Handle both message and callback query
     if update.message:
         reply_func = update.message.reply_text
-    elif update.callback_query:
+    elif update.callback_query and update.callback_query.message:
         reply_func = update.callback_query.message.edit_text
         await update.callback_query.answer()
     else:
@@ -40,13 +41,15 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # Fetch user currency
         user_id = (update.effective_user.id if update.effective_user else None) or (
             update.callback_query.from_user.id if update.callback_query else None
-        )  # type: ignore[attr-defined]
+        )
         currency = "USD"
         if user_id:
             async with httpx.AsyncClient() as client:
                 headers = {"X-API-Key": api_key}
                 resp = await client.get(
-                    f"{api_url}/api/v1/user/settings/{user_id}", headers=headers, timeout=10.0
+                    f"{api_url}/api/v1/user/settings/{user_id}",
+                    headers=headers,
+                    timeout=10.0,
                 )
                 if resp.status_code == 200:
                     currency = str(resp.json().get("currency_display", "USD")).upper()
@@ -60,15 +63,14 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             message = format_enhanced_price_message(price_data, market_data, currency)
 
             await reply_func(
-                message, parse_mode=ParseMode.HTML, reply_markup=keyboards.price_menu()
+                message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboards.price_menu(),
             )
         else:
             # Send error message
             await reply_func(
-                format_error_message(
-                    "Price Service Unavailable",
-                    "Unable to fetch current price data. Please try again later.",
-                ),
+                format_error_message("Unable to fetch current price data. Please try again later."),
                 parse_mode=ParseMode.HTML,
             )
 
@@ -81,21 +83,25 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def fetch_price_data(api_url: str, api_key: str) -> dict[str, Any] | None:
-    """
-    Fetch price data from the API.
+    """Fetch price data from the API.
 
     Args:
+    ----
         api_url: Base URL of the API
         api_key: API key for authentication
 
     Returns:
+    -------
         Price data dictionary or None if failed
+
     """
     try:
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.get(
-                f"{api_url}/api/v1/price/current", headers=headers, timeout=httpx.Timeout(10.0)
+                f"{api_url}/api/v1/price/current",
+                headers=headers,
+                timeout=httpx.Timeout(10.0),
             )
 
             if response.status_code == 200:
@@ -121,7 +127,9 @@ async def fetch_market_stats(api_url: str, api_key: str) -> dict[str, Any] | Non
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.get(
-                f"{api_url}/api/v1/price/market-stats", headers=headers, timeout=httpx.Timeout(10.0)
+                f"{api_url}/api/v1/price/market-stats",
+                headers=headers,
+                timeout=httpx.Timeout(10.0),
             )
             if response.status_code == 200:
                 return response.json()
@@ -131,17 +139,21 @@ async def fetch_market_stats(api_url: str, api_key: str) -> dict[str, Any] | Non
 
 
 def format_enhanced_price_message(
-    price_data: dict[str, Any], market_data: dict[str, Any] | None = None, currency: str = "USD"
+    price_data: dict[str, Any],
+    market_data: dict[str, Any] | None = None,
+    currency: str = "USD",
 ) -> str:
-    """
-    Format enhanced price data into an HTML Telegram message.
+    """Format enhanced price data into an HTML Telegram message.
 
     Args:
+    ----
         price_data: Price data dictionary
         market_data: Optional market statistics
 
     Returns:
+    -------
         Formatted HTML message string
+
     """
     # Extract values with defaults
     price_usd = float(price_data.get("price_usd", 0))
@@ -218,7 +230,9 @@ async def market_stats_callback(update: Update, context: ContextTypes.DEFAULT_TY
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.get(
-                f"{api_url}/api/v1/price/market-stats", headers=headers, timeout=10.0
+                f"{api_url}/api/v1/price/market-stats",
+                headers=headers,
+                timeout=10.0,
             )
 
             if response.status_code == 200:
@@ -228,22 +242,22 @@ async def market_stats_callback(update: Update, context: ContextTypes.DEFAULT_TY
 📈 <b>XRP Market Statistics</b>
 
 <b>Rankings:</b>
-🏆 Market Cap Rank: #{data.get('market_cap_rank', 'N/A')}
-💰 Market Cap: ${data.get('market_cap_usd', 0):,.0f}
+🏆 Market Cap Rank: #{data.get("market_cap_rank", "N/A")}
+💰 Market Cap: ${data.get("market_cap_usd", 0):,.0f}
 
 <b>Price Movement:</b>
-📈 24h Change: {data.get('price_change_percentage_24h', 0):+.2f}%
-📅 7d Change: {data.get('price_change_percentage_7d', 0):+.2f}%
-📆 30d Change: {data.get('price_change_percentage_30d', 0):+.2f}%
+📈 24h Change: {data.get("price_change_percentage_24h", 0):+.2f}%
+📅 7d Change: {data.get("price_change_percentage_7d", 0):+.2f}%
+📆 30d Change: {data.get("price_change_percentage_30d", 0):+.2f}%
 
 <b>All-Time Records:</b>
-🚀 ATH: ${data.get('ath', 0):.4f}
-📉 ATL: ${data.get('atl', 0):.6f}
+🚀 ATH: ${data.get("ath", 0):.4f}
+📉 ATL: ${data.get("atl", 0):.6f}
 
 <b>Supply:</b>
-🔄 Circulating: {data.get('circulating_supply', 0):,.0f}
-🎯 Total: {data.get('total_supply', 0):,.0f}
-🔒 Max: {data.get('max_supply', 0):,.0f}
+🔄 Circulating: {data.get("circulating_supply", 0):,.0f}
+🎯 Total: {data.get("total_supply", 0):,.0f}
+🔒 Max: {data.get("max_supply", 0):,.0f}
 """
 
                 keyboard = InlineKeyboardMarkup(
@@ -267,12 +281,13 @@ async def market_stats_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Handle price refresh callback from inline keyboard.
+    """Handle price refresh callback from inline keyboard.
 
     Args:
+    ----
         update: Telegram update object
         context: Bot context
+
     """
     query = update.callback_query
     if not query:
@@ -295,7 +310,9 @@ async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_T
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             resp = await client.get(
-                f"{api_url}/api/v1/user/settings/{user_id}", headers=headers, timeout=10.0
+                f"{api_url}/api/v1/user/settings/{user_id}",
+                headers=headers,
+                timeout=10.0,
             )
             if resp.status_code == 200:
                 currency = str(resp.json().get("currency_display", "USD")).upper()
@@ -305,7 +322,9 @@ async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_T
             message = format_enhanced_price_message(price_data, market_data, currency)
 
             await query.message.edit_text(
-                text=message, parse_mode=ParseMode.HTML, reply_markup=keyboards.price_menu()
+                text=message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboards.price_menu(),
             )
         else:
             await query.answer("Failed to refresh price", show_alert=True)

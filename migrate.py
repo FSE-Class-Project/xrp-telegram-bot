@@ -98,7 +98,7 @@ def stamp_database(revision: str) -> None:
 
 
 def main():
-    """Main CLI function."""
+    """Execute the main CLI function."""
     parser = argparse.ArgumentParser(description="Database migration management")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -109,7 +109,10 @@ def main():
     # Upgrade
     upgrade_parser = subparsers.add_parser("upgrade", help="Upgrade database")
     upgrade_parser.add_argument(
-        "revision", nargs="?", default="head", help="Target revision (default: head)"
+        "revision",
+        nargs="?",
+        default="head",
+        help="Target revision (default: head)",
     )
 
     # Downgrade

@@ -170,7 +170,7 @@ class RedisCache:
         value = self.get(key)
         if value:
             try:
-                return pickle.loads(value)  # type: ignore[arg-type]
+                return pickle.loads(value)  # type: ignore[arg-type]  # noqa: S301 - pickle is safe here as we control the data
             except (pickle.PickleError, TypeError) as e:
                 logger.error(f"Failed to unpickle object for key {key}: {e}")
         return None

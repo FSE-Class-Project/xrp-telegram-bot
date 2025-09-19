@@ -1,8 +1,7 @@
-"""
-Performance tests:
+"""Performance tests:
 - Simulate user sign ups
 - Simulate peer-to-peer payments
-- Generate synthetic users
+- Generate synthetic users.
 """
 
 import asyncio
@@ -13,19 +12,23 @@ from typing import Any
 
 import httpx
 import pandas as pd
-from faker import Faker
+from faker import Faker  # type: ignore
 
 
 class PerformanceTestSuite:
-    """Performance testing for XRP Telegram Bot"""
+    """Performance testing for XRP Telegram Bot."""
 
     def __init__(self, api_url: str = "http://localhost:8000"):
         self.api_url = api_url
         self.faker = Faker()
-        self.results = {"signups": [], "transactions": [], "balance_checks": []}
+        self.results = {
+            "signups": [],
+            "transactions": [],
+            "balance_checks": [],
+        }
 
     def generate_synthetic_user(self) -> dict[str, Any]:
-        """Generate synthetic user data"""
+        """Generate synthetic user data."""
         telegram_id = str(random.randint(100000000, 999999999))
         return {
             "telegram_id": telegram_id,
@@ -35,7 +38,7 @@ class PerformanceTestSuite:
         }
 
     async def signup_user(self, user_data: dict[str, Any]) -> dict[str, Any]:
-        """Simulate user signup"""
+        """Simulate user signup."""
         start_time = time.time()
 
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -62,14 +65,18 @@ class PerformanceTestSuite:
                 }
 
     async def send_payment(self, from_id: str, to_address: str, amount: float) -> dict[str, Any]:
-        """Simulate P2P payment"""
+        """Simulate P2P payment."""
         start_time = time.time()
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
                 response = await client.post(
                     f"{self.api_url}/api/v1/transaction/send",
-                    json={"from_telegram_id": from_id, "to_address": to_address, "amount": amount},
+                    json={
+                        "from_telegram_id": from_id,
+                        "to_address": to_address,
+                        "amount": amount,
+                    },
                 )
 
                 elapsed_time = time.time() - start_time
@@ -93,7 +100,7 @@ class PerformanceTestSuite:
                 }
 
     async def check_balance(self, telegram_id: str) -> dict[str, Any]:
-        """Simulate balance check"""
+        """Simulate balance check."""
         start_time = time.time()
 
         async with httpx.AsyncClient() as client:
@@ -119,7 +126,7 @@ class PerformanceTestSuite:
                 }
 
     async def test_concurrent_signups(self, num_users: int = 10) -> list[dict[str, Any]]:
-        """Test concurrent user signups"""
+        """Test concurrent user signups."""
         print(f"\n🚀 Testing {num_users} concurrent user signups...")
 
         # Generate synthetic users
@@ -146,7 +153,7 @@ class PerformanceTestSuite:
     async def test_concurrent_payments(
         self, users: list[dict], num_payments: int = 20
     ) -> list[dict[str, Any]]:
-        """Test concurrent P2P payments"""
+        """Test concurrent P2P payments."""
         print(f"\n💸 Testing {num_payments} concurrent P2P payments...")
 
         if len(users) < 2:
@@ -188,7 +195,7 @@ class PerformanceTestSuite:
         return results
 
     async def test_load_pattern(self, duration_seconds: int = 60) -> None:
-        """Test with realistic load pattern over time"""
+        """Test with realistic load pattern over time."""
         print(f"\n📊 Running load test for {duration_seconds} seconds...")
 
         start_time = time.time()
@@ -232,7 +239,7 @@ class PerformanceTestSuite:
         print(f"✅ Completed {operations_count} operations in {duration_seconds} seconds.")
 
     def generate_report(self) -> str:
-        """Generate performance test report"""
+        """Generate performance test report."""
         report = []
         report.append("\n" + "=" * 60)
         report.append("📊 PERFORMANCE TEST REPORT")
@@ -253,7 +260,9 @@ class PerformanceTestSuite:
 
             if successful_signups:
                 response_times = [s["response_time"] for s in successful_signups]
-                report.append(f"Avg response time: {sum(response_times)/len(response_times):.2f}s")
+                report.append(
+                    f"Avg response time: {sum(response_times) / len(response_times):.2f}s"
+                )
                 report.append(f"Min response time: {min(response_times):.2f}s")
                 report.append(f"Max response time: {max(response_times):.2f}s")
                 report.append(f"95th percentile: {pd.Series(response_times).quantile(0.95):.2f}s")
@@ -273,11 +282,13 @@ class PerformanceTestSuite:
             if successful_tx:
                 response_times = [t["response_time"] for t in successful_tx]
                 amounts = [t["amount"] for t in successful_tx]
-                report.append(f"Avg response time: {sum(response_times)/len(response_times):.2f}s")
+                report.append(
+                    f"Avg response time: {sum(response_times) / len(response_times):.2f}s"
+                )
                 report.append(f"Min response time: {min(response_times):.2f}s")
                 report.append(f"Max response time: {max(response_times):.2f}s")
                 report.append(f"Total XRP transferred: {sum(amounts):.2f}")
-                report.append(f"Avg transaction amount: {sum(amounts)/len(amounts):.2f} XRP")
+                report.append(f"Avg transaction amount: {sum(amounts) / len(amounts):.2f} XRP")
 
         # Balance check statistics
         if self.results["balance_checks"]:
@@ -291,14 +302,16 @@ class PerformanceTestSuite:
 
             if successful_checks:
                 response_times = [b["response_time"] for b in successful_checks]
-                report.append(f"Avg response time: {sum(response_times)/len(response_times):.2f}s")
+                report.append(
+                    f"Avg response time: {sum(response_times) / len(response_times):.2f}s"
+                )
 
         report.append("\n" + "=" * 60)
 
         return "\n".join(report)
 
     def save_results(self, filename: str = "performance_results.json") -> None:
-        """Save test results to file"""
+        """Save test results to file."""
         import json
 
         with open(filename, "w") as f:
@@ -308,7 +321,7 @@ class PerformanceTestSuite:
 
 
 async def main():
-    """Run performance tests"""
+    """Run performance tests."""
     # Initialize test suite
     tester = PerformanceTestSuite()
 

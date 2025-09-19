@@ -11,6 +11,8 @@ env/
 # Environment
 .env
 .env.local
+.env.development
+.env.production
 
 # Database
 *.db

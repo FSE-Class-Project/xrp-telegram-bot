@@ -22,22 +22,23 @@ exclude: |
   )$
 
 repos:
-  # Black - Python code formatter (reads settings from pyproject.toml)
-  - repo: https://github.com/psf/black
-    rev: 24.1.1
-    hooks:
-      - id: black
-        # Black will read line-length=100 from your pyproject.toml
-
-  # Ruff - Fast Python linter (replaces flake8, isort, and more)
+  # Ruff - Fast Python linter and formatter (replaces flake8, isort, black, and more)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.1.9
     hooks:
-      # Run the linter
+      # Run the linter first
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-      # Run the formatter (Ruff's Black-compatible formatter)
+      # Run the formatter (Ruff's built-in formatter)
       - id: ruff-format
+
+  # MyPy - Static type checker
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests, types-redis]
+        args: [--config-file=pyproject.toml]
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -44,16 +44,14 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await reply_func(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
         else:
             await reply_func(
-                format_error_message(
-                    "Settings Unavailable", "Could not load your settings. Please try again later."
-                ),
+                format_error_message("Could not load your settings. Please try again later."),
                 parse_mode=ParseMode.HTML,
             )
 
     except Exception as e:
         logger.error(f"Error in settings_command: {e}", exc_info=True)
         await reply_func(
-            format_error_message("Settings Error", "An error occurred while loading settings."),
+            format_error_message("An error occurred while loading settings."),
             parse_mode=ParseMode.HTML,
         )
 
@@ -81,8 +79,8 @@ async def notification_settings(update: Update, context: ContextTypes.DEFAULT_TY
 📲 <b>Notification Settings</b>
 
 <b>Current Settings:</b>
-📊 Price Alerts: {'✅ Enabled' if price_alerts else '❌ Disabled'}
-💸 Transaction Notifications: {'✅ Enabled' if tx_notifications else '❌ Disabled'}
+📊 Price Alerts: {"✅ Enabled" if price_alerts else "❌ Disabled"}
+💸 Transaction Notifications: {"✅ Enabled" if tx_notifications else "❌ Disabled"}
 
 <i>Configure what notifications you want to receive from the bot.</i>
 """
@@ -156,7 +154,8 @@ Select your preferred currency for displaying XRP values:
                         prefix = "✅ " if currency == current_currency else ""
                         row.append(
                             InlineKeyboardButton(
-                                f"{prefix}{currency}", callback_data=f"set_currency_{currency}"
+                                f"{prefix}{currency}",
+                                callback_data=f"set_currency_{currency}",
                             )
                         )
                 keyboard.append(row)
@@ -171,7 +170,9 @@ Select your preferred currency for displaying XRP values:
             )
 
             await query.message.edit_text(
-                message, parse_mode=ParseMode.HTML, reply_markup=InlineKeyboardMarkup(keyboard)
+                message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup(keyboard),
             )
         else:
             await query.answer("Could not load currency settings", show_alert=True)
@@ -204,8 +205,8 @@ async def security_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 🔐 <b>Security Settings</b>
 
 <b>Current Security:</b>
-🔢 PIN Protection: {'✅ Enabled' if has_pin else '❌ Disabled'}
-🛡️ Two-Factor Auth: {'✅ Enabled' if two_factor else '❌ Disabled'}
+🔢 PIN Protection: {"✅ Enabled" if has_pin else "❌ Disabled"}
+🛡️ Two-Factor Auth: {"✅ Enabled" if two_factor else "❌ Disabled"}
 
 <i>Enhance your wallet security with additional protection layers.</i>
 
@@ -216,7 +217,8 @@ async def security_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 [
                     [
                         InlineKeyboardButton(
-                            f"🔢 {'Change' if has_pin else 'Set'} PIN", callback_data="setup_pin"
+                            f"🔢 {'Change' if has_pin else 'Set'} PIN",
+                            callback_data="setup_pin",
                         )
                     ],
                     [
@@ -312,7 +314,9 @@ async def fetch_user_settings(api_url: str, api_key: str, user_id: int) -> dict[
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.get(
-                f"{api_url}/api/v1/user/settings/{user_id}", headers=headers, timeout=10.0
+                f"{api_url}/api/v1/user/settings/{user_id}",
+                headers=headers,
+                timeout=10.0,
             )
 
             if response.status_code == 200:
@@ -371,16 +375,16 @@ def format_settings_menu(settings_data: dict[str, Any]) -> str:
 ⚙️ <b>Bot Settings</b>
 
 <b>Notifications:</b>
-📊 Price Alerts: {'✅' if price_alerts else '❌'}
-💸 Transactions: {'✅' if tx_notifications else '❌'}
+📊 Price Alerts: {"✅" if price_alerts else "❌"}
+💸 Transactions: {"✅" if tx_notifications else "❌"}
 
 <b>Display:</b>
 💱 Currency: {currency}
 🌐 Language: {language.upper()}
 
 <b>Security:</b>
-🔢 PIN: {'✅' if has_pin else '❌'}
-🛡️ 2FA: {'✅' if two_factor else '❌'}
+🔢 PIN: {"✅" if has_pin else "❌"}
+🛡️ 2FA: {"✅" if two_factor else "❌"}
 
 <i>Customize your bot experience and security settings.</i>
 """
@@ -411,41 +415,63 @@ def create_settings_keyboard() -> InlineKeyboardMarkup:
 
 
 async def language_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle language settings (placeholder for future implementation)."""
+    """Handle language settings display."""
     query = update.callback_query
     if not query:
         return
 
     await query.answer()
+    user_id = query.from_user.id
 
-    message = """
+    try:
+        api_url = context.bot_data.get("api_url", "http://localhost:8000")
+        api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
+
+        # Get current user settings
+        settings_data = await fetch_user_settings(api_url, api_key, user_id)
+        current_language = settings_data.get("language", "en") if settings_data else "en"
+
+        # Available languages (currently only English is implemented)
+        languages = {
+            "en": "🇺🇸 English",
+        }
+
+        message = f"""
 🌐 <b>Language Settings</b>
 
-<b>Current Language:</b> English
+<b>Current Language:</b> {languages.get(current_language, "🇺🇸 English")}
 
-<i>Multi-language support coming soon!</i>
+<b>Available Languages:</b>
+✅ English (Fully supported)
 
-We're working on adding support for:
-• Spanish 🇪🇸
-• French 🇫🇷
-• German 🇩🇪
-• Portuguese 🇵🇹
-• Chinese 🇨🇳
-• Japanese 🇯🇵
+<i>Multi-language support coming in future updates!</i>
 
-Stay tuned for updates!
+<b>Planned Languages:</b>
+• 🇪🇸 Spanish
+• 🇫🇷 French
+• 🇩🇪 German
+• 🇵🇹 Portuguese
+• 🇨🇳 Chinese
+• 🇯🇵 Japanese
+
+The bot currently supports English only. All messages, commands, and interface
+elements are in English.
 """
 
-    keyboard = InlineKeyboardMarkup(
-        [
+        keyboard = InlineKeyboardMarkup(
             [
-                InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
-                InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
+                [
+                    InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
+                    InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
+                ]
             ]
-        ]
-    )
+        )
 
-    await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+        await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+
+    except Exception as e:
+        logger.error(f"Error in language_settings: {e}")
+        await query.answer("An error occurred", show_alert=True)
 
 
 async def export_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -465,7 +491,9 @@ async def export_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.post(
-                f"{api_url}/api/v1/user/export/{user_id}", headers=headers, timeout=30.0
+                f"{api_url}/api/v1/user/export/{user_id}",
+                headers=headers,
+                timeout=30.0,
             )
 
             if response.status_code == 200:
@@ -477,10 +505,10 @@ async def export_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 Your data export has been prepared:
 
 <b>Profile:</b>
-• Account created: {data.get('created_at', 'N/A')[:10]}
-• Total transactions: {data.get('transaction_count', 0)}
-• Total XRP sent: {data.get('total_sent', 0):.6f}
-• Current balance: {data.get('current_balance', 0):.6f}
+• Account created: {data.get("created_at", "N/A")[:10]}
+• Total transactions: {data.get("transaction_count", 0)}
+• Total XRP sent: {data.get("total_sent", 0):.6f}
+• Current balance: {data.get("current_balance", 0):.6f}
 
 <b>Export Options:</b>
 • Transaction history (CSV)
@@ -494,7 +522,8 @@ Your data export has been prepared:
                     [
                         [
                             InlineKeyboardButton(
-                                "📞 Contact Support", url="https://t.me/your_support_bot"
+                                "📞 Contact Support",
+                                callback_data="contact_support",
                             )
                         ],
                         [
@@ -515,7 +544,7 @@ Your data export has been prepared:
         await query.answer("Export failed", show_alert=True)
 
 
-async def delete_account_warning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def delete_account_warning(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:  # noqa: ARG001
     """Show account deletion warning."""
     query = update.callback_query
     if not query:

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-"""
-Cross-platform code formatting script using your project's tools
-Works with your existing pyproject.toml configuration
+"""Cross-platform code formatting script using your project's tools
+Works with your existing pyproject.toml configuration.
 """
 
 import subprocess
@@ -17,23 +16,23 @@ RESET = "\033[0m"
 
 
 def run_command(cmd, check=True):
-    """Run a command and return the result"""
+    """Run a command and return the result."""
     try:
-        result = subprocess.run(cmd, shell=True, check=check, capture_output=True, text=True)
+        result = subprocess.run(cmd, shell=True, check=check, capture_output=True, text=True)  # noqa: S602
         return result.returncode == 0, result.stdout, result.stderr
     except subprocess.CalledProcessError as e:
         return False, e.stdout, e.stderr
 
 
 def check_tool(tool_name):
-    """Check if a tool is installed"""
+    """Check if a tool is installed."""
     cmd = f"{sys.executable} -m pip show {tool_name}"
     success, _, _ = run_command(cmd, check=False)
     return success
 
 
 def install_tools():
-    """Install formatting tools if missing"""
+    """Install formatting tools if missing."""
     tools = {
         "black": "black>=24.1.1",
         "ruff": "ruff>=0.1.9",  # Using ruff instead of flake8/isort
@@ -56,7 +55,7 @@ def install_tools():
 
 
 def format_code():
-    """Format Python code with Black and Ruff (using your pyproject.toml settings)"""
+    """Format Python code with Black and Ruff (using your pyproject.toml settings)."""
     directories = ["backend", "bot", "tests"]
     existing_dirs = [d for d in directories if Path(d).exists()]
 
@@ -145,7 +144,7 @@ def format_code():
 
 
 def check_ci_compliance():
-    """Check if code will pass CI checks"""
+    """Check if code will pass CI checks."""
     print(f"\n{BLUE}=== CI Compliance Check ==={RESET}")
 
     directories = ["backend", "bot", "tests"]
@@ -179,7 +178,7 @@ def check_ci_compliance():
 
 
 def main():
-    """Main entry point"""
+    """Execute the main entry point."""
     # Check if we're in the right directory
     if not Path("requirements.txt").exists() or not Path("pyproject.toml").exists():
         print(f"{RED}Error: Not in project root directory!{RESET}")

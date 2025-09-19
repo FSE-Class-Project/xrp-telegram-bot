@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-Database initialization script for production deployment.
+"""Database initialization script for production deployment.
 Run this after deployment to initialize the database.
 
 Usage:
@@ -15,10 +14,14 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.config import initialize_settings  # noqa: E402
-from backend.database.connection import init_database, initialize_database_engine  # noqa: E402
+from backend.database.connection import (  # noqa: E402
+    init_database,
+    initialize_database_engine,
+)
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 

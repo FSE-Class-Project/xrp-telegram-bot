@@ -1,15 +1,15 @@
-"""API Middleware for rate limiting, request validation, and idempotency"""
+"""API Middleware for rate limiting, request validation, and idempotency."""
 
 import logging
 from collections.abc import Callable
 
-from fastapi import FastAPI, Request
-from slowapi import Limiter
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import JSONResponse, Response
+from fastapi import FastAPI, Request  # type: ignore
+from slowapi import Limiter  # type: ignore[import-not-found]
+from slowapi.errors import RateLimitExceeded  # type: ignore[import-not-found]
+from slowapi.util import get_remote_address  # type: ignore[import-not-found]
+from starlette.middleware.base import BaseHTTPMiddleware  # type: ignore[import-not-found]
+from starlette.requests import Request as StarletteRequest  # type: ignore[import-not-found]
+from starlette.responses import JSONResponse, Response  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,9 @@ StrOrCallableStr = str | Callable[..., str]
 limiter: Limiter
 
 
-def create_limiter(default_limits: list[StrOrCallableStr] | None = None) -> Limiter:
+def create_limiter(
+    default_limits: list[StrOrCallableStr] | None = None,
+) -> Limiter:
     """Create a new limiter instance with the specified limits."""
     if default_limits is None:
         default_limits = ["100/minute"]
@@ -35,12 +37,14 @@ def create_limiter(default_limits: list[StrOrCallableStr] | None = None) -> Limi
 
 
 def setup_rate_limiting(app: FastAPI, default_limits: list[StrOrCallableStr] | None = None) -> None:
-    """
-    Setup rate limiting for the FastAPI app
+    """Set up rate limiting for the FastAPI app.
 
     Args:
+    ----
         app: FastAPI application instance
-        default_limits: Optional list of rate limit strings or callables (e.g., ["100/minute", "1000/hour"])
+        default_limits: Optional list of rate limit strings or callables
+            (e.g., ["100/minute", "1000/hour"])
+
     """
     global limiter
 
@@ -52,7 +56,7 @@ def setup_rate_limiting(app: FastAPI, default_limits: list[StrOrCallableStr] | N
 
     # Add custom exception handler for rate limit exceeded
     def rate_limit_handler(_request: Request, exc: Exception) -> JSONResponse:
-        """Custom handler for rate limit exceeded errors."""
+        """Handle rate limit exceeded errors."""
         # Cast to RateLimitExceeded for type safety while maintaining compatibility
         rate_exc = exc if isinstance(exc, RateLimitExceeded) else None
 

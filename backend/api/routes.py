@@ -1,4 +1,4 @@
-"""API routes"""
+"""API routes."""
 
 import logging
 from datetime import datetime, timezone
@@ -6,13 +6,32 @@ from decimal import Decimal
 from typing import Annotated, TypeAlias, cast
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from fastapi import (  # type: ignore
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    Response,
+    status,
+)
+from pydantic import (  # type: ignore
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.api.auth import verify_api_key
-from backend.api.middleware import get_idempotency_key, limiter, rate_limit_transactions
+from backend.api.middleware import (
+    get_idempotency_key,
+    limiter,
+    rate_limit_transactions,
+)
 from backend.config import settings
 from backend.database.connection import get_db
 from backend.database.models import User
@@ -33,10 +52,10 @@ class XRPConstants:
     PRACTICAL_MAX_TRANSACTION = Decimal("1000000")  # 1 million XRP per transaction
     DUST_THRESHOLD = Decimal("0.001")  # Minimum practical amount
 
-    # Network requirements
-    ACCOUNT_RESERVE = Decimal("10")  # Base reserve for account
-    OWNER_RESERVE = Decimal("2")  # Reserve per owned object
-    MIN_ACCOUNT_BALANCE = Decimal("20")  # Minimum for activation
+    # Network requirements (adjusted for TestNet)
+    ACCOUNT_RESERVE = Decimal("1")  # Base reserve for account (TestNet)
+    OWNER_RESERVE = Decimal("0.2")  # Reserve per owned object (TestNet)
+    MIN_ACCOUNT_BALANCE = Decimal("1")  # Minimum for activation (TestNet)
     STANDARD_FEE = Decimal("0.00001")  # Typical network fee
 
     # Business logic limits
@@ -53,17 +72,19 @@ def validate_transaction_feasibility(
     recipient_address: str,
     sender_address: str,
 ) -> tuple[bool, str]:
-    """
-    Validate if a transaction is feasible given current constraints.
+    """Validate if a transaction is feasible given current constraints.
 
-    Returns:
+    Returns
+    -------
         tuple[bool, str]: (is_valid, error_message)
+
     """
     # Check account activation
     if current_balance < XRPConstants.MIN_ACCOUNT_BALANCE:
         return (
             False,
-            f"Account not activated. Minimum balance required: {XRPConstants.MIN_ACCOUNT_BALANCE} XRP",
+            f"Account not activated. Minimum balance required: "
+            f"{XRPConstants.MIN_ACCOUNT_BALANCE} XRP",
         )
 
     # Calculate total cost including fee
@@ -74,7 +95,8 @@ def validate_transaction_feasibility(
     if available_balance < total_cost:
         return (
             False,
-            f"Insufficient balance. Available: {available_balance} XRP, Required: {total_cost} XRP (including fee)",
+            f"Insufficient balance. Available: {available_balance} XRP, "
+            f"Required: {total_cost} XRP (including fee)",
         )
 
     # Check reserve requirement after transaction
@@ -82,7 +104,8 @@ def validate_transaction_feasibility(
     if remaining_balance < XRPConstants.ACCOUNT_RESERVE:
         return (
             False,
-            f"Transaction would violate account reserve requirement. Minimum {XRPConstants.ACCOUNT_RESERVE} XRP must remain",
+            f"Transaction would violate account reserve requirement. "
+            f"Minimum {XRPConstants.ACCOUNT_RESERVE} XRP must remain",
         )
 
     # Prevent self-transactions
@@ -101,7 +124,7 @@ def validate_xrp_amount(v: Decimal) -> Decimal:
     """Comprehensive XRP amount validation using network constants."""
     # Convert to Decimal if needed and normalize
     if not isinstance(v, Decimal):
-        v = Decimal(str(v))  # type: ignore[unreachable]
+        v = Decimal(str(v))
 
     # Basic validation
     if v <= 0:
@@ -150,6 +173,7 @@ class UserRegistration(BaseModel):
     telegram_username: str | None = None
     telegram_first_name: str | None = None
     telegram_last_name: str | None = None
+    auto_fund: bool = True  # Whether to automatically fund the wallet
 
     @field_validator("telegram_id")
     @classmethod
@@ -158,6 +182,16 @@ class UserRegistration(BaseModel):
         if not v or not v.isdigit():
             raise ValueError("Invalid Telegram ID format")
         return v
+
+
+class UserProfileUpdate(BaseModel):
+    """User profile update request model."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    telegram_username: str | None = None
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -355,7 +389,8 @@ class HealthCheckResponse(BaseModel):
 
 # Dependency for getting current user
 async def get_current_user(
-    telegram_id: Annotated[str, Path(description="Telegram user ID")], db: Session = Depends(get_db)
+    telegram_id: Annotated[str, Path(description="Telegram user ID")],
+    db: Session = Depends(get_db),
 ) -> User:
     """Get current user from database."""
     user = user_service.get_user_by_telegram_id(db, telegram_id)
@@ -380,12 +415,12 @@ async def get_current_user(
 # Temporarily disable rate limiting for development debugging
 # @limiter.limit("100/hour" if settings.ENVIRONMENT == "development" else "5/hour")
 async def register_user(
-    request: Request,
-    response: Response,
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
     registration: UserRegistration,
     db: Session = Depends(get_db),
 ) -> UserResponse:
-    """Register a new user and create XRP wallet."""
+    """Register a new user and create XRP wallet with configurable funding."""
     try:
         user = await user_service.create_user(
             db=db,
@@ -393,6 +428,7 @@ async def register_user(
             telegram_username=registration.telegram_username,
             telegram_first_name=registration.telegram_first_name,
             telegram_last_name=registration.telegram_last_name,
+            auto_fund=registration.auto_fund,
         )
 
         # Ensure wallet exists before accessing
@@ -420,6 +456,75 @@ async def register_user(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
+@router.put(
+    "/user/profile/{telegram_id}",
+    response_model=UserResponse,
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Profile updated successfully"},
+        404: {"description": "User not found"},
+        400: {"description": "Invalid profile data"},
+        401: {"description": "Invalid API key"},
+    },
+)
+async def update_user_profile(
+    telegram_id: str,
+    profile_update: UserProfileUpdate,
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """Update user profile information."""
+    try:
+        # Get user from database
+        user = db.query(User).filter(User.telegram_id == telegram_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        # Update only provided fields
+        if profile_update.telegram_username is not None:
+            user.telegram_username = profile_update.telegram_username
+        if profile_update.telegram_first_name is not None:
+            user.telegram_first_name = profile_update.telegram_first_name
+        if profile_update.telegram_last_name is not None:
+            user.telegram_last_name = profile_update.telegram_last_name
+
+        # Update timestamp
+        user.updated_at = datetime.now(timezone.utc)
+
+        # Commit changes
+        db.commit()
+        db.refresh(user)
+
+        # Ensure wallet exists
+        if not user.wallet:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User wallet not found",
+            )
+
+        # Return updated user data
+        user_id_value: int = cast(int, user.id)
+        telegram_id_value: str = cast(str, user.telegram_id)
+        xrp_address_value: str = cast(str, user.wallet.xrp_address)
+        balance_value: float = cast(float, user.wallet.balance)
+
+        return UserResponse(
+            user_id=user_id_value,
+            telegram_id=telegram_id_value,
+            xrp_address=xrp_address_value,
+            balance=Decimal(str(balance_value)),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile update error: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        ) from e
+
+
 @router.get(
     "/wallet/balance/{telegram_id}",
     response_model=BalanceResponse,
@@ -431,7 +536,8 @@ async def register_user(
     },
 )
 async def get_balance(
-    user: Annotated[User, Depends(get_current_user)], db: Session = Depends(get_db)
+    user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
 ) -> BalanceResponse:
     """Get user's XRP balance."""
     if not user.wallet:
@@ -467,7 +573,8 @@ async def get_balance(
     },
 )
 async def validate_transaction(
-    validation_request: TransactionValidationRequest, db: Session = Depends(get_db)
+    validation_request: TransactionValidationRequest,
+    db: Session = Depends(get_db),
 ) -> TransactionValidationResponse:
     """Validate a transaction before sending to provide detailed feedback."""
     # Get sender
@@ -475,7 +582,8 @@ async def validate_transaction(
 
     if not sender or not sender.wallet:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Sender or wallet not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sender or wallet not found",
         )
 
     # Get current balance
@@ -538,8 +646,8 @@ async def validate_transaction(
 )
 @limiter.limit(rate_limit_transactions)
 async def send_transaction(
-    request: Request,
-    response: Response,
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
     transaction: SendTransactionRequest,
     db: Session = Depends(get_db),
     idempotency_key: str | None = Depends(get_idempotency_key),
@@ -555,7 +663,10 @@ async def send_transaction(
 
     # Check if sender has a wallet
     if not sender.wallet:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sender wallet not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sender wallet not found",
+        )
 
     # Get current balance and perform enhanced validation
     current_balance = await user_service.update_balance(db, sender)
@@ -591,7 +702,7 @@ async def send_transaction(
     if not idempotency_key:
         assert sender.id is not None, "Sender ID cannot be None"
         idempotency_key = IdempotencyKey.from_request(
-            user_id=int(sender.id),  # type: ignore[arg-type]
+            user_id=int(sender.id),
             operation="send_transaction",
             data={
                 "to_address": transaction.to_address,
@@ -604,7 +715,7 @@ async def send_transaction(
     assert sender.id is not None, "Sender ID cannot be None"
     existing = await tx_idempotency.check_transaction_idempotency(
         idempotency_key=idempotency_key,
-        user_id=int(sender.id),  # type: ignore[arg-type]
+        user_id=int(sender.id),
         to_address=transaction.to_address,
         amount=float(transaction.amount),
     )
@@ -613,8 +724,8 @@ async def send_transaction(
         # Return existing transaction result
         if hasattr(existing, "tx_hash"):  # It's a Transaction
             return TransactionResponse(
-                success=existing.status == "success",  # type: ignore[arg-type]
-                tx_hash=str(existing.tx_hash) if existing.tx_hash else None,  # type: ignore[arg-type]
+                success=existing.status == "success",
+                tx_hash=str(existing.tx_hash) if existing.tx_hash else None,
                 amount=Decimal(str(existing.amount)),
                 fee=Decimal(str(existing.fee)),
             )
@@ -627,7 +738,7 @@ async def send_transaction(
             elif existing.response_status == "success" and existing.response_data:
                 import json
 
-                response_data = json.loads(str(existing.response_data))  # type: ignore[arg-type]
+                response_data = json.loads(str(existing.response_data))
                 return TransactionResponse(
                     success=True,
                     tx_hash=response_data.get("tx_hash"),
@@ -639,7 +750,7 @@ async def send_transaction(
     assert sender.id is not None, "Sender ID cannot be None"
     idempotency_record = await tx_idempotency.create_transaction_idempotency(
         idempotency_key=idempotency_key,
-        user_id=int(sender.id),  # type: ignore[arg-type]
+        user_id=int(sender.id),
         to_address=transaction.to_address,
         amount=float(transaction.amount),
     )
@@ -790,7 +901,7 @@ async def create_beneficiary(
     },
 )
 @limiter.limit("30/minute")  # Allow reasonable price checking
-async def get_current_price(request: Request, response: Response) -> PriceInfo:
+async def get_current_price(request: Request, response: Response) -> PriceInfo:  # noqa: ARG001
     """Get current XRP price from CoinGecko."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -840,7 +951,8 @@ async def get_current_price(request: Request, response: Response) -> PriceInfo:
 
     except httpx.TimeoutException as e:
         raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Price service timeout"
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Price service timeout",
         ) from e
     except Exception as e:
         logger.error(f"Price fetch error: {str(e)}")
@@ -900,7 +1012,8 @@ async def health_check(db: Session = Depends(get_db)) -> HealthCheckResponse:
 
     if not is_healthy:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=response.model_dump()
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=response.model_dump(),
         )
 
     return response

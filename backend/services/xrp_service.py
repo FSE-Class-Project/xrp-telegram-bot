@@ -27,9 +27,9 @@ class XRPService:
         self.client = AsyncJsonRpcClient(self.json_rpc_url)
 
     def create_wallet(self) -> tuple[str, str]:
-        """
-        Create a new XRP wallet.
-        Returns: (address, encrypted_secret)
+        """Create a new XRP wallet.
+
+        Returns: (address, encrypted_secret).
         """
         # Use Wallet.create() instead of generate() for xrpl-py 2.5.0
         wallet = Wallet.create()
@@ -44,20 +44,34 @@ class XRPService:
         return wallet.classic_address, encrypted_secret
 
     async def fund_wallet_from_faucet(self, address: str) -> bool:
-        """
-        Fund a TestNet wallet using the XRP faucet.
+        """Fund a TestNet wallet using the XRP faucet.
+
+        Note: The faucet always provides 10 XRP regardless of any amount requested.
+
+        Args:
+        ----
+            address: The XRP address to fund
+
+        Returns:
+        -------
+            bool: True if successfully funded, False otherwise
         """
         try:
-            # For TestNet, use the faucet API
             import httpx
+
+            print(f"Attempting to fund wallet {address} with TestNet XRP")
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    settings.XRP_FAUCET_URL, json={"destination": address}, timeout=30.0
+                    settings.XRP_FAUCET_URL,
+                    json={"destination": address},
+                    timeout=30.0,
                 )
 
                 if response.status_code == 200:
-                    print(f"Funded wallet {address} with TestNet XRP")
+                    response_data = response.json()
+                    amount_received = response_data.get("amount", 10.0)
+                    print(f"Funded wallet {address} with {amount_received} XRP")
                     return True
                 else:
                     print(f"Faucet error: {response.text}")
@@ -72,8 +86,8 @@ class XRPService:
         return Wallet.from_seed(secret)
 
     async def get_balance(self, address: str) -> float | None:
-        """
-        Get XRP balance for an address.
+        """Get XRP balance for an address.
+
         Returns balance in XRP (not drops).
         """
         try:
@@ -100,19 +114,25 @@ class XRPService:
             return None
 
     async def send_xrp(
-        self, from_encrypted_secret: str, to_address: str, amount: float, memo: str | None = None
+        self,
+        from_encrypted_secret: str,
+        to_address: str,
+        amount: float,
+        memo: str | None = None,  # noqa: ARG002
     ) -> dict[str, Any]:
-        """
-        Send XRP from one address to another.
+        """Send XRP from one address to another.
 
         Args:
+        ----
             from_encrypted_secret: Encrypted secret of sender
             to_address: Recipient's XRP address
             amount: Amount in XRP to send
             memo: Optional transaction memo
 
         Returns:
+        -------
             Dictionary with transaction result
+
         """
         try:
             # Validate amount
@@ -166,15 +186,17 @@ class XRPService:
             return {"success": False, "error": str(e)}
 
     async def get_transaction_history(self, address: str, limit: int = 10) -> list[dict[str, Any]]:
-        """
-        Get transaction history for an address.
+        """Get transaction history for an address.
 
         Args:
+        ----
             address: XRP address
             limit: Maximum number of transactions to return
 
         Returns:
+        -------
             List of transactions
+
         """
         try:
             # Create account transactions request
@@ -216,9 +238,7 @@ class XRPService:
             return []
 
     def validate_address(self, address: str) -> bool:
-        """
-        Validate if a string is a valid XRP address.
-        """
+        """Validate if a string is a valid XRP address."""
         try:
             # XRP addresses start with 'r' and are 25-34 characters
             if not address.startswith("r"):
@@ -237,15 +257,17 @@ class XRPService:
             return False
 
     async def wait_for_transaction(self, tx_hash: str, timeout: int = 60) -> dict[str, Any] | None:
-        """
-        Wait for a transaction to be validated.
+        """Wait for a transaction to be validated.
 
         Args:
+        ----
             tx_hash: Transaction hash to monitor
             timeout: Maximum seconds to wait
 
         Returns:
+        -------
             Transaction result or None if timeout
+
         """
         start_time = asyncio.get_event_loop().time()
 

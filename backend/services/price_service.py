@@ -22,14 +22,16 @@ class PriceService:
         self.api_key = settings.PRICE_API_KEY
 
     async def get_xrp_price(self, force_refresh: bool = False) -> dict[str, Any]:
-        """
-        Get XRP price data with caching.
+        """Get XRP price data with caching.
 
         Args:
+        ----
             force_refresh: Force API call even if cached data exists
 
         Returns:
+        -------
             Price data dictionary
+
         """
         # Check cache first unless forced refresh
         if not force_refresh:
@@ -104,15 +106,17 @@ class PriceService:
             }
 
     async def get_price_history(self, days: int = 7, currency: str = "usd") -> dict[str, Any]:
-        """
-        Get XRP price history.
+        """Get XRP price history.
 
         Args:
+        ----
             days: Number of days of history
             currency: Currency to get prices in
 
         Returns:
+        -------
             Price history data
+
         """
         # Check cache for this specific timeframe
         cache_key = f"price:xrp:history:{days}d_{currency}"
@@ -158,7 +162,12 @@ class PriceService:
 
         except Exception as e:
             logger.error(f"Error fetching price history: {e}")
-            return {"error": str(e), "prices": [], "days": days, "currency": currency}
+            return {
+                "error": str(e),
+                "prices": [],
+                "days": days,
+                "currency": currency,
+            }
 
     def calculate_price_change(
         self, current_price: float, previous_price: float
@@ -236,7 +245,10 @@ class PriceService:
 
         except Exception as e:
             logger.error(f"Error fetching market stats: {e}")
-            return {"error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
+            return {
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
 
 
 # Create singleton instance

@@ -256,7 +256,8 @@ def create_history_pagination_keyboard(
         if page < total_pages - 2:
             quick_nav.append(
                 InlineKeyboardButton(
-                    f"{total_pages}", callback_data=f"history_page_{total_pages - 1}"
+                    f"{total_pages}",
+                    callback_data=f"history_page_{total_pages - 1}",
                 )
             )
 
@@ -307,7 +308,9 @@ async def transaction_details(update: Update, context: ContextTypes.DEFAULT_TYPE
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.get(
-                f"{api_url}/api/v1/transaction/{tx_hash}", headers=headers, timeout=10.0
+                f"{api_url}/api/v1/transaction/{tx_hash}",
+                headers=headers,
+                timeout=10.0,
             )
 
             if response.status_code == 200:
@@ -318,21 +321,27 @@ async def transaction_details(update: Update, context: ContextTypes.DEFAULT_TYPE
 🔍 <b>Transaction Details</b>
 
 <b>Basic Info:</b>
-💰 Amount: {tx.get('amount', 0):.6f} XRP
-💸 Fee: {tx.get('fee', 0):.6f} XRP
-📊 Status: {tx.get('status', 'Unknown').title()}
+💰 Amount: {tx.get("amount", 0):.6f} XRP
+💸 Fee: {tx.get("fee", 0):.6f} XRP
+📊 Status: {tx.get("status", "Unknown").title()}
 
 <b>Addresses:</b>
-📤 From: <code>{tx.get('sender_address', 'N/A')}</code>
-📥 To: <code>{tx.get('recipient_address', 'N/A')}</code>
+📤 From: <code>{tx.get("sender_address", "N/A")}</code>
+📥 To: <code>{tx.get("recipient_address", "N/A")}</code>
 
 <b>Network Info:</b>
-🏷️ Hash: <code>{tx.get('hash', 'N/A')}</code>
-🔗 Ledger: {tx.get('ledger_index', 'N/A')}
+🏷️ Hash: <code>{tx.get("hash", "N/A")}</code>
+🔗 Ledger: {tx.get("ledger_index", "N/A")}
 
 <b>Timing:</b>
-⏰ Created: {tx.get('timestamp', 'N/A')[:19].replace('T', ' ')}
-{f"✅ Confirmed: {tx.get('confirmed_at', 'N/A')[:19].replace('T', ' ')}" if tx.get('confirmed_at') else '⏳ Pending confirmation'}
+⏰ Created: {tx.get("timestamp", "N/A")[:19].replace("T", " ")}
+{
+                    (
+                        f"✅ Confirmed: {tx.get('confirmed_at', 'N/A')[:19].replace('T', ' ')}"
+                        if tx.get("confirmed_at")
+                        else "⏳ Pending confirmation"
+                    )
+                }
 
 """
 

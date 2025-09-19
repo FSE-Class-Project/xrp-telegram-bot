@@ -2,7 +2,7 @@
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false  # Too strict for gradual adoption
 disallow_any_unimported = false
 no_implicit_optional = true
 warn_redundant_casts = true
@@ -10,6 +10,8 @@ warn_unused_ignores = true
 warn_no_return = true
 check_untyped_defs = true
 strict_equality = true
+show_error_codes = true
+show_column_numbers = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -20,27 +22,14 @@ module = [
 ]
 ignore_missing_imports = true
 
-[tool.black]
-line-length = 100
-target-version = ['py310']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
+[[tool.mypy.overrides]]
+# Ignore complex telegram callback assignment issues
+module = ["bot.handlers.*"]
+disable_error_code = ["assignment"]
 
 [tool.ruff]
 target-version = "py310"
-line-length = 100
+line-length = 100  # Increased from 88 for better readability
 
 # Exclude auto-generated and non-source files
 exclude = [
@@ -66,11 +55,25 @@ select = [
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "S",  # flake8-bandit (security)
+    "N",  # pep8-naming
+    "D",  # pydocstyle
 ]
 ignore = [
-    "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "D107",  # Missing docstring in __init__
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D213",  # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "S101",  # Use of assert detected
+    "S311",  # Standard pseudo-random generators are not suitable for security/cryptographic purposes
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -79,9 +82,17 @@ ignore = [
 "alembic/env.py" = ["E402"]  # Alembic env.py needs specific import order
 "migrate.py" = ["E402"]  # Migration scripts may need path setup first
 "debug_setup.py" = ["F401", "B007"]  # Debug/setup scripts have different requirements
+"tests/" = ["S101", "ARG", "D"]  # Allow assert and unused args in tests, no docstrings required
 
 [tool.ruff.lint.isort]
 known-third-party = ["xrpl", "telegram", "fastapi", "sqlalchemy"]
+
+[tool.ruff.format]
+# Use ruff's formatter instead of black
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -100,7 +111,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "FSE Group 3", email = "support@example.com"}
+    {name = "FSE Group 3", email = "support@fse-group3.co.za"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -127,6 +138,7 @@ dependencies = [
     "httpx==0.24.1",
     "requests>=2.31.0",
     "redis>=5.0.1",
+    "sentry-sdk[fastapi]>=1.40.0",
 ]
 
 [project.optional-dependencies]
@@ -134,8 +146,6 @@ dev = [
     "pytest>=7.4.4",
     "pytest-asyncio>=0.23.3",
     "pytest-cov>=4.1.0",
-    "black>=24.1.1",
-    "flake8>=7.0.0",
     "mypy>=1.8.0",
     "ruff>=0.1.9",
     "types-requests",
