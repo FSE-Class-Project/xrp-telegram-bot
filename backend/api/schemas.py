@@ -138,7 +138,7 @@ class WalletBalanceResponse(BaseResponse):
 
     address: str
     balance: Decimal = Field(default=Decimal("0"), decimal_places=6)
-    reserved_balance: Decimal = Field(default=Decimal("10"), decimal_places=6)
+    reserved_balance: Decimal = Field(default=Decimal("1"), decimal_places=6)
     available_balance: Decimal = Field(default=Decimal("0"), decimal_places=6)
 
     @model_validator(mode="after")

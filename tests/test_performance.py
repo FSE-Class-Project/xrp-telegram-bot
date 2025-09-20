@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 import pandas as pd
-from faker import Faker  # type: ignore
+from faker import Faker
 
 
 class PerformanceTestSuite:

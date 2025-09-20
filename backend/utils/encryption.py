@@ -1,5 +1,7 @@
 """Encryption utilities for secure data storage."""
 
+from __future__ import annotations
+
 import base64
 import os
 

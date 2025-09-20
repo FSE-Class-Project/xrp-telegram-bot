@@ -29,11 +29,13 @@ from .handlers.price import price_command
 from .handlers.settings import settings_command
 from .handlers.start import (
     handle_back_to_start,
+    handle_confirm_testnet_import,
     handle_create_new_wallet,
     handle_create_wallet_auto,
     handle_create_wallet_manual,
     handle_import_wallet,
     handle_learn_more,
+    handle_wallet_import_message,
     help_command,
     start_command,
 )
@@ -131,6 +133,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         return
     elif data == "back_to_start":
         await handle_back_to_start(update, context)
+        return
+    elif data == "confirm_testnet_import":
+        await handle_confirm_testnet_import(update, context)
         return
 
     # Helper to route to a given menu id
@@ -558,6 +563,11 @@ def setup_handlers(application: Application):
     application.add_handler(CommandHandler("history", history_command))
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(send_conversation_handler)
+
+    # Add message handler for wallet imports (highest priority for text messages)
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_wallet_import_message)
+    )
 
     # Add message handler for username updates (should be before CallbackQueryHandler)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_username_update))

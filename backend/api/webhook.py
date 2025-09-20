@@ -1,5 +1,7 @@
 """Telegram webhook endpoint for production deployment."""
 
+from __future__ import annotations
+
 import logging
 from typing import Any
 
@@ -13,7 +15,29 @@ from fastapi.responses import JSONResponse
 from telegram import Update
 from telegram.ext import Application
 
+# Import error response utilities
+from .schemas import ErrorDetail, ErrorResponse
+
 logger = logging.getLogger(__name__)
+
+
+# Error handling utilities for webhook
+def create_webhook_error_response(
+    message: str,
+    status_code: int = 400,
+    code: str | None = None,
+) -> HTTPException:
+    """Create standardized error response for webhook endpoints."""
+    error_detail = ErrorDetail(message=message, code=code)
+    error_response = ErrorResponse(
+        message=message,
+        errors=[error_detail],
+    )
+    return HTTPException(
+        status_code=status_code,
+        detail=error_response.model_dump(),
+    )
+
 
 # Global application instance (will be set by the main backend)
 telegram_app: Application | None = None
@@ -50,13 +74,17 @@ async def telegram_webhook(
         # Validate that we have a telegram app instance
         if not telegram_app:
             logger.error("Telegram application not initialized")
-            raise HTTPException(status_code=503, detail="Telegram bot not ready")
+            raise create_webhook_error_response(
+                "Telegram bot not ready", status_code=503, code="BOT_NOT_READY"
+            )
 
         # Validate bot token
         expected_token = telegram_app.bot.token
         if bot_token != expected_token:
             logger.warning(f"Invalid bot token received: {bot_token[:10]}...")
-            raise HTTPException(status_code=401, detail="Invalid bot token")
+            raise create_webhook_error_response(
+                "Invalid bot token", status_code=401, code="INVALID_BOT_TOKEN"
+            )
 
         # Parse the update
         try:
@@ -64,17 +92,23 @@ async def telegram_webhook(
             logger.debug(f"Received webhook update: {update_data}")
         except Exception as e:
             logger.error(f"Failed to parse webhook JSON: {e}")
-            raise HTTPException(status_code=400, detail="Invalid JSON") from e
+            raise create_webhook_error_response(
+                "Invalid JSON", status_code=400, code="INVALID_JSON"
+            ) from e
 
         # Create Telegram Update object
         try:
             update = Update.de_json(update_data, telegram_app.bot)
             if not update:
                 logger.warning("Failed to parse Telegram update")
-                raise HTTPException(status_code=400, detail="Invalid update format")
+                raise create_webhook_error_response(
+                    "Invalid update format", status_code=400, code="INVALID_UPDATE_FORMAT"
+                )
         except Exception as e:
             logger.error(f"Failed to create Update object: {e}")
-            raise HTTPException(status_code=400, detail="Invalid update structure") from e
+            raise create_webhook_error_response(
+                "Invalid update structure", status_code=400, code="INVALID_UPDATE_STRUCTURE"
+            ) from e
 
         # Process update in background to avoid blocking the webhook response
         background_tasks.add_task(process_update, update)
@@ -179,11 +213,15 @@ async def delete_webhook(bot_token: str) -> dict[str, Any]:
     """
     try:
         if not telegram_app:
-            raise HTTPException(status_code=503, detail="Telegram bot not ready")
+            raise create_webhook_error_response(
+                "Telegram bot not ready", status_code=503, code="BOT_NOT_READY"
+            )
 
         # Validate bot token
         if bot_token != telegram_app.bot.token:
-            raise HTTPException(status_code=401, detail="Invalid bot token")
+            raise create_webhook_error_response(
+                "Invalid bot token", status_code=401, code="INVALID_BOT_TOKEN"
+            )
 
         # Delete webhook
         await telegram_app.bot.delete_webhook(drop_pending_updates=True)

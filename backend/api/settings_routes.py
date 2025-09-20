@@ -1,5 +1,7 @@
 """API routes for user settings management."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timezone
 from typing import Any, cast
@@ -15,12 +17,35 @@ from fastapi import (
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.api.auth import verify_api_key
-from backend.api.middleware import limiter
-from backend.database.connection import get_db
-from backend.database.models import User, UserSettings
+from ..database.connection import get_db
+from ..database.models import User, UserSettings
+from .auth import verify_api_key
+from .middleware import limiter
+
+# Import error response utilities
+from .schemas import ErrorDetail, ErrorResponse
 
 logger = logging.getLogger(__name__)
+
+
+# Error handling utilities for settings
+def create_settings_error_response(
+    message: str,
+    status_code: int = 400,
+    field: str | None = None,
+    code: str | None = None,
+) -> HTTPException:
+    """Create standardized error response for settings endpoints."""
+    error_detail = ErrorDetail(field=field, message=message, code=code)
+    error_response = ErrorResponse(
+        message=message,
+        errors=[error_detail],
+    )
+    return HTTPException(
+        status_code=status_code,
+        detail=error_response.model_dump(),
+    )
+
 
 # Create router
 settings_router = APIRouter(prefix="/api/v1/user", tags=["Settings"])
@@ -96,7 +121,9 @@ async def get_user_settings(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get or create user settings
         settings = user.settings
@@ -152,7 +179,9 @@ async def update_user_settings(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get or create user settings
         settings = user.settings
@@ -226,7 +255,9 @@ async def toggle_user_setting(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get or create user settings
         settings = user.settings
@@ -297,7 +328,9 @@ async def export_user_data(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get user statistics
         from sqlalchemy import func
@@ -382,7 +415,9 @@ async def delete_user_account(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Log the deletion for audit purposes
         logger.warning(
@@ -396,7 +431,7 @@ async def delete_user_account(
         # 4. Implement a grace period
 
         # For now, we'll just mark as inactive instead of hard delete
-        user.is_active = False  # type: ignore[assignment]
+        user.is_active = False
         if user.settings:
             db.delete(user.settings)
         if user.wallet:

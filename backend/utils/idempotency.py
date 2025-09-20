@@ -1,5 +1,7 @@
 """Idempotency utilities for preventing duplicate operations."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 import uuid
@@ -9,7 +11,6 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..database.connection import get_db
 from ..database.models import IdempotencyRecord, Transaction
 
 
@@ -143,11 +144,11 @@ class IdempotencyManager:
         transaction_id: int | None = None,
     ) -> None:
         """Update idempotency record with operation result."""
-        record.response_status = status  # type: ignore[assignment]
+        record.response_status = status
         if response_data:
-            record.response_data = json.dumps(response_data)  # type: ignore[assignment]
+            record.response_data = json.dumps(response_data)
         if transaction_id:
-            record.transaction_id = transaction_id  # type: ignore[assignment]
+            record.transaction_id = transaction_id
 
         self.db.commit()
 
@@ -261,13 +262,11 @@ class TransactionIdempotency:
         )
 
 
-def get_idempotency_manager() -> IdempotencyManager:
-    """Get idempotency manager with database session."""
-    db = next(get_db())
+def get_idempotency_manager(db: Session) -> IdempotencyManager:
+    """Get idempotency manager with provided database session."""
     return IdempotencyManager(db)
 
 
-def get_transaction_idempotency() -> TransactionIdempotency:
-    """Get transaction idempotency manager with database session."""
-    db = next(get_db())
+def get_transaction_idempotency(db: Session) -> TransactionIdempotency:
+    """Get transaction idempotency manager with provided database session."""
     return TransactionIdempotency(db)
