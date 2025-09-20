@@ -33,7 +33,9 @@ async def confirm_delete_account(update: Update, context: ContextTypes.DEFAULT_T
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
             response = await client.delete(
-                f"{api_url}/api/v1/user/{user_id}", headers=headers, timeout=30.0
+                f"{api_url}/api/v1/user/{user_id}",
+                headers=headers,
+                timeout=30.0,
             )
 
             if response.status_code == 200:
@@ -50,7 +52,8 @@ Your XRP Telegram Bot account has been permanently deleted.
 
 <b>Thank you for using XRP Telegram Bot!</b>
 
-If you ever want to use the bot again, simply send /start to create a new account.
+If you ever want to use the bot again, simply send /start to create
+a new account.
 
 <i>This conversation will remain, but all your bot data has been removed.</i>
 """
@@ -69,18 +72,26 @@ If you ever want to use the bot again, simply send /start to create a new accoun
                 if query.message:
                     await query.message.edit_text(
                         format_error_message(
-                            f"Deletion Failed: Could not delete your account: {error_message}\\n\\n"
-                            "Please try again or contact support if the problem persists."
+                            f"Deletion Failed: Could not delete your account: "
+                            f"{error_message}\\n\\n"
+                            "Please try again or contact support if the "
+                            "problem persists."
                         ),
                         parse_mode=ParseMode.HTML,
                         reply_markup=InlineKeyboardMarkup(
                             [
                                 [
                                     InlineKeyboardButton(
-                                        "🔄 Try Again", callback_data="delete_account"
+                                        "🔄 Try Again",
+                                        callback_data="delete_account",
                                     )
                                 ],
-                                [InlineKeyboardButton("🔙 Back to Settings", callback_data="back")],
+                                [
+                                    InlineKeyboardButton(
+                                        "🔙 Back to Settings",
+                                        callback_data="back",
+                                    )
+                                ],
                             ]
                         ),
                     )
@@ -91,7 +102,8 @@ If you ever want to use the bot again, simply send /start to create a new accoun
         if query.message:
             await query.message.edit_text(
                 format_error_message(
-                    "Deletion Error: An unexpected error occurred. Please try again later or contact support."
+                    "Deletion Error: An unexpected error occurred. "
+                    "Please try again later or contact support."
                 ),
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup(
@@ -103,7 +115,10 @@ If you ever want to use the bot again, simply send /start to create a new accoun
             )
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def help_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,  # noqa: ARG001
+) -> None:
     """Handle /help command."""
     # user_id = update.effective_user.id if update.effective_user else None
 
@@ -165,7 +180,10 @@ Contact our support team for assistance!
             )
 
 
-async def contact_support(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def contact_support(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,  # noqa: ARG001
+) -> None:
     """Handle support contact request."""
     query = update.callback_query
     if not query:
@@ -254,52 +272,89 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
 
-            # Get user settings (includes profile info)
+            # Get user settings
             settings_response = await client.get(
-                f"{api_url}/api/v1/user/settings/{user.id}", headers=headers, timeout=10.0
+                f"{api_url}/api/v1/user/settings/{user.id}",
+                headers=headers,
+                timeout=10.0,
             )
 
             # Get wallet balance
             balance_response = await client.get(
-                f"{api_url}/api/v1/wallet/balance/{user.id}", headers=headers, timeout=10.0
+                f"{api_url}/api/v1/wallet/balance/{user.id}",
+                headers=headers,
+                timeout=10.0,
+            )
+
+            # Get user profile data from export endpoint
+            # (includes stored username)
+            profile_response = await client.get(
+                f"{api_url}/api/v1/user/export/{user.id}",
+                headers=headers,
+                timeout=10.0,
             )
 
             if settings_response.status_code == 200 and balance_response.status_code == 200:
                 settings_data = settings_response.json()
                 balance_data = balance_response.json()
 
-                # Format creation date
-                created_at = settings_data.get("created_at", "Unknown")
-                if created_at != "Unknown":
-                    try:
-                        from datetime import datetime
+                # Get stored user data, fallback to current Telegram data
+                stored_username = None
+                stored_first_name = None
+                stored_last_name = None
+                created_formatted = "Unknown"
 
-                        created_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                        created_formatted = created_date.strftime("%Y-%m-%d")
-                    except (ValueError, TypeError, AttributeError):
-                        created_formatted = created_at[:10]
+                if profile_response.status_code == 200:
+                    profile_data = profile_response.json()
+                    stored_username = profile_data.get("telegram_username")
+                    # Format creation date from profile data
+                    created_at = profile_data.get("created_at", "Unknown")
+                    if created_at != "Unknown":
+                        try:
+                            from datetime import datetime
+
+                            created_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                            created_formatted = created_date.strftime("%Y-%m-%d")
+                        except (ValueError, TypeError, AttributeError):
+                            created_formatted = str(created_at)[:10]
                 else:
-                    created_formatted = "Unknown"
+                    # Fallback to settings creation date
+                    created_at = settings_data.get("created_at", "Unknown")
+                    if created_at != "Unknown":
+                        try:
+                            from datetime import datetime
+
+                            created_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                            created_formatted = created_date.strftime("%Y-%m-%d")
+                        except (ValueError, TypeError, AttributeError):
+                            created_formatted = str(created_at)[:10]
+
+                # Use stored data if available, fallback to current
+                # Telegram data
+                display_username = stored_username or user.username
+                display_first_name = stored_first_name or user.first_name
+                display_last_name = stored_last_name or user.last_name
 
                 message = f"""
 👤 <b>Your Profile</b>
 
 <b>Account Info:</b>
-• Name: {escape_html(user.first_name or 'N/A')} {escape_html(user.last_name or '')}
-• Username: @{escape_html(user.username or 'None')}
+• Name: {escape_html(display_first_name or "N/A")} """
+                f"""{escape_html(display_last_name or "")}
+• Username: @{escape_html(display_username or "Not Set")}
 • Telegram ID: <code>{user.id}</code>
 • Joined: {created_formatted}
 
 <b>Wallet Info:</b>
-• Balance: {balance_data.get('balance', 0):.6f} XRP
-• Address: <code>{balance_data.get('address', 'N/A')}</code>
+• Balance: {balance_data.get("balance", 0):.6f} XRP
+• Address: <code>{balance_data.get("address", "N/A")}</code>
 • Network: XRP TestNet
 
 <b>Settings:</b>
-• Price Alerts: {'✅' if settings_data.get('price_alerts', False) else '❌'}
-• TX Notifications: {'✅' if settings_data.get('transaction_notifications', True) else '❌'}
-• Currency: {settings_data.get('currency_display', 'USD')}
-• 2FA: {'✅' if settings_data.get('two_factor_enabled', False) else '❌'}
+• Price Alerts: {"✅" if settings_data.get("price_alerts", False) else "❌"}
+• TX Notifications: """ f"""{"✅" if settings_data.get("transaction_notifications", True) else "❌"}
+• Currency: {settings_data.get("currency_display", "USD")}
+• 2FA: {"✅" if settings_data.get("two_factor_enabled", False) else "❌"}
 
 <i>Manage your settings and preferences below.</i>
 """
@@ -311,11 +366,14 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                             InlineKeyboardButton("💸 Send XRP", callback_data="send_xrp"),
                         ],
                         [
+                            InlineKeyboardButton("✏️ Edit Profile", callback_data="edit_profile"),
                             InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
-                            InlineKeyboardButton("📊 History", callback_data="history"),
                         ],
                         [
+                            InlineKeyboardButton("📊 History", callback_data="history"),
                             InlineKeyboardButton("🆘 Help", callback_data="help"),
+                        ],
+                        [
                             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
                         ],
                     ]
@@ -323,7 +381,8 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             else:
                 message = format_error_message(
-                    "Profile Unavailable: Could not load your profile information. Please try again later."
+                    "Profile Unavailable: Could not load your profile "
+                    "information. Please try again later."
                 )
                 keyboard = InlineKeyboardMarkup(
                     [
@@ -340,7 +399,9 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await update.callback_query.answer()
                 if update.callback_query.message:
                     await update.callback_query.message.edit_text(
-                        message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                        message,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=keyboard,
                     )
 
     except Exception as e:
@@ -353,3 +414,210 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await update.message.reply_text(error_message, parse_mode=ParseMode.HTML)
         elif update.callback_query:
             await update.callback_query.answer("Profile error", show_alert=True)
+
+
+async def edit_profile_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,  # noqa: ARG001
+) -> None:
+    """Handle edit profile command/callback."""
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer()
+    # user = query.from_user  # Not needed in this function
+
+    message = """
+✏️ <b>Edit Profile</b>
+
+You can update your profile information below.
+
+<b>Available Updates:</b>
+• Username: Change your display name
+• Current username from registration will be shown
+
+<b>Note:</b> Your Telegram account details (first name, last name)
+are managed by Telegram and cannot be changed here.
+
+Choose what you'd like to update:
+"""
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("📝 Update Username", callback_data="update_username")],
+            [InlineKeyboardButton("🔄 Sync from Telegram", callback_data="sync_telegram_data")],
+            [
+                InlineKeyboardButton("🔙 Back to Profile", callback_data="profile"),
+                InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
+            ],
+        ]
+    )
+
+    if query.message:
+        await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+
+
+async def update_username_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle update username command."""
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer()
+
+    message = """
+📝 <b>Update Username</b>
+
+Please send me your new username.
+
+<b>Guidelines:</b>
+• Can contain letters, numbers, and underscores
+• No @ symbol needed (will be added automatically)
+• 3-32 characters long
+• Example: "john_doe" or "crypto_trader"
+
+<b>Current username:</b> Will be shown in your profile
+
+Send your new username in the next message, or use the buttons below:
+"""
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🔙 Back", callback_data="edit_profile"),
+                InlineKeyboardButton("❌ Cancel", callback_data="profile"),
+            ],
+        ]
+    )
+
+    if query.message:
+        await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+
+    # Set user state to expect username input
+    if context.user_data is not None:
+        context.user_data["awaiting_username_update"] = True
+
+
+async def sync_telegram_data_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle sync telegram data command."""
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer("Syncing data from Telegram...")
+    user = query.from_user
+
+    try:
+        api_url = context.bot_data.get("api_url", "http://localhost:8000")
+        api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
+
+        # Update user data with current Telegram info
+        update_data = {
+            "telegram_username": user.username,
+            "telegram_first_name": user.first_name,
+            "telegram_last_name": user.last_name,
+        }
+
+        async with httpx.AsyncClient() as client:
+            headers = {"X-API-Key": api_key}
+            response = await client.put(
+                f"{api_url}/api/v1/user/profile/{user.id}",
+                json=update_data,
+                headers=headers,
+                timeout=10.0,
+            )
+
+            if response.status_code == 200:
+                await query.answer("✅ Profile synced successfully!", show_alert=True)
+                # Return to profile view to show updated data
+                await profile_command(update, context)
+            else:
+                await query.answer("❌ Failed to sync profile", show_alert=True)
+
+    except Exception as e:
+        logger.error(f"Error syncing telegram data: {e}")
+        await query.answer("❌ An error occurred", show_alert=True)
+
+
+async def handle_username_update(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle username update text input."""
+    if not update.message or not update.message.text:
+        return
+
+    user = update.effective_user
+    if not user:
+        return
+
+    # Check if user is in username update state
+    if not context.user_data or not context.user_data.get("awaiting_username_update"):
+        return
+
+    # Clear the state
+    if context.user_data:
+        context.user_data.pop("awaiting_username_update", None)
+
+    new_username = update.message.text.strip()
+
+    # Validate username
+    if not new_username or len(new_username) < 3 or len(new_username) > 32:
+        await update.message.reply_text(
+            format_error_message("Invalid username. Must be 3-32 characters long."),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    # Remove @ if user included it
+    if new_username.startswith("@"):
+        new_username = new_username[1:]
+
+    # Check for valid characters (letters, numbers, underscores)
+    import re
+
+    if not re.match(r"^[a-zA-Z0-9_]+$", new_username):
+        await update.message.reply_text(
+            format_error_message(
+                "Invalid username. Only letters, numbers, and underscores allowed."
+            ),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    try:
+        api_url = context.bot_data.get("api_url", "http://localhost:8000")
+        api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
+
+        # Update username via API
+        update_data = {"telegram_username": new_username}
+
+        async with httpx.AsyncClient() as client:
+            headers = {"X-API-Key": api_key}
+            response = await client.put(
+                f"{api_url}/api/v1/user/profile/{user.id}",
+                json=update_data,
+                headers=headers,
+                timeout=10.0,
+            )
+
+            if response.status_code == 200:
+                await update.message.reply_text(
+                    f"✅ <b>Username Updated!</b>\n\n"
+                    f"Your username has been changed to: "
+                    f"@{escape_html(new_username)}\n\n"
+                    f"Use /profile to view your updated profile.",
+                    parse_mode=ParseMode.HTML,
+                )
+            else:
+                error_data = response.json() if response.status_code != 500 else {}
+                error_message = error_data.get("detail", "Unknown error occurred")
+                await update.message.reply_text(
+                    format_error_message(f"Failed to update username: {error_message}"),
+                    parse_mode=ParseMode.HTML,
+                )
+
+    except Exception as e:
+        logger.error(f"Error updating username: {e}")
+        await update.message.reply_text(
+            format_error_message("An error occurred while updating your username."),
+            parse_mode=ParseMode.HTML,
+        )

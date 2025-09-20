@@ -3,7 +3,12 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    HTTPException,
+    Request,
+)
 from fastapi.responses import JSONResponse
 from telegram import Update
 from telegram.ext import Application
@@ -28,16 +33,18 @@ def set_telegram_app(app: Application) -> None:
 async def telegram_webhook(
     bot_token: str, request: Request, background_tasks: BackgroundTasks
 ) -> JSONResponse:
-    """
-    Handle incoming Telegram webhook updates.
+    """Handle incoming Telegram webhook updates.
 
     Args:
+    ----
         bot_token: Bot token from URL path
         request: FastAPI request object
         background_tasks: Background task handler
 
     Returns:
+    -------
         JSON response indicating success/failure
+
     """
     try:
         # Validate that we have a telegram app instance
@@ -84,11 +91,12 @@ async def telegram_webhook(
 
 
 async def process_update(update: Update) -> None:
-    """
-    Process a Telegram update in the background.
+    """Process a Telegram update in the background.
 
     Args:
+    ----
         update: Telegram Update object
+
     """
     try:
         if not telegram_app:
@@ -100,16 +108,20 @@ async def process_update(update: Update) -> None:
         logger.debug(f"Successfully processed update {update.update_id}")
 
     except Exception as e:
-        logger.error(f"Error processing Telegram update {update.update_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error processing Telegram update {update.update_id}: {e}",
+            exc_info=True,
+        )
 
 
 @webhook_router.get("/health")
 async def webhook_health() -> dict[str, Any]:
-    """
-    Health check endpoint for the webhook service.
+    """Health check endpoint for the webhook service.
 
-    Returns:
+    Returns
+    -------
         Health status information
+
     """
     is_healthy = telegram_app is not None
 
@@ -123,11 +135,12 @@ async def webhook_health() -> dict[str, Any]:
 
 @webhook_router.get("/info")
 async def webhook_info() -> dict[str, Any]:
-    """
-    Get webhook information and status.
+    """Get webhook information and status.
 
-    Returns:
+    Returns
+    -------
         Webhook configuration info
+
     """
     if not telegram_app:
         return {"error": "Telegram application not initialized"}
@@ -153,14 +166,16 @@ async def webhook_info() -> dict[str, Any]:
 # Webhook management endpoints (for debugging/administration)
 @webhook_router.delete("/{bot_token}")
 async def delete_webhook(bot_token: str) -> dict[str, Any]:
-    """
-    Delete the current webhook (for debugging purposes).
+    """Delete the current webhook (for debugging purposes).
 
     Args:
+    ----
         bot_token: Bot token for verification
 
     Returns:
+    -------
         Deletion status
+
     """
     try:
         if not telegram_app:

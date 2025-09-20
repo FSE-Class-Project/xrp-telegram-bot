@@ -1,7 +1,8 @@
-"""API Middleware for rate limiting, request validation, and idempotency"""
+"""API Middleware for rate limiting, request validation, and idempotency."""
 
 import logging
 from collections.abc import Callable
+from typing import cast
 
 from fastapi import FastAPI, Request
 from slowapi import Limiter
@@ -20,7 +21,9 @@ StrOrCallableStr = str | Callable[..., str]
 limiter: Limiter
 
 
-def create_limiter(default_limits: list[StrOrCallableStr] | None = None) -> Limiter:
+def create_limiter(
+    default_limits: list[StrOrCallableStr] | None = None,
+) -> Limiter:
     """Create a new limiter instance with the specified limits."""
     if default_limits is None:
         default_limits = ["100/minute"]
@@ -35,12 +38,14 @@ def create_limiter(default_limits: list[StrOrCallableStr] | None = None) -> Limi
 
 
 def setup_rate_limiting(app: FastAPI, default_limits: list[StrOrCallableStr] | None = None) -> None:
-    """
-    Setup rate limiting for the FastAPI app
+    """Set up rate limiting for the FastAPI app.
 
     Args:
+    ----
         app: FastAPI application instance
-        default_limits: Optional list of rate limit strings or callables (e.g., ["100/minute", "1000/hour"])
+        default_limits: Optional list of rate limit strings or callables
+            (e.g., ["100/minute", "1000/hour"])
+
     """
     global limiter
 
@@ -52,7 +57,7 @@ def setup_rate_limiting(app: FastAPI, default_limits: list[StrOrCallableStr] | N
 
     # Add custom exception handler for rate limit exceeded
     def rate_limit_handler(_request: Request, exc: Exception) -> JSONResponse:
-        """Custom handler for rate limit exceeded errors."""
+        """Handle rate limit exceeded errors."""
         # Cast to RateLimitExceeded for type safety while maintaining compatibility
         rate_exc = exc if isinstance(exc, RateLimitExceeded) else None
 
@@ -82,7 +87,7 @@ limiter = create_limiter()
 class IdempotencyMiddleware(BaseHTTPMiddleware):
     """Middleware to handle idempotency keys in request headers."""
 
-    async def dispatch(self, request: StarletteRequest, call_next) -> Response:
+    async def dispatch(self, request: StarletteRequest, call_next: Callable) -> Response:
         """Process the request and add idempotency key to state if present."""
         # Check for idempotency key in headers
         idempotency_key = request.headers.get("Idempotency-Key")
@@ -92,7 +97,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         # Continue processing
         response = await call_next(request)
-        return response
+        return cast(Response, response)
 
 
 def add_idempotency_middleware(app: FastAPI) -> None:
@@ -111,7 +116,7 @@ def get_idempotency_key(request: Request) -> str | None:
 
     # Try request state (set by middleware)
     if hasattr(request, "state") and hasattr(request.state, "idempotency_key"):
-        return request.state.idempotency_key
+        return str(request.state.idempotency_key)
 
     return None
 

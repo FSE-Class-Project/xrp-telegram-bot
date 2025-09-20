@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""
-XRP Telegram Bot - Development Startup Script
-Run both backend API and Telegram bot in development mode
+"""XRP Telegram Bot - Development Startup Script.
+
+Run both backend API and Telegram bot in development mode.
 """
 
 import os
@@ -12,8 +12,9 @@ import time
 
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables - check for local first, then development
+load_dotenv(".env.local")
+load_dotenv(".env.development")
 
 # ANSI color codes
 GREEN = "\033[92m"
@@ -24,7 +25,7 @@ RESET = "\033[0m"
 
 
 def print_banner():
-    """Print startup banner"""
+    """Print startup banner."""
     print(
         f"""
 {BLUE}================================================
@@ -36,14 +37,14 @@ def print_banner():
 
 
 def check_requirements():
-    """Check if all requirements are installed with version verification"""
+    """Check if all requirements are installed with version verification."""
     required_packages = [
         ("fastapi", "0.109.0"),
-        ("telegram", "20.3.0"),
-        ("xrpl", "2.5.0"),
+        ("telegram", "20.7.0"),
+        ("xrpl", "4.3.0"),
         ("sqlalchemy", "2.0.25"),
         ("cryptography", "41.0.7"),
-        ("httpx", "0.24.1"),
+        ("httpx", "0.25.2"),
         ("uvicorn", "0.27.0"),
         ("pydantic", "2.5.3"),
     ]
@@ -87,7 +88,7 @@ def check_requirements():
 
 
 def check_environment():
-    """Check if required environment variables are set"""
+    """Check if required environment variables are set."""
     required = ["TELEGRAM_BOT_TOKEN"]
     missing = []
 
@@ -104,11 +105,82 @@ def check_environment():
     return True
 
 
-def initialize_database():
-    """Initialize the database"""
+def cleanup_user_data(telegram_id):
+    """Clean up all user data for fresh start."""
     try:
         from backend.config import initialize_settings, settings
-        from backend.database.connection import init_database, initialize_database_engine
+        from backend.database.connection import get_db_session, initialize_database_engine
+        from backend.database.models import Beneficiary, Transaction, User, UserSettings, Wallet
+
+        initialize_settings()
+        initialize_database_engine(settings.DATABASE_URL, settings.DEBUG)
+
+        print(f"{YELLOW}Cleaning up user data for Telegram ID: {telegram_id}...{RESET}")
+
+        db = get_db_session()
+        try:
+            # Find user by Telegram ID
+            user = db.query(User).filter(User.telegram_id == telegram_id).first()
+
+            if not user:
+                print(f"{GREEN}[OK] No existing user data found{RESET}")
+                return True
+
+            print(
+                f"{YELLOW}Found existing user: {user.telegram_username or 'Unknown'} (DB ID: {user.id}){RESET}"  # noqa: E501
+            )
+
+            # Delete related data in correct order (due to foreign key constraints)
+
+            # 1. Delete beneficiaries
+            beneficiaries = db.query(Beneficiary).filter(Beneficiary.user_id == user.id).all()
+            for beneficiary in beneficiaries:
+                db.delete(beneficiary)
+
+            # 2. Delete transactions (only sent transactions are linked by user_id)
+            sent_transactions = db.query(Transaction).filter(Transaction.sender_id == user.id).all()
+            for tx in sent_transactions:
+                db.delete(tx)
+
+            # 3. Delete user settings
+            settings_obj = db.query(UserSettings).filter(UserSettings.user_id == user.id).first()
+            if settings_obj:
+                db.delete(settings_obj)
+
+            # 4. Delete wallet
+            wallet = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+            if wallet:
+                print(f"{YELLOW}Deleting wallet: {wallet.xrp_address}{RESET}")
+                db.delete(wallet)
+
+            # 5. Delete user
+            db.delete(user)
+
+            # Commit all changes
+            db.commit()
+            print(f"{GREEN}[OK] User data cleaned up successfully{RESET}")
+            return True
+
+        except Exception as e:
+            db.rollback()
+            print(f"{RED}[ERR] Error during cleanup: {e}{RESET}")
+            return False
+        finally:
+            db.close()
+
+    except Exception as e:
+        print(f"{RED}[ERR] Failed to initialize cleanup: {e}{RESET}")
+        return False
+
+
+def initialize_database(cleanup_user=False, telegram_id=None):
+    """Initialize the database."""
+    try:
+        from backend.config import initialize_settings, settings
+        from backend.database.connection import (
+            init_database,
+            initialize_database_engine,
+        )
 
         # Initialize settings first
         initialize_settings()
@@ -120,13 +192,18 @@ def initialize_database():
         init_database()
         print(f"{GREEN}[OK] Database initialized{RESET}")
 
+        # Clean up user data if requested
+        if cleanup_user and telegram_id:
+            if not cleanup_user_data(telegram_id):
+                return False
+
         # Ensure encryption key exists
         encryption_key = settings.ensure_encryption_key()
         if encryption_key == settings.ENCRYPTION_KEY and not os.getenv("ENCRYPTION_KEY"):
             print(f"{YELLOW}! Generated new ENCRYPTION_KEY - add this to your .env file!{RESET}")
             print(f"{YELLOW}  ENCRYPTION_KEY={encryption_key[:8]}...{encryption_key[-4:]}{RESET}")
             print(
-                f"{GREEN}  Full key saved to logs - check application output for complete key{RESET}"
+                f"{GREEN}  Full key saved to logs - check application output for complete key{RESET}"  # noqa: E501
             )
 
         return True
@@ -136,7 +213,7 @@ def initialize_database():
 
 
 def start_backend():
-    """Start the FastAPI backend"""
+    """Start the FastAPI backend."""
     print(f"\n{BLUE}Starting Backend API...{RESET}")
 
     cmd = [
@@ -145,7 +222,7 @@ def start_backend():
         "uvicorn",
         "backend.main:app",
         "--host",
-        "0.0.0.0",
+        "127.0.0.1",  # Changed from 0.0.0.0 for security
         "--port",
         "8000",
         "--reload",
@@ -159,7 +236,7 @@ def start_backend():
 
 
 def cleanup_telegram_instances():
-    """Clean up any existing Telegram bot connections"""
+    """Clean up any existing Telegram bot connections."""
     import asyncio
 
     from telegram import Bot
@@ -188,7 +265,7 @@ def cleanup_telegram_instances():
 
 
 def wait_for_backend(max_attempts=30, delay=1):
-    """Wait for backend to be ready with proper health checks"""
+    """Wait for backend to be ready with proper health checks."""
     import requests
 
     print(f"{YELLOW}Waiting for backend to be ready...{RESET}")
@@ -213,7 +290,7 @@ def wait_for_backend(max_attempts=30, delay=1):
 
 
 def start_bot():
-    """Start the Telegram bot"""
+    """Start the Telegram bot."""
     print(f"\n{BLUE}Starting Telegram Bot...{RESET}")
 
     # Clean up any existing bot connections first
@@ -242,7 +319,7 @@ def start_bot():
 
 
 def graceful_shutdown(backend_process, bot_process):
-    """Gracefully shutdown all processes"""
+    """Gracefully shutdown all processes."""
     print(f"\n{YELLOW}Shutting down services...{RESET}")
 
     processes = []
@@ -271,8 +348,30 @@ def graceful_shutdown(backend_process, bot_process):
             print(f"{RED}[ERR] Error stopping {name}: {e}{RESET}")
 
 
+def get_user_mode():
+    """Get user mode preference with default to new user."""
+    print(f"\n{BLUE}Select User Mode:{RESET}")
+    print(f"  {GREEN}1. New User (default){RESET} - Clean slate, delete existing data")
+    print(f"  {YELLOW}2. Returning User{RESET} - Keep existing data")
+    print()
+
+    try:
+        choice = input("Enter choice (1-2) or press Enter for default [1]: ").strip()
+
+        if choice == "" or choice == "1":
+            return "new"
+        elif choice == "2":
+            return "returning"
+        else:
+            print(f"{YELLOW}Invalid choice, defaulting to New User mode{RESET}")
+            return "new"
+    except (KeyboardInterrupt, EOFError):
+        print(f"\n{YELLOW}Defaulting to New User mode{RESET}")
+        return "new"
+
+
 def run_development():
-    """Run both backend and bot in development mode"""
+    """Run both backend and bot in development mode."""
     print_banner()
 
     # Check requirements
@@ -283,8 +382,21 @@ def run_development():
     if not check_environment():
         return 1
 
+    # Get user mode preference
+    user_mode = get_user_mode()
+
+    # Your Telegram ID (you can make this configurable if needed)
+    telegram_id = 8252656084
+
+    cleanup_user = user_mode == "new"
+
+    if cleanup_user:
+        print(f"\n{BLUE}Running as NEW USER - will clean existing data{RESET}")
+    else:
+        print(f"\n{BLUE}Running as RETURNING USER - keeping existing data{RESET}")
+
     # Initialize database
-    if not initialize_database():
+    if not initialize_database(cleanup_user=cleanup_user, telegram_id=telegram_id):
         return 1
 
     # Start services
@@ -292,7 +404,7 @@ def run_development():
     bot_process = None
 
     def signal_handler(_signum, _frame):
-        """Handle shutdown signals"""
+        """Handle shutdown signals."""
         graceful_shutdown(backend_process, bot_process)
         sys.exit(0)
 
@@ -339,7 +451,8 @@ def run_development():
 
                 if not backend_alive:
                     print(
-                        f"{RED}[ERR] Backend process exited unexpectedly (code: {backend_process.poll()}){RESET}"
+                        f"{RED}[ERR] Backend process exited unexpectedly "
+                        f"(code: {backend_process.poll()}){RESET}"
                     )
                     if bot_process:
                         print(f"{YELLOW}Stopping bot due to backend failure...{RESET}")
@@ -348,7 +461,8 @@ def run_development():
 
                 if bot_process and not bot_alive:
                     print(
-                        f"{RED}[ERR] Bot process exited unexpectedly (code: {bot_process.poll()}){RESET}"
+                        f"{RED}[ERR] Bot process exited unexpectedly "
+                        f"(code: {bot_process.poll()}){RESET}"
                     )
                     print(f"{YELLOW}Bot died but backend is still running{RESET}")
                     print(f"{YELLOW}You can restart just the bot with: python run.py bot{RESET}")
@@ -370,7 +484,7 @@ def run_development():
 
 
 def main():
-    """Main entry point"""
+    """Run the main application."""
     # Check for production environment
     if os.getenv("RENDER") or os.getenv("ENVIRONMENT") == "production":
         print(f"{RED}[ERR] This development script should not be used in production!{RESET}")
@@ -390,7 +504,7 @@ def main():
                     "uvicorn",
                     "backend.main:app",
                     "--host",
-                    "0.0.0.0",
+                    "127.0.0.1",  # Changed from 0.0.0.0 for security
                     "--port",
                     "8000",
                     "--reload",
@@ -410,6 +524,10 @@ def main():
             print("  bot     - Run only Telegram bot (polling)")
             print("  test    - Run test suite")
             print("  (no args) - Run both backend and bot together")
+            print("")
+            print("When running without arguments, you'll be prompted to choose:")
+            print("  • New User (default) - Clean slate with fresh wallet")
+            print("  • Returning User - Keep existing wallet and data")
             return 1
     else:
         # Run both in development mode

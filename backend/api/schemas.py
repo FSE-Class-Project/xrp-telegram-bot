@@ -1,4 +1,4 @@
-"""API schemas"""
+"""API schemas."""
 
 from __future__ import annotations
 
@@ -7,7 +7,13 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class TransactionStatus(str, Enum):

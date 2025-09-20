@@ -142,8 +142,8 @@ def init_database(database_url: str | None = None, debug: bool = False) -> None:
 
 
 def get_db() -> Generator[Session, None, None]:
-    """
-    Dependency for getting database session.
+    """Dependency for getting database session.
+
     Yields a database session and closes it after use.
     """
     if SessionLocal is None:
@@ -157,8 +157,8 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def get_db_session() -> Session:
-    """
-    Get a database session directly (for non-FastAPI contexts).
+    """Get a database session directly (for non-FastAPI contexts).
+
     Remember to close the session when done.
     """
     if SessionLocal is None:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""
-Development utilities for XRP Telegram Bot
-Useful commands for testing and debugging
+"""Development utilities for XRP Telegram Bot.
+
+Useful commands for testing and debugging.
 """
 
 import argparse
@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 
 async def test_bot_token():
-    """Test if Telegram bot token is valid"""
+    """Test if Telegram bot token is valid."""
     import httpx
 
     token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -44,7 +44,7 @@ async def test_bot_token():
 
 
 async def test_xrp_connection():
-    """Test XRP Ledger connection"""
+    """Test XRP Ledger connection."""
     from backend.services.xrp_service import xrp_service
 
     print("Testing XRP Ledger connection...")
@@ -73,7 +73,7 @@ async def test_xrp_connection():
 
 
 async def create_test_wallet():
-    """Create a test XRP wallet"""
+    """Create a test XRP wallet."""
     from backend.services.xrp_service import xrp_service
 
     print("Creating test wallet...")
@@ -106,7 +106,7 @@ async def create_test_wallet():
 
 
 async def test_database():
-    """Test database connection and query"""
+    """Test database connection and query."""
     from backend.config import settings
     from backend.database.connection import check_database_health
 
@@ -124,6 +124,9 @@ async def test_database():
         from backend.database.connection import SessionLocal
         from backend.database.models import User
 
+        if SessionLocal is None:
+            print("   Database not initialized")
+            return False
         db = SessionLocal()
         user_count = db.query(User).count()
         db.close()
@@ -137,7 +140,7 @@ async def test_database():
 
 
 async def test_api():
-    """Test if API is running"""
+    """Test if API is running."""
     import httpx
 
     api_url = os.getenv("API_URL", "http://localhost:8000")
@@ -166,7 +169,7 @@ async def test_api():
 
 
 async def reset_database():
-    """Reset database (drop and recreate all tables)"""
+    """Reset database (drop and recreate all tables)."""
     from backend.database.connection import engine
     from backend.database.models import Base
 
@@ -178,6 +181,9 @@ async def reset_database():
     print("Resetting database...")
 
     try:
+        if engine is None:
+            print("   Engine not initialized")
+            return
         # Drop all tables
         Base.metadata.drop_all(bind=engine)
         print("   Dropped all tables")
@@ -195,7 +201,7 @@ async def reset_database():
 
 
 async def run_all_tests():
-    """Run all tests"""
+    """Run all tests."""
     print("🔍 Running all tests...\n")
 
     results = []
@@ -233,7 +239,7 @@ async def run_all_tests():
 
 
 def main():
-    """Main entry point"""
+    """Execute the main entry point."""
     parser = argparse.ArgumentParser(description="XRP Bot Development Utilities")
     parser.add_argument(
         "command",

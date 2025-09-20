@@ -5,10 +5,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application configuration using Pydantic v2"""
+    """Application configuration using Pydantic v2."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env.local", ".env.development", ".env"],
         case_sensitive=True,
         extra="ignore",  # Ignore extra fields to avoid validation errors
     )
@@ -40,9 +40,10 @@ class Settings(BaseSettings):
     XRP_WEBSOCKET_URL: str = Field(default="wss://s.altnet.rippletest.net:51233")
     XRP_JSON_RPC_URL: str = Field(default="https://s.altnet.rippletest.net:51234")
     XRP_FAUCET_URL: str = Field(default="https://faucet.altnet.rippletest.net/accounts")
+    XRP_AUTO_FUND_NEW_WALLETS: bool = Field(default=True)  # Whether to auto-fund new wallets
 
     # API
-    API_HOST: str = Field(default="0.0.0.0")
+    API_HOST: str = Field(default="127.0.0.1")
     API_PORT: int = Field(default=8000)
     API_URL: str = Field(default="http://localhost:8000")
     API_PREFIX: str = Field(default="/api/v1")
@@ -51,12 +52,16 @@ class Settings(BaseSettings):
     REDIS_URL: str | None = Field(default=None)
     CACHE_TTL: int = Field(default=300)  # 5 minutes
 
+    # Sentry (monitoring)
+    SENTRY_DSN: str | None = Field(default=None)
+    SENTRY_ENVIRONMENT: str | None = Field(default=None)
+
     # External APIs
     PRICE_API_URL: str = Field(default="https://api.coingecko.com/api/v3")
     PRICE_API_KEY: str | None = Field(default=None)
 
     def __init__(self, **kwargs):
-        """Initialize settings with backward compatibility"""
+        """Initialize settings with backward compatibility."""
         # Handle WEBHOOK_URL -> TELEGRAM_WEBHOOK_URL mapping
         if "WEBHOOK_URL" in kwargs and "TELEGRAM_WEBHOOK_URL" not in kwargs:
             kwargs["TELEGRAM_WEBHOOK_URL"] = kwargs.pop("WEBHOOK_URL")
@@ -64,7 +69,7 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
 
     def configure_for_environment(self) -> None:
-        """Configure settings based on environment - call this explicitly after creation"""
+        """Configure settings based on environment - call this explicitly after creation."""
         # Auto-configure for Render deployment
         if os.getenv("RENDER"):
             self.ENVIRONMENT = "production"
@@ -100,15 +105,19 @@ class Settings(BaseSettings):
         # Configure security settings based on environment
         self._configure_security_settings()
 
+        # Set Sentry environment if not explicitly set
+        if not self.SENTRY_ENVIRONMENT:
+            self.SENTRY_ENVIRONMENT = self.ENVIRONMENT
+
     def ensure_encryption_key(self) -> str:
-        """Ensure encryption key exists, generate if needed"""
+        """Ensure encryption key exists, generate if needed."""
         if not self.ENCRYPTION_KEY:
             self.ENCRYPTION_KEY = self.generate_encryption_key()
             return self.ENCRYPTION_KEY
         return self.ENCRYPTION_KEY
 
     def _configure_security_settings(self) -> None:
-        """Configure security settings based on environment"""
+        """Configure security settings based on environment."""
         import secrets
 
         # Generate development defaults if in development mode
@@ -137,14 +146,14 @@ class Settings(BaseSettings):
 
     @staticmethod
     def generate_encryption_key() -> str:
-        """Generate a new Fernet encryption key"""
+        """Generate a new Fernet encryption key."""
         from cryptography.fernet import Fernet
 
         return Fernet.generate_key().decode()
 
     @staticmethod
     def generate_secure_secret(length: int = 32) -> str:
-        """Generate a secure random secret"""
+        """Generate a secure random secret."""
         import secrets
 
         return secrets.token_urlsafe(length)
@@ -155,6 +164,6 @@ settings = Settings()
 
 
 def initialize_settings():
-    """Initialize and configure settings - must be called before using settings"""
+    """Initialize and configure settings - must be called before using settings."""
     settings.configure_for_environment()
     return settings

@@ -145,7 +145,7 @@ class RedisCache:
         return result or -2
 
     # JSON operations
-    def get_json(self, key: str) -> Any | None:
+    def get_json(self, key: str) -> Any:
         """Get JSON value from cache."""
         value = self.get(key)
         if value:
@@ -170,7 +170,7 @@ class RedisCache:
         value = self.get(key)
         if value:
             try:
-                return pickle.loads(value)  # type: ignore[arg-type]
+                return pickle.loads(value)  # type: ignore[arg-type]  # noqa: S301 - pickle is safe here as we control the data
             except (pickle.PickleError, TypeError) as e:
                 logger.error(f"Failed to unpickle object for key {key}: {e}")
         return None
@@ -269,7 +269,8 @@ class RedisCache:
         if not self._connected:
             return
         try:
-            yield from self.client.scan_iter(match=match, count=count)
+            for key in self.client.scan_iter(match=match, count=count):
+                yield key.decode("utf-8") if isinstance(key, bytes) else key
         except (RedisError, RedisConnectionError) as e:
             logger.error(f"Scan operation failed: {e}")
 
@@ -347,7 +348,8 @@ class CacheService:
             return None
 
         key = CacheKeys.USER_BY_TELEGRAM.format(telegram_id=telegram_id)
-        return self.cache.get_json(key)
+        result = self.cache.get_json(key)
+        return result if isinstance(result, dict) else None
 
     def set_user(self, telegram_id: str, user_data: dict[str, Any]) -> bool:
         """Cache user data."""
@@ -372,7 +374,8 @@ class CacheService:
             return None
 
         key = CacheKeys.WALLET_BY_USER.format(user_id=user_id)
-        return self.cache.get_json(key)
+        result = self.cache.get_json(key)
+        return result if isinstance(result, dict) else None
 
     def set_wallet(self, user_id: int, wallet_data: dict[str, Any]) -> bool:
         """Cache wallet data."""
@@ -411,7 +414,8 @@ class CacheService:
         if not self.enabled:
             return None
 
-        return self.cache.get_json(CacheKeys.XRP_PRICE)
+        result = self.cache.get_json(CacheKeys.XRP_PRICE)
+        return result if isinstance(result, dict) else None
 
     def set_xrp_price(self, price_data: dict[str, Any]) -> bool:
         """Cache XRP price data."""
@@ -427,7 +431,8 @@ class CacheService:
             return None
 
         key = CacheKeys.TRANSACTION_BY_HASH.format(tx_hash=tx_hash)
-        return self.cache.get_json(key)
+        result = self.cache.get_json(key)
+        return result if isinstance(result, dict) else None
 
     def set_transaction(self, tx_hash: str, tx_data: dict[str, Any]) -> bool:
         """Cache transaction."""

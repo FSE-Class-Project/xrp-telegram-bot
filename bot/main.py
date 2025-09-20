@@ -14,10 +14,50 @@ from telegram.ext import (
     filters,
 )
 
-# Load environment variables
+# Load environment variables first
 load_dotenv()
 
-# ruff: noqa: E402
+# ruff: noqa: E402 - imports after env setup
+from .handlers.account import (
+    edit_profile_command,
+    handle_username_update,
+    profile_command,
+    sync_telegram_data_command,
+    update_username_command,
+)
+from .handlers.price import price_command
+from .handlers.settings import settings_command
+from .handlers.start import (
+    handle_back_to_start,
+    handle_create_new_wallet,
+    handle_create_wallet_auto,
+    handle_create_wallet_manual,
+    handle_import_wallet,
+    handle_learn_more,
+    help_command,
+    start_command,
+)
+from .handlers.transaction import (
+    ADDRESS,
+    AMOUNT,
+    BENEFICIARY_ADD_ADDRESS,
+    BENEFICIARY_ADD_ALIAS,
+    BENEFICIARY_SELECT,
+    CONFIRM,
+    MODE,
+    address_handler,
+    amount_handler,
+    beneficiary_add_address_handler,
+    beneficiary_add_alias_handler,
+    beneficiary_selection_handler,
+    cancel_handler,
+    confirm_handler,
+    history_command,
+    send_command,
+    send_mode_handler,
+)
+from .handlers.wallet import balance_command
+from .keyboards.menus import keyboards
 
 # Configure logging based on environment
 log_level = logging.DEBUG if os.getenv("DEBUG", "").lower() == "true" else logging.INFO
@@ -54,35 +94,8 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 # Render detection
 IS_RENDER = os.getenv("RENDER") is not None
 
-# --- Import Handlers & Keyboards ---
-# These imports will now work because we are creating the files.
-from .handlers.price import price_command
-from .handlers.settings import settings_command
-from .handlers.start import help_command, start_command
-from .handlers.transaction import (
-    ADDRESS,
-    AMOUNT,
-    BENEFICIARY_ADD_ADDRESS,
-    BENEFICIARY_ADD_ALIAS,
-    BENEFICIARY_SELECT,
-    CONFIRM,
-    MODE,
-    address_handler,
-    amount_handler,
-    beneficiary_add_address_handler,
-    beneficiary_add_alias_handler,
-    beneficiary_selection_handler,
-    cancel_handler,
-    confirm_handler,
-    history_command,  # This is now defined in transaction.py
-    send_command,
-    send_mode_handler,
-)
-from .handlers.wallet import balance_command, profile_command
-from .keyboards.menus import keyboards  # Import the keyboards object
 
-
-async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle all inline keyboard button presses."""
     query = update.callback_query
     if not query or not query.data:
@@ -93,10 +106,32 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     # --- Navigation stack management ---
     user_data = context.user_data
+    if user_data is None:
+        return
     nav_stack = user_data.setdefault("nav_stack", [])
     current_menu = user_data.get("current_menu", "main_menu")
 
     data = query.data
+
+    # Handle wallet creation callbacks first
+    if data == "create_new_wallet":
+        await handle_create_new_wallet(update, context)
+        return
+    elif data == "import_wallet":
+        await handle_import_wallet(update, context)
+        return
+    elif data == "learn_more_wallets":
+        await handle_learn_more(update, context)
+        return
+    elif data == "create_wallet_auto":
+        await handle_create_wallet_auto(update, context)
+        return
+    elif data == "create_wallet_manual":
+        await handle_create_wallet_manual(update, context)
+        return
+    elif data == "back_to_start":
+        await handle_back_to_start(update, context)
+        return
 
     # Helper to route to a given menu id
     async def route_to(menu_id: str):
@@ -210,6 +245,14 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         push_if_forward("profile")
         await profile_command(update, context)
         user_data["current_menu"] = "profile"
+    elif data == "edit_profile":
+        push_if_forward("edit_profile")
+        await edit_profile_command(update, context)
+        user_data["current_menu"] = "edit_profile"
+    elif data == "update_username":
+        await update_username_command(update, context)
+    elif data == "sync_telegram_data":
+        await sync_telegram_data_command(update, context)
     elif data == "help":
         push_if_forward("help")
         await help_command(update, context)
@@ -307,24 +350,27 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         user_data["current_menu"] = "settings"
     elif data in ["retry", "cancel_send", "confirm_send"]:
         if data == "retry":
-            await query.message.edit_text(
-                "🔄 <b>Retry</b>\n\nPlease try your last action again.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu(),
-            )
+            if query.message:
+                await query.message.edit_text(
+                    ("🔄 <b>Retry</b>\n\nPlease try your last action again."),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboards.main_menu(),
+                )
         elif data == "cancel_send":
-            await query.message.edit_text(
-                "❌ <b>Transaction Cancelled</b>\n\nTransaction has been cancelled.",
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu(),
-            )
+            if query.message:
+                await query.message.edit_text(
+                    ("❌ <b>Transaction Cancelled</b>\n\nTransaction has been cancelled."),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboards.main_menu(),
+                )
         elif data == "confirm_send":
             logger.info("Transaction confirmation requested")
-            await query.message.edit_text(
-                "✅ <b>Transaction Confirmed</b>\n\nProcessing your transaction...",
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu(),
-            )
+            if query.message:
+                await query.message.edit_text(
+                    ("✅ <b>Transaction Confirmed</b>\n\nProcessing your transaction..."),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboards.main_menu(),
+                )
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -338,7 +384,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
             for attempt in range(max_retries):
                 try:
                     await update.callback_query.answer(
-                        "⚠️ An error occurred. Please try again.", show_alert=True
+                        "⚠️ An error occurred. Please try again.",
+                        show_alert=True,
                     )
                     break
                 except Exception as e:
@@ -355,11 +402,14 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
                 if "timeout" in error_str or "asyncio.timeouterror" in error_str:
                     error_msg = format_error_message(
-                        "Request Timeout\n\nThe request took too long to complete. Please try again."
+                        "Request Timeout\n\n"
+                        "The request took too long to complete. Please try again."
                     )
                 elif "connection" in error_str or "connect" in error_str:
                     error_msg = format_error_message(
-                        "Connection Error\n\nUnable to connect to backend services. Please try again in a moment."
+                        "Connection Error\n\n"
+                        "Unable to connect to backend services. "
+                        "Please try again in a moment."
                     )
                 elif "forbidden" in error_str or "unauthorized" in error_str:
                     error_msg = format_error_message(
@@ -367,7 +417,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                     )
                 elif "badrequest" in error_str or "bad request" in error_str:
                     error_msg = format_error_message(
-                        "Invalid Request\n\nThe request was invalid. Please check your input and try again."
+                        "Invalid Request\n\n"
+                        "The request was invalid. Please check your input and try again."
                     )
                 elif "network" in error_str or "dns" in error_str:
                     error_msg = format_error_message(
@@ -375,20 +426,22 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                     )
                 else:
                     error_msg = format_error_message(
-                        "Something Went Wrong\n\nAn unexpected error occurred. Please try again later."
+                        "Something Went Wrong\n\n"
+                        "An unexpected error occurred. Please try again later."
                     )
 
                 try:
                     await update.effective_message.reply_text(
                         error_msg,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboards.error_menu() if "keyboards" in locals() else None,
+                        reply_markup=(keyboards.error_menu() if "keyboards" in locals() else None),
                     )
                 except Exception as send_error:
                     logger.error(f"Failed to send formatted error message: {send_error}")
                     try:
                         await update.effective_message.reply_text(
-                            "⚠️ An error occurred. Please try again later.", reply_markup=None
+                            "⚠️ An error occurred. Please try again later.",
+                            reply_markup=None,
                         )
                     except Exception as final_error:
                         logger.error(f"Failed to send fallback error message: {final_error}")
@@ -407,8 +460,9 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                     await update.effective_message.reply_text(
                         "⚠️ Error occurred. Please restart with /start."
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Final fallback failed - log but don't raise to prevent error loops
+                    logger.error(f"Absolute final fallback error message failed: {e}")
 
 
 async def post_init(application: Application):
@@ -443,8 +497,7 @@ async def post_init(application: Application):
 
 
 def setup_handlers(application: Application):
-    """Setup all bot handlers - can be called from backend for webhook mode."""
-
+    """Set up all bot handlers - can be called from backend for webhook mode."""
     # Create conversation handler for send command
     send_conversation_handler = ConversationHandler(
         entry_points=[
@@ -454,22 +507,30 @@ def setup_handlers(application: Application):
         states={
             MODE: [
                 CallbackQueryHandler(
-                    send_mode_handler, pattern=r"^send_mode_(beneficiary|address)$"
+                    send_mode_handler,
+                    pattern=r"^send_mode_(beneficiary|address)$",
                 ),
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             BENEFICIARY_SELECT: [
                 CallbackQueryHandler(
-                    beneficiary_selection_handler, pattern=r"^beneficiary_(select:.*|add)$"
+                    beneficiary_selection_handler,
+                    pattern=r"^beneficiary_(select:.*|add)$",
                 ),
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             BENEFICIARY_ADD_ALIAS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, beneficiary_add_alias_handler),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    beneficiary_add_alias_handler,
+                ),
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             BENEFICIARY_ADD_ADDRESS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, beneficiary_add_address_handler),
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    beneficiary_add_address_handler,
+                ),
                 CallbackQueryHandler(cancel_handler, pattern=r"^cancel_send$"),
             ],
             AMOUNT: [
@@ -497,6 +558,10 @@ def setup_handlers(application: Application):
     application.add_handler(CommandHandler("history", history_command))
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(send_conversation_handler)
+
+    # Add message handler for username updates (should be before CallbackQueryHandler)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_username_update))
+
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_error_handler(error_handler)
 
@@ -523,7 +588,8 @@ def main():
     logger.info("🏠 Starting bot in development polling mode...")
     try:
         application.run_polling(
-            drop_pending_updates=True, allowed_updates=["message", "callback_query", "inline_query"]
+            drop_pending_updates=True,
+            allowed_updates=["message", "callback_query", "inline_query"],
         )
     except KeyboardInterrupt:
         logger.info("👋 Bot stopped by user")

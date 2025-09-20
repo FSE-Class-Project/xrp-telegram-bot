@@ -10,7 +10,13 @@ from sqlalchemy import desc  # Import desc directly
 from sqlalchemy.orm import Session
 
 # Use absolute imports to avoid issues
-from backend.database.models import Beneficiary, Transaction, User, UserSettings, Wallet
+from backend.database.models import (
+    Beneficiary,
+    Transaction,
+    User,
+    UserSettings,
+    Wallet,
+)
 from backend.services.cache_service import get_cache_service
 from backend.services.xrp_service import xrp_service
 
@@ -31,9 +37,10 @@ class UserService:
         telegram_username: str | None = None,
         telegram_first_name: str | None = None,
         telegram_last_name: str | None = None,
+        auto_fund: bool = True,
     ) -> User:
-        """
-        Create a new user with an XRP wallet.
+        """Create a new user with an XRP wallet.
+
         Returns a User model instance, not a dictionary.
         """
         # Check cache first
@@ -68,7 +75,10 @@ class UserService:
         address, encrypted_secret = xrp_service.create_wallet()
 
         wallet = Wallet(
-            user_id=user.id, xrp_address=address, encrypted_secret=encrypted_secret, balance=0.0
+            user_id=user.id,
+            xrp_address=address,
+            encrypted_secret=encrypted_secret,
+            balance=0.0,
         )
 
         db.add(wallet)
@@ -83,19 +93,33 @@ class UserService:
         # Cache the new user data
         self._cache_user_data(user)
 
-        # Fund wallet from faucet (async operation)
-        try:
-            funded = await xrp_service.fund_wallet_from_faucet(address)
-            if funded:
-                # Update balance
-                balance = await xrp_service.get_balance(address)
-                if balance is not None:
-                    wallet.balance = balance  # type: ignore[assignment]
-                    wallet.last_balance_update = datetime.now(timezone.utc)  # type: ignore[assignment]
-                    db.commit()
-                    db.refresh(user)  # Refresh to get updated wallet
-        except Exception as e:
-            logger.error(f"Error funding wallet: {str(e)}")
+        # Fund wallet from faucet if requested (async operation)
+        if auto_fund:
+            try:
+                logger.info(f"Attempting to fund wallet {address} with TestNet XRP")
+                funded = await xrp_service.fund_wallet_from_faucet(address)
+                if funded:
+                    # Wait a moment for the transaction to settle
+                    import asyncio
+
+                    await asyncio.sleep(3)
+
+                    # Update balance
+                    balance = await xrp_service.get_balance(address)
+                    if balance is not None:
+                        wallet.balance = balance  # type: ignore[assignment]
+                        wallet.last_balance_update = datetime.now(timezone.utc)  # type: ignore[assignment]
+                        db.commit()
+                        db.refresh(user)  # Refresh to get updated wallet
+                        logger.info(f"Wallet funded successfully. New balance: {balance} XRP")
+                    else:
+                        logger.warning("Faucet funding reported success but balance is still None")
+                else:
+                    logger.warning("Faucet funding failed - wallet will remain unfunded")
+            except Exception as e:
+                logger.error(f"Error funding wallet: {str(e)}")
+        else:
+            logger.info(f"Auto-funding disabled for wallet {address}")
 
         return user  # Return User model instance
 
@@ -107,8 +131,8 @@ class UserService:
         telegram_first_name: str | None = None,
         telegram_last_name: str | None = None,
     ) -> User:
-        """
-        Get existing user or create new one.
+        """Get existing user or create new one.
+
         Returns a User model instance.
         """
         existing_user = self.get_user_by_telegram_id(db, telegram_id)
@@ -136,7 +160,7 @@ class UserService:
             "telegram_first_name": user.telegram_first_name,
             "created_at": user.created_at.isoformat() if user.created_at else None,
         }
-        self.cache.set_user(str(user.telegram_id), user_data)  # type: ignore[arg-type]
+        self.cache.set_user(str(user.telegram_id), user_data)
 
         # Cache wallet data if exists
         if user.wallet:
@@ -151,11 +175,11 @@ class UserService:
                     else None
                 ),
             }
-            self.cache.set_wallet(int(user.id), wallet_data)  # type: ignore[arg-type]
+            self.cache.set_wallet(int(user.id), wallet_data)
 
     def get_user_by_telegram_id(self, db: Session, telegram_id: str) -> User | None:
-        """
-        Get user by Telegram ID.
+        """Get user by Telegram ID.
+
         Returns a User model instance or None.
         """
         # Check cache first
@@ -179,8 +203,8 @@ class UserService:
         return user
 
     def get_user_by_xrp_address(self, db: Session, xrp_address: str) -> User | None:
-        """
-        Get user by XRP address.
+        """Get user by XRP address.
+
         Returns a User model instance or None.
         """
         wallet = db.query(Wallet).filter(Wallet.xrp_address == xrp_address).first()
@@ -188,8 +212,8 @@ class UserService:
         return wallet.user if wallet else None
 
     async def update_balance(self, db: Session, user: User) -> float:
-        """
-        Update user's wallet balance from blockchain.
+        """Update user's wallet balance from blockchain.
+
         Returns the updated balance as float.
         """
         if not user.wallet:
@@ -199,8 +223,8 @@ class UserService:
         balance = await xrp_service.get_balance(user.wallet.xrp_address)
 
         if balance is not None:
-            user.wallet.balance = balance  # type: ignore[assignment]
-            user.wallet.last_balance_update = datetime.now(timezone.utc)  # type: ignore[assignment]
+            user.wallet.balance = balance
+            user.wallet.last_balance_update = datetime.now(timezone.utc)
             db.commit()
             db.refresh(user)
 
@@ -214,8 +238,8 @@ class UserService:
         amount: float,
         memo: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Send XRP from user to another address.
+        """Send XRP from user to another address.
+
         Returns a dictionary with transaction results.
         """
         if not sender.wallet:
@@ -304,7 +328,10 @@ class UserService:
 
         existing_alias = (
             db.query(Beneficiary)
-            .filter(Beneficiary.user_id == user.id, Beneficiary.alias == cleaned_alias)
+            .filter(
+                Beneficiary.user_id == user.id,
+                Beneficiary.alias == cleaned_alias,
+            )
             .first()
         )
         if existing_alias:
@@ -331,8 +358,8 @@ class UserService:
         limit: int = 10,
         offset: int = 0,  # Added offset parameter
     ) -> list[dict[str, Any]]:
-        """
-        Get user's transaction history from database.
+        """Get user's transaction history from database.
+
         Returns a list of transaction dictionaries.
         """
         # Use desc() function directly from sqlalchemy

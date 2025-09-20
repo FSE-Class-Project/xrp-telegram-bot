@@ -18,13 +18,13 @@ from ..utils.formatting import (
 logger = logging.getLogger(__name__)
 
 
-async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /balance command using HTML formatting."""
     # Handle both message and callback query
     if update.message:
         reply_func = update.message.reply_text
         user_id = update.effective_user.id if update.effective_user else None
-    elif update.callback_query:
+    elif update.callback_query and update.callback_query.message:
         reply_func = update.callback_query.message.edit_text
         await update.callback_query.answer()
         user_id = update.callback_query.from_user.id
@@ -91,12 +91,18 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Use shared wallet menu (includes Back + Main)
             await reply_func(
-                message, parse_mode=ParseMode.HTML, reply_markup=keyboards.wallet_menu()
+                message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboards.wallet_menu(),
             )
 
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            error_msg = "❌ <b>Not Registered</b>\n\nYou need to register first!\nUse /start to create your wallet."
+            error_msg = (
+                "❌ <b>Not Registered</b>\n\n"
+                "You need to register first!\n"
+                "Use /start to create your wallet."
+            )
         else:
             error_msg = f"A server error occurred: {e.response.status_code}"
         await reply_func(error_msg, parse_mode=ParseMode.HTML)
@@ -106,13 +112,13 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply_func(error_msg, parse_mode=ParseMode.HTML)
 
 
-async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /profile command using HTML formatting."""
     # Handle both message and callback query
     if update.message:
         reply_func = update.message.reply_text
         user = update.effective_user
-    elif update.callback_query:
+    elif update.callback_query and update.callback_query.message:
         reply_func = update.callback_query.message.edit_text
         await update.callback_query.answer()
         user = update.callback_query.from_user
@@ -137,7 +143,8 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Get transaction count
             tx_response = await client.get(
-                f"{api_url}/api/v1/transaction/history/{user.id}", headers=headers
+                f"{api_url}/api/v1/transaction/history/{user.id}",
+                headers=headers,
             )
             tx_count = (
                 len(tx_response.json().get("transactions", []))
@@ -162,22 +169,29 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             # Add funding guidance if balance is low
-            if balance_xrp < 20:
+            if balance_xrp < 1:
                 message += (
                     "⚠️ <b>Wallet needs funding to transact</b>\n"
-                    "Visit: <a href='https://test.bithomp.com/en/faucet'>XRPL Testnet Faucet</a>\n\n"
+                    "Visit: <a href='https://test.bithomp.com/en/faucet'>"
+                    "XRPL Testnet Faucet</a>\n\n"
                 )
 
             message += "Use /balance for detailed funding instructions."
 
             # Use shared profile menu (includes Back + Main)
             await reply_func(
-                message, parse_mode=ParseMode.HTML, reply_markup=keyboards.profile_menu()
+                message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboards.profile_menu(),
             )
 
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            error_msg = "❌ <b>Not Registered</b>\n\nYou need to register first!\nUse /start to create your wallet."
+            error_msg = (
+                "❌ <b>Not Registered</b>\n\n"
+                "You need to register first!\n"
+                "Use /start to create your wallet."
+            )
         else:
             error_msg = f"A server error occurred: {e.response.status_code}"
         await reply_func(error_msg, parse_mode=ParseMode.HTML)

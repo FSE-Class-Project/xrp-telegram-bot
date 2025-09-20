@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""
-Generate a test wallet for XRP TestNet
-Creates a new wallet and funds it using the TestNet faucet
+"""Generate a test wallet for XRP TestNet.
+
+Creates a new wallet and funds it using the TestNet faucet.
 """
 
 import asyncio
@@ -23,7 +23,7 @@ RESET = "\033[0m"
 
 
 def print_banner():
-    """Print banner"""
+    """Print banner."""
     print(
         f"""
 {BLUE}================================================
@@ -34,7 +34,7 @@ def print_banner():
 
 
 def generate_wallet():
-    """Generate a new XRP wallet"""
+    """Generate a new XRP wallet."""
     print(f"{YELLOW}Generating new XRP wallet...{RESET}")
 
     # Generate a new wallet
@@ -51,7 +51,7 @@ def generate_wallet():
 
 
 async def fund_wallet(wallet):
-    """Fund the wallet using TestNet faucet"""
+    """Fund the wallet using TestNet faucet."""
     print(f"\n{YELLOW}Funding wallet from TestNet faucet...{RESET}")
 
     try:
@@ -82,7 +82,7 @@ async def fund_wallet(wallet):
 
 
 async def check_balance(wallet):
-    """Check the wallet balance"""
+    """Check the wallet balance."""
     print(f"\n{YELLOW}Checking wallet balance...{RESET}")
 
     try:
@@ -115,7 +115,7 @@ async def check_balance(wallet):
 
 
 def save_wallet_info(wallet, balance):
-    """Save wallet information to a file"""
+    """Save wallet information to a file."""
     wallet_data = {
         "network": "testnet",
         "address": wallet.address,
@@ -137,7 +137,7 @@ def save_wallet_info(wallet, balance):
 
 
 async def main():
-    """Main function"""
+    """Execute the main function."""
     print_banner()
 
     # Generate wallet

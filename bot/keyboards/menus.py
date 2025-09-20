@@ -7,7 +7,7 @@ class Keyboards:
     """Enhanced keyboard layouts for the XRP Telegram bot."""
 
     def main_menu(self) -> InlineKeyboardMarkup:
-        """Returns the main menu keyboard."""
+        """Return the main menu keyboard."""
         keyboard = [
             [
                 InlineKeyboardButton("💰 Balance", callback_data="balance"),
@@ -25,7 +25,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def wallet_menu(self) -> InlineKeyboardMarkup:
-        """Returns a menu for the wallet/balance view."""
+        """Return a menu for the wallet/balance view."""
         keyboard = [
             [
                 InlineKeyboardButton("🔄 Refresh Balance", callback_data="refresh_balance"),
@@ -43,7 +43,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def send_confirmation_menu(self) -> InlineKeyboardMarkup:
-        """Returns confirmation menu for transactions."""
+        """Return confirmation menu for transactions."""
         keyboard = [
             [
                 InlineKeyboardButton("✅ Confirm", callback_data="confirm_send"),
@@ -57,7 +57,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def transaction_result_menu(self) -> InlineKeyboardMarkup:
-        """Returns menu after transaction completion."""
+        """Return menu after transaction completion."""
         keyboard = [
             [
                 InlineKeyboardButton("💰 Check Balance", callback_data="balance"),
@@ -72,7 +72,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def price_menu(self) -> InlineKeyboardMarkup:
-        """Returns menu for price view."""
+        """Return menu for price view."""
         keyboard = [
             [
                 InlineKeyboardButton("🔄 Refresh", callback_data="refresh_price"),
@@ -90,7 +90,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def history_menu(self) -> InlineKeyboardMarkup:
-        """Returns menu for transaction history."""
+        """Return menu for transaction history."""
         keyboard = [
             [
                 InlineKeyboardButton("🔄 Refresh", callback_data="refresh_history"),
@@ -105,7 +105,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def profile_menu(self) -> InlineKeyboardMarkup:
-        """Returns menu for profile view."""
+        """Return menu for profile view."""
         keyboard = [
             [
                 InlineKeyboardButton("💰 Balance", callback_data="balance"),
@@ -119,7 +119,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def error_menu(self) -> InlineKeyboardMarkup:
-        """Returns menu for error messages."""
+        """Return menu for error messages."""
         keyboard = [
             [
                 InlineKeyboardButton("🔄 Try Again", callback_data="retry"),
@@ -133,7 +133,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
 
     def back_to_main(self) -> InlineKeyboardMarkup:
-        """Simple back to main menu keyboard."""
+        """Create simple back to main menu keyboard."""
         return InlineKeyboardMarkup(
             [
                 [
