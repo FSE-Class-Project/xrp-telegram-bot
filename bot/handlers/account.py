@@ -348,6 +348,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     f"@{escape_html(display_username)}"
                     if display_username
                     else "Not Set"
+                    f"@{escape_html(display_username)}" if display_username else "Not Set"
                 )
 
                 created_text = escape_html(created_formatted)
