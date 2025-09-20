@@ -1,6 +1,5 @@
 """API routes for user settings management."""
 
-
 import logging
 from datetime import datetime, timezone
 from typing import Any, cast
