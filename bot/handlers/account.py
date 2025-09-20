@@ -288,7 +288,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             # Get user profile data from export endpoint
             # (includes stored username)
-            profile_response = await client.get(
+            profile_response = await client.post(
                 f"{api_url}/api/v1/user/export/{user.id}",
                 headers=headers,
                 timeout=10.0,
@@ -335,29 +335,43 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 display_first_name = stored_first_name or user.first_name
                 display_last_name = stored_last_name or user.last_name
 
-                message = f"""
-👤 <b>Your Profile</b>
+                balance_value = float(balance_data.get("balance") or 0)
+                address_value = balance_data.get("address") or "N/A"
+                address_html = escape_html(address_value)
 
-<b>Account Info:</b>
-• Name: {escape_html(display_first_name or "N/A")} """
-                f"""{escape_html(display_last_name or "")}
-• Username: @{escape_html(display_username or "Not Set")}
-• Telegram ID: <code>{user.id}</code>
-• Joined: {created_formatted}
+                notifications_enabled = settings_data.get("transaction_notifications", True)
+                price_alerts_enabled = settings_data.get("price_alerts", False)
+                two_factor_enabled = settings_data.get("two_factor_enabled", False)
+                currency_display = settings_data.get("currency_display", "USD")
 
-<b>Wallet Info:</b>
-• Balance: {balance_data.get("balance", 0):.6f} XRP
-• Address: <code>{balance_data.get("address", "N/A")}</code>
-• Network: XRP TestNet
+                username_text = (
+                    f"@{escape_html(display_username)}"
+                    if display_username
+                    else "Not Set"
+                )
 
-<b>Settings:</b>
-• Price Alerts: {"✅" if settings_data.get("price_alerts", False) else "❌"}
-• TX Notifications: """ f"""{"✅" if settings_data.get("transaction_notifications", True) else "❌"}
-• Currency: {settings_data.get("currency_display", "USD")}
-• 2FA: {"✅" if settings_data.get("two_factor_enabled", False) else "❌"}
+                created_text = escape_html(created_formatted)
+                currency_text = escape_html(str(currency_display))
 
-<i>Manage your settings and preferences below.</i>
-"""
+                message = (
+                    "👤 <b>Your Profile</b>\n\n"
+                    "<b>Account Info:</b>\n"
+                    f"• Name: {escape_html(display_first_name or 'N/A')} "
+                    f"{escape_html(display_last_name or '')}\n"
+                    f"• Username: {username_text}\n"
+                    f"• Telegram ID: <code>{user.id}</code>\n"
+                    f"• Joined: {created_text}\n\n"
+                    "<b>Wallet Info:</b>\n"
+                    f"• Balance: {balance_value:.6f} XRP\n"
+                    f"• Address: <code>{address_html}</code>\n"
+                    "• Network: XRP TestNet\n\n"
+                    "<b>Settings:</b>\n"
+                    f"• Price Alerts: {'✅' if price_alerts_enabled else '❌'}\n"
+                    f"• TX Notifications: {'✅' if notifications_enabled else '❌'}\n"
+                    f"• Currency: {currency_text}\n"
+                    f"• 2FA: {'✅' if two_factor_enabled else '❌'}\n\n"
+                    "<i>Manage your settings and preferences below.</i>"
+                )
 
                 keyboard = InlineKeyboardMarkup(
                     [
