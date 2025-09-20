@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from pydantic import (  # type: ignore
+from pydantic import (
     BaseModel,
     ConfigDict,
     Field,

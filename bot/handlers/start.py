@@ -26,6 +26,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Check if user already exists
+    user_exists = False
     try:
         async with httpx.AsyncClient() as client:
             api_url = context.bot_data.get("api_url", "http://localhost:8000")
@@ -40,15 +41,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             if response.status_code == 200:
-                # User exists, show returning user message
-                await show_returning_user_welcome(update, context)
-                return
+                user_exists = True
+            elif response.status_code == 404:
+                user_exists = False
+            else:
+                # Other status codes - treat as user doesn't exist for safety
+                logger.warning(
+                    f"Unexpected status code {response.status_code} when checking user {user.id}"
+                )
+                user_exists = False
 
     except Exception as e:
-        # User doesn't exist yet, continue with onboarding
+        # User doesn't exist or API error, continue with onboarding
         logger.debug(
             f"User {user.id} not found in system or API error, continuing with onboarding: {e}"
         )
+        user_exists = False
+
+    # Route based on user existence
+    if user_exists:
+        await show_returning_user_welcome(update, context)
+        return
 
     # Show wallet creation options for new users
     safe_first_name = escape_html(user.first_name or "User")
@@ -121,23 +134,26 @@ async def show_returning_user_welcome(update: Update, context: ContextTypes.DEFA
 
                 # Add inline keyboard for quick actions
                 keyboard = keyboards.main_menu()
-                await update.message.reply_text(
-                    message, parse_mode=ParseMode.HTML, reply_markup=keyboard
-                )
+                if update.message:
+                    await update.message.reply_text(
+                        message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                    )
             else:
-                await update.message.reply_text(
-                    format_error_message(
-                        "Could not fetch your wallet information. Please try again."
-                    ),
-                    parse_mode=ParseMode.HTML,
-                )
+                if update.message:
+                    await update.message.reply_text(
+                        format_error_message(
+                            "Could not fetch your wallet information. Please try again."
+                        ),
+                        parse_mode=ParseMode.HTML,
+                    )
 
     except Exception as e:
         logger.error(f"Error in show_returning_user_welcome: {e}")
-        await update.message.reply_text(
-            format_error_message("An error occurred. Please try again."),
-            parse_mode=ParseMode.HTML,
-        )
+        if update.message:
+            await update.message.reply_text(
+                format_error_message("An error occurred. Please try again."),
+                parse_mode=ParseMode.HTML,
+            )
 
 
 async def handle_create_new_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):  # noqa: ARG001
@@ -358,7 +374,8 @@ async def handle_back_to_start(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     # Clear any user state
-    context.user_data.clear()
+    if context.user_data:
+        context.user_data.clear()
 
     # Restart the start command flow
     await start_command(update, context)
@@ -369,7 +386,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):  # n
     # Handle both message and callback query
     if update.message:
         reply_func = update.message.reply_text
-    elif update.callback_query:
+    elif update.callback_query and update.callback_query.message:
         reply_func = update.callback_query.message.edit_text
         await update.callback_query.answer()
     else:

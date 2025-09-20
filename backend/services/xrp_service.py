@@ -55,6 +55,7 @@ class XRPService:
         Returns:
         -------
             bool: True if successfully funded, False otherwise
+
         """
         try:
             import httpx

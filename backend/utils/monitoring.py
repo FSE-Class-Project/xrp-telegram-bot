@@ -19,11 +19,11 @@ FastApiIntegration = None
 SqlalchemyIntegration = None
 
 try:
-    import sentry_sdk as _sentry_sdk  # type: ignore
-    from sentry_sdk.integrations.fastapi import (  # type: ignore
+    import sentry_sdk as _sentry_sdk
+    from sentry_sdk.integrations.fastapi import (
         FastApiIntegration as _FastApiIntegration,
     )
-    from sentry_sdk.integrations.sqlalchemy import (  # type: ignore
+    from sentry_sdk.integrations.sqlalchemy import (
         SqlalchemyIntegration as _SqlalchemyIntegration,
     )
 
@@ -375,7 +375,7 @@ class HealthChecker:
             # Simple server_info request
             start_time = time.time()
             # Instantiate the ServerInfo model instead of using a dict
-            response = xrp_service.client.request(ServerInfo())
+            response = await xrp_service.client.request(ServerInfo())
             response_time = time.time() - start_time
 
             if response.is_successful():
@@ -388,7 +388,9 @@ class HealthChecker:
                 return {
                     "status": "degraded",
                     "error": "Connection established but unhealthy",
-                    "details": response.result.get("error_message") or response.result,
+                    "details": response.result.get("error_message")
+                    if hasattr(response, "result") and response.result
+                    else "Unknown error",
                 }
         except ImportError as e:
             return {

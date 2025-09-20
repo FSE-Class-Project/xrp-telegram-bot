@@ -3,13 +3,13 @@
 import logging
 from typing import Any
 
-from fastapi import (  # type: ignore[import-not-found]
+from fastapi import (
     APIRouter,
     BackgroundTasks,
     HTTPException,
     Request,
 )
-from fastapi.responses import JSONResponse  # type: ignore[import-not-found]
+from fastapi.responses import JSONResponse
 from telegram import Update
 from telegram.ext import Application
 

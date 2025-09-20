@@ -2,9 +2,9 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
-from fastapi import (  # type: ignore
+from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
@@ -12,7 +12,7 @@ from fastapi import (  # type: ignore
     Response,
     status,
 )
-from pydantic import BaseModel, Field  # type: ignore
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.api.auth import verify_api_key
@@ -107,7 +107,7 @@ async def get_user_settings(
             db.refresh(settings)
 
         return SettingsResponse(
-            user_id=user.id,
+            user_id=cast(int, user.id),
             price_alerts=settings.price_alerts,
             transaction_notifications=settings.transaction_notifications,
             currency_display=settings.currency_display,
@@ -181,7 +181,7 @@ async def update_user_settings(
         logger.info(f"Updated settings for user telegram_id {telegram_id}")
 
         return SettingsResponse(
-            user_id=user.id,
+            user_id=cast(int, user.id),
             price_alerts=settings.price_alerts,
             transaction_notifications=settings.transaction_notifications,
             currency_display=settings.currency_display,
@@ -254,7 +254,7 @@ async def toggle_user_setting(
             )
 
         return SettingsResponse(
-            user_id=user.id,
+            user_id=cast(int, user.id),
             price_alerts=settings.price_alerts,
             transaction_notifications=settings.transaction_notifications,
             currency_display=settings.currency_display,
@@ -340,10 +340,10 @@ async def export_user_data(
         logger.info(f"Exported data for telegram_id {telegram_id}")
 
         return UserExportData(
-            user_id=user.id,
-            telegram_id=user.telegram_id,
-            telegram_username=user.telegram_username,
-            created_at=user.created_at,
+            user_id=cast(int, user.id),
+            telegram_id=cast(str, user.telegram_id),
+            telegram_username=cast(str | None, user.telegram_username),
+            created_at=cast(datetime, user.created_at),
             wallet_address=user.wallet.xrp_address if user.wallet else None,
             current_balance=current_balance,
             transaction_count=total_transactions,
@@ -396,7 +396,7 @@ async def delete_user_account(
         # 4. Implement a grace period
 
         # For now, we'll just mark as inactive instead of hard delete
-        user.is_active = False
+        user.is_active = False  # type: ignore[assignment]
         if user.settings:
             db.delete(user.settings)
         if user.wallet:

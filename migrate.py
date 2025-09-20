@@ -13,6 +13,7 @@ from alembic.script import ScriptDirectory
 # Add the project root to the path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from backend.config import settings
 from backend.database.connection import engine, get_alembic_config
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 def create_migration(message: str) -> None:
     """Create a new migration."""
     try:
-        alembic_cfg = get_alembic_config()
+        alembic_cfg = get_alembic_config(settings.DATABASE_URL)
         command.revision(alembic_cfg, message=message, autogenerate=True)
         logger.info(f"Created migration: {message}")
     except Exception as e:
@@ -33,7 +34,7 @@ def create_migration(message: str) -> None:
 def upgrade_database(revision: str = "head") -> None:
     """Upgrade database to specified revision."""
     try:
-        alembic_cfg = get_alembic_config()
+        alembic_cfg = get_alembic_config(settings.DATABASE_URL)
         command.upgrade(alembic_cfg, revision)
         logger.info(f"Database upgraded to {revision}")
     except Exception as e:
@@ -44,7 +45,7 @@ def upgrade_database(revision: str = "head") -> None:
 def downgrade_database(revision: str) -> None:
     """Downgrade database to specified revision."""
     try:
-        alembic_cfg = get_alembic_config()
+        alembic_cfg = get_alembic_config(settings.DATABASE_URL)
         command.downgrade(alembic_cfg, revision)
         logger.info(f"Database downgraded to {revision}")
     except Exception as e:
@@ -55,11 +56,14 @@ def downgrade_database(revision: str) -> None:
 def show_current_revision() -> None:
     """Show current database revision."""
     try:
+        if engine is None:
+            logger.error("Database engine not initialized")
+            sys.exit(1)
         with engine.connect() as connection:
             context = MigrationContext.configure(connection)
             current_rev = context.get_current_revision()
 
-        alembic_cfg = get_alembic_config()
+        alembic_cfg = get_alembic_config(settings.DATABASE_URL)
         script = ScriptDirectory.from_config(alembic_cfg)
         head_rev = script.get_current_head()
 
@@ -79,7 +83,7 @@ def show_current_revision() -> None:
 def show_history() -> None:
     """Show migration history."""
     try:
-        alembic_cfg = get_alembic_config()
+        alembic_cfg = get_alembic_config(settings.DATABASE_URL)
         command.history(alembic_cfg, verbose=True)
     except Exception as e:
         logger.error(f"Failed to show history: {e}")
@@ -89,7 +93,7 @@ def show_history() -> None:
 def stamp_database(revision: str) -> None:
     """Stamp database with specified revision without running migrations."""
     try:
-        alembic_cfg = get_alembic_config()
+        alembic_cfg = get_alembic_config(settings.DATABASE_URL)
         command.stamp(alembic_cfg, revision)
         logger.info(f"Database stamped with revision {revision}")
     except Exception as e:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Development utilities for XRP Telegram Bot
+"""Development utilities for XRP Telegram Bot.
+
 Useful commands for testing and debugging.
 """
 
@@ -123,6 +124,9 @@ async def test_database():
         from backend.database.connection import SessionLocal
         from backend.database.models import User
 
+        if SessionLocal is None:
+            print("   Database not initialized")
+            return False
         db = SessionLocal()
         user_count = db.query(User).count()
         db.close()
@@ -177,6 +181,9 @@ async def reset_database():
     print("Resetting database...")
 
     try:
+        if engine is None:
+            print("   Engine not initialized")
+            return
         # Drop all tables
         Base.metadata.drop_all(bind=engine)
         print("   Dropped all tables")

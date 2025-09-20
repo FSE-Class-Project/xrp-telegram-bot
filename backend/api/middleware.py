@@ -2,14 +2,15 @@
 
 import logging
 from collections.abc import Callable
+from typing import cast
 
-from fastapi import FastAPI, Request  # type: ignore
-from slowapi import Limiter  # type: ignore[import-not-found]
-from slowapi.errors import RateLimitExceeded  # type: ignore[import-not-found]
-from slowapi.util import get_remote_address  # type: ignore[import-not-found]
-from starlette.middleware.base import BaseHTTPMiddleware  # type: ignore[import-not-found]
-from starlette.requests import Request as StarletteRequest  # type: ignore[import-not-found]
-from starlette.responses import JSONResponse, Response  # type: ignore[import-not-found]
+from fastapi import FastAPI, Request
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import JSONResponse, Response
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ limiter = create_limiter()
 class IdempotencyMiddleware(BaseHTTPMiddleware):
     """Middleware to handle idempotency keys in request headers."""
 
-    async def dispatch(self, request: StarletteRequest, call_next) -> Response:
+    async def dispatch(self, request: StarletteRequest, call_next: Callable) -> Response:
         """Process the request and add idempotency key to state if present."""
         # Check for idempotency key in headers
         idempotency_key = request.headers.get("Idempotency-Key")
@@ -96,7 +97,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         # Continue processing
         response = await call_next(request)
-        return response
+        return cast(Response, response)
 
 
 def add_idempotency_middleware(app: FastAPI) -> None:
@@ -115,7 +116,7 @@ def get_idempotency_key(request: Request) -> str | None:
 
     # Try request state (set by middleware)
     if hasattr(request, "state") and hasattr(request.state, "idempotency_key"):
-        return request.state.idempotency_key
+        return str(request.state.idempotency_key)
 
     return None
 

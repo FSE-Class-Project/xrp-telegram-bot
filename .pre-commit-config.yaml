@@ -22,23 +22,23 @@ exclude: |
   )$
 
 repos:
-  # Ruff - Fast Python linter and formatter (replaces flake8, isort, black, and more)
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
-    hooks:
-      # Run the linter first
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      # Run the formatter (Ruff's built-in formatter)
-      - id: ruff-format
-
-  # MyPy - Static type checker
+  # MyPy - Static type checker (run FIRST to avoid conflicts)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
     hooks:
       - id: mypy
         additional_dependencies: [types-requests, types-redis]
         args: [--config-file=pyproject.toml]
+
+  # Ruff - Fast Python linter and formatter (run AFTER MyPy)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      # Run the formatter first (safest)
+      - id: ruff-format
+      # Run the linter with fixes (more risky, so last)
+      - id: ruff
+        args: [--fix]  # Removed --exit-non-zero-on-fix to be less aggressive
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -105,7 +105,8 @@ async def fetch_price_data(api_url: str, api_key: str) -> dict[str, Any] | None:
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                return result if isinstance(result, dict) else None
             else:
                 logger.error(f"Price API returned status {response.status_code}")
                 return None
@@ -132,7 +133,8 @@ async def fetch_market_stats(api_url: str, api_key: str) -> dict[str, Any] | Non
                 timeout=httpx.Timeout(10.0),
             )
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                return result if isinstance(result, dict) else None
     except Exception as e:
         logger.error(f"Error fetching market stats: {e}")
     return None
@@ -149,6 +151,7 @@ def format_enhanced_price_message(
     ----
         price_data: Price data dictionary
         market_data: Optional market statistics
+        currency: Target currency for formatting
 
     Returns:
     -------
@@ -269,9 +272,10 @@ async def market_stats_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     ]
                 )
 
-                await query.message.edit_text(
-                    message, parse_mode=ParseMode.HTML, reply_markup=keyboard
-                )
+                if query.message:
+                    await query.message.edit_text(
+                        message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                    )
             else:
                 await query.answer("Failed to load market data", show_alert=True)
 

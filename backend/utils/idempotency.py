@@ -143,11 +143,11 @@ class IdempotencyManager:
         transaction_id: int | None = None,
     ) -> None:
         """Update idempotency record with operation result."""
-        record.response_status = status
+        record.response_status = status  # type: ignore[assignment]
         if response_data:
-            record.response_data = json.dumps(response_data)
+            record.response_data = json.dumps(response_data)  # type: ignore[assignment]
         if transaction_id:
-            record.transaction_id = transaction_id
+            record.transaction_id = transaction_id  # type: ignore[assignment]
 
         self.db.commit()
 
@@ -257,7 +257,7 @@ class TransactionIdempotency:
         }
 
         await self.manager.update_idempotency_record(
-            record, "success", response_data, transaction.id
+            record, "success", response_data, int(transaction.id) if transaction.id else None
         )
 
 

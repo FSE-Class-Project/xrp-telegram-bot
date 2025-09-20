@@ -1,4 +1,5 @@
-"""Performance tests:
+"""Performance tests.
+
 - Simulate user sign ups
 - Simulate peer-to-peer payments
 - Generate synthetic users.
@@ -21,7 +22,7 @@ class PerformanceTestSuite:
     def __init__(self, api_url: str = "http://localhost:8000"):
         self.api_url = api_url
         self.faker = Faker()
-        self.results = {
+        self.results: dict[str, list[dict[str, Any]]] = {
             "signups": [],
             "transactions": [],
             "balance_checks": [],

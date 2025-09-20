@@ -1,7 +1,7 @@
 import os
 from unittest.mock import patch
 
-import pytest  # type: ignore[import-not-found]
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

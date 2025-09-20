@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Generate a test wallet for XRP TestNet
+"""Generate a test wallet for XRP TestNet.
+
 Creates a new wallet and funds it using the TestNet faucet.
 """
 

@@ -1,7 +1,7 @@
 import os
 
-from pydantic import Field  # type: ignore[import-not-found]
-from pydantic_settings import BaseSettings, SettingsConfigDict  # type: ignore[import-not-found]
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):

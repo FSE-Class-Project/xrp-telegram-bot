@@ -495,7 +495,8 @@ Send your new username in the next message, or use the buttons below:
         await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
     # Set user state to expect username input
-    context.user_data["awaiting_username_update"] = True
+    if context.user_data is not None:
+        context.user_data["awaiting_username_update"] = True
 
 
 async def sync_telegram_data_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -549,11 +550,12 @@ async def handle_username_update(update: Update, context: ContextTypes.DEFAULT_T
         return
 
     # Check if user is in username update state
-    if not context.user_data.get("awaiting_username_update"):
+    if not context.user_data or not context.user_data.get("awaiting_username_update"):
         return
 
     # Clear the state
-    context.user_data.pop("awaiting_username_update", None)
+    if context.user_data:
+        context.user_data.pop("awaiting_username_update", None)
 
     new_username = update.message.text.strip()
 

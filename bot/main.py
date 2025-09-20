@@ -1,7 +1,7 @@
 import logging
 import os
 
-from dotenv import load_dotenv  # type: ignore[import-not-found]
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -106,6 +106,8 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     # --- Navigation stack management ---
     user_data = context.user_data
+    if user_data is None:
+        return
     nav_stack = user_data.setdefault("nav_stack", [])
     current_menu = user_data.get("current_menu", "main_menu")
 
@@ -348,24 +350,27 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         user_data["current_menu"] = "settings"
     elif data in ["retry", "cancel_send", "confirm_send"]:
         if data == "retry":
-            await query.message.edit_text(
-                ("🔄 <b>Retry</b>\n\nPlease try your last action again."),
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu(),
-            )
+            if query.message:
+                await query.message.edit_text(
+                    ("🔄 <b>Retry</b>\n\nPlease try your last action again."),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboards.main_menu(),
+                )
         elif data == "cancel_send":
-            await query.message.edit_text(
-                ("❌ <b>Transaction Cancelled</b>\n\nTransaction has been cancelled."),
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu(),
-            )
+            if query.message:
+                await query.message.edit_text(
+                    ("❌ <b>Transaction Cancelled</b>\n\nTransaction has been cancelled."),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboards.main_menu(),
+                )
         elif data == "confirm_send":
             logger.info("Transaction confirmation requested")
-            await query.message.edit_text(
-                ("✅ <b>Transaction Confirmed</b>\n\nProcessing your transaction..."),
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboards.main_menu(),
-            )
+            if query.message:
+                await query.message.edit_text(
+                    ("✅ <b>Transaction Confirmed</b>\n\nProcessing your transaction..."),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=keyboards.main_menu(),
+                )
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):

@@ -203,7 +203,8 @@ def format_balance_info(
         address: XRP address
         balance: Total balance
         available: Available balance
-        usd_value: USD value
+        fiat_value: Fiat currency value
+        fiat_currency: Fiat currency code
         last_updated: Last update timestamp
 
     Returns:

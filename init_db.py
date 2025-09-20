@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Database initialization script for production deployment.
+
 Run this after deployment to initialize the database.
 
 Usage:

@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-import pytest  # type: ignore[import-not-found]
+import pytest
 
 
 def test_bot_initialization():

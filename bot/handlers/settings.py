@@ -20,7 +20,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if update.message:
         reply_func = update.message.reply_text
         user_id = update.effective_user.id if update.effective_user else None
-    elif update.callback_query:
+    elif update.callback_query and update.callback_query.message:
         reply_func = update.callback_query.message.edit_text
         await update.callback_query.answer()
         user_id = update.callback_query.from_user.id
@@ -106,7 +106,10 @@ async def notification_settings(update: Update, context: ContextTypes.DEFAULT_TY
                 ]
             )
 
-            await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+            if query.message:
+                await query.message.edit_text(
+                    message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                )
         else:
             await query.answer("Could not load notification settings", show_alert=True)
 
@@ -169,11 +172,12 @@ Select your preferred currency for displaying XRP values:
                 ]
             )
 
-            await query.message.edit_text(
-                message,
-                parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-            )
+            if query.message:
+                await query.message.edit_text(
+                    message,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
         else:
             await query.answer("Could not load currency settings", show_alert=True)
 
@@ -234,7 +238,10 @@ async def security_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 ]
             )
 
-            await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+            if query.message:
+                await query.message.edit_text(
+                    message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                )
         else:
             await query.answer("Could not load security settings", show_alert=True)
 
@@ -320,7 +327,8 @@ async def fetch_user_settings(api_url: str, api_key: str, user_id: int) -> dict[
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                return result if isinstance(result, dict) else None
             else:
                 logger.error(f"Settings API returned status {response.status_code}")
                 return None
@@ -467,7 +475,8 @@ elements are in English.
             ]
         )
 
-        await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+        if query.message:
+            await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Error in language_settings: {e}")
@@ -533,9 +542,10 @@ Your data export has been prepared:
                     ]
                 )
 
-                await query.message.edit_text(
-                    message, parse_mode=ParseMode.HTML, reply_markup=keyboard
-                )
+                if query.message:
+                    await query.message.edit_text(
+                        message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                    )
             else:
                 await query.answer("Failed to export data", show_alert=True)
 
@@ -580,4 +590,5 @@ Are you absolutely sure you want to delete your account?
         ]
     )
 
-    await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+    if query.message:
+        await query.message.edit_text(message, parse_mode=ParseMode.HTML, reply_markup=keyboard)

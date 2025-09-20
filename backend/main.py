@@ -3,11 +3,12 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import cast
 
-import uvicorn  # type: ignore
-from fastapi import FastAPI, Request  # type: ignore
-from fastapi.middleware.cors import CORSMiddleware  # type: ignore
-from fastapi.responses import JSONResponse  # type: ignore
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from telegram.ext import Application
 
 from .api.middleware import add_idempotency_middleware, setup_rate_limiting
@@ -260,7 +261,7 @@ if settings.ENVIRONMENT == "production":
 else:
     rate_limits = ["200/minute", "2000/hour"]
 
-setup_rate_limiting(app, default_limits=rate_limits)
+setup_rate_limiting(app, default_limits=cast(list, rate_limits))
 
 # Add idempotency middleware
 add_idempotency_middleware(app)

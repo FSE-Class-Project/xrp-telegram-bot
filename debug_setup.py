@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""XRP Telegram Bot - Debug & Setup Validation Script
+"""XRP Telegram Bot - Debug & Setup Validation Script.
+
 Cross-platform script to help users get up and running on Mac and Windows.
 """
 

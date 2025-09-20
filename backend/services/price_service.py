@@ -122,16 +122,16 @@ class PriceService:
         cache_key = f"price:xrp:history:{days}d_{currency}"
         cached_history = self.cache.cache.get_json(cache_key)
 
-        if cached_history:
+        if cached_history and isinstance(cached_history, dict):
             cached_history["from_cache"] = True
-            return cached_history
+            return cached_history  # type: ignore[no-any-return]
 
         try:
             async with httpx.AsyncClient() as client:
                 url = f"{self.api_url}/coins/ripple/market_chart"
                 params = {
                     "vs_currency": currency,
-                    "days": days,
+                    "days": str(days),
                     "interval": "daily" if days > 1 else "hourly",
                 }
 
@@ -188,9 +188,9 @@ class PriceService:
         """Get comprehensive XRP market statistics."""
         # Try cache first
         cached_stats = self.cache.cache.get_json("market:xrp:stats")
-        if cached_stats:
+        if cached_stats and isinstance(cached_stats, dict):
             cached_stats["from_cache"] = True
-            return cached_stats
+            return cached_stats  # type: ignore[no-any-return]
 
         try:
             async with httpx.AsyncClient() as client:

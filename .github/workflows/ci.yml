@@ -56,21 +56,21 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        # Lint with ruff (combines flake8, isort, and more)
+        # Lint with ruff (replaces flake8, isort, and more)
         ruff check backend/ bot/ tests/ --output-format=github
       continue-on-error: true  # Don't fail the whole job on linting warnings
 
     - name: Format check with ruff
       id: ruff-check
       run: |
-        # Check if code is formatted (line-length=79 from pyproject.toml)
+        # Check if code is formatted (line-length=100 from pyproject.toml)
         ruff format --check backend/ bot/ tests/ || echo "formatting_needed=true" >> $GITHUB_OUTPUT
       continue-on-error: true
 
     - name: Show formatting diff
       if: steps.ruff-check.outputs.formatting_needed == 'true'
       run: |
-        echo "The following files need formatting (line-length=79):"
+        echo "The following files need formatting (line-length=100):"
         ruff format --diff backend/ bot/ tests/
         echo ""
         echo "To fix locally, run: ruff format backend/ bot/ tests/"

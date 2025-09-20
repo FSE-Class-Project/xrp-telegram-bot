@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Annotated, TypeAlias, cast
 
 import httpx
-from fastapi import (  # type: ignore
+from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
@@ -16,7 +16,7 @@ from fastapi import (  # type: ignore
     Response,
     status,
 )
-from pydantic import (  # type: ignore
+from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
@@ -34,6 +34,7 @@ from backend.api.middleware import (
 )
 from backend.config import settings
 from backend.database.connection import get_db
+from backend.database.models import Transaction as TransactionModel
 from backend.database.models import User
 from backend.services import user_service, xrp_service
 
@@ -481,14 +482,14 @@ async def update_user_profile(
 
         # Update only provided fields
         if profile_update.telegram_username is not None:
-            user.telegram_username = profile_update.telegram_username
+            user.telegram_username = profile_update.telegram_username  # type: ignore[assignment]
         if profile_update.telegram_first_name is not None:
-            user.telegram_first_name = profile_update.telegram_first_name
+            user.telegram_first_name = profile_update.telegram_first_name  # type: ignore[assignment]
         if profile_update.telegram_last_name is not None:
-            user.telegram_last_name = profile_update.telegram_last_name
+            user.telegram_last_name = profile_update.telegram_last_name  # type: ignore[assignment]
 
         # Update timestamp
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
         # Commit changes
         db.commit()
@@ -722,9 +723,9 @@ async def send_transaction(
 
     if existing:
         # Return existing transaction result
-        if hasattr(existing, "tx_hash"):  # It's a Transaction
+        if isinstance(existing, TransactionModel):
             return TransactionResponse(
-                success=existing.status == "success",
+                success=bool(existing.status == "success"),
                 tx_hash=str(existing.tx_hash) if existing.tx_hash else None,
                 amount=Decimal(str(existing.amount)),
                 fee=Decimal(str(existing.fee)),

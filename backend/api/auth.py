@@ -1,7 +1,7 @@
 """API Authentication."""
 
-from fastapi import HTTPException, Security  # type: ignore
-from fastapi.security import APIKeyHeader  # type: ignore
+from fastapi import HTTPException, Security
+from fastapi.security import APIKeyHeader
 
 from backend.config import settings
 

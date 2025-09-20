@@ -16,6 +16,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 def ensure_message(func: F) -> F:
     """Ensure update.message exists before processing.
+
     Prevents None attribute errors in handlers.
     """
 
