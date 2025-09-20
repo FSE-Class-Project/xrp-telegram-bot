@@ -1,6 +1,5 @@
 """API routes."""
 
-from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
@@ -48,7 +47,7 @@ from .middleware import (
     limiter,
     rate_limit_transactions,
 )
-from .schemas import ErrorDetail, ErrorResponse
+from .schemas import ErrorDetail, ErrorResponse, SendTransactionRequest
 
 # Type aliases
 TelegramID: TypeAlias = str
@@ -267,32 +266,7 @@ class UserResponse(BaseModel):
     balance: Decimal
 
 
-class SendTransactionRequest(BaseModel):
-    """Send transaction request model."""
-
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    from_telegram_id: TelegramID
-    to_address: XRPAddress
-    amount: Decimal
-    memo: str | None = Field(None, max_length=512)
-
-    @field_validator("to_address")
-    @classmethod
-    def validate_xrp_address(cls, v: str) -> str:
-        """Validate XRP address format."""
-        if not xrp_service.validate_address(v):
-            raise ValueError("Invalid XRP address format")
-        return v
-
-    @field_validator("amount")
-    @classmethod
-    def validate_amount(cls, v: Decimal) -> Decimal:
-        """Comprehensive XRP amount validation using network constants."""
-        return validate_xrp_amount(v)
-
-
-class TransactionResponse(BaseModel):
+class TransactionApiResponse(BaseModel):
     """Transaction response model."""
 
     success: bool
@@ -303,7 +277,7 @@ class TransactionResponse(BaseModel):
     ledger_index: int | None = None
 
     @model_validator(mode="after")
-    def validate_response(self) -> TransactionResponse:
+    def validate_response(self) -> "TransactionApiResponse":
         """Ensure response has either success data or error."""
         if self.success and not self.tx_hash:
             raise ValueError("Successful transaction must have tx_hash")
@@ -376,7 +350,7 @@ class TransactionValidationRequest(BaseModel):
     @field_validator("amount")
     @classmethod
     def validate_amount(cls, v: Decimal) -> Decimal:
-        """Use the same validation as SendTransactionRequest."""
+        """Validate XRP amount using comprehensive validation."""
         return validate_xrp_amount(v)
 
 
@@ -839,7 +813,7 @@ async def validate_transaction(
 
 @router.post(
     "/transaction/send",
-    response_model=TransactionResponse,
+    response_model=TransactionApiResponse,
     dependencies=[Depends(verify_api_key)],
     responses={
         200: {"description": "Transaction sent successfully"},
@@ -856,7 +830,7 @@ async def send_transaction(
     transaction: SendTransactionRequest,
     db: Session = Depends(get_db),
     idempotency_key: str | None = Depends(get_idempotency_key),
-) -> TransactionResponse:
+) -> TransactionApiResponse:
     """Send XRP to another address with comprehensive validation and idempotency."""
     from ..utils.idempotency import IdempotencyKey, TransactionIdempotency
 
@@ -928,7 +902,7 @@ async def send_transaction(
     if existing:
         # Return existing transaction result
         if isinstance(existing, TransactionModel):
-            return TransactionResponse(
+            return TransactionApiResponse(
                 success=bool(existing.status == "success"),
                 tx_hash=str(existing.tx_hash) if existing.tx_hash else None,
                 amount=Decimal(str(existing.amount)),
@@ -944,7 +918,7 @@ async def send_transaction(
                 import json
 
                 response_data = json.loads(str(existing.response_data))
-                return TransactionResponse(
+                return TransactionApiResponse(
                     success=True,
                     tx_hash=response_data.get("tx_hash"),
                     amount=Decimal(str(response_data.get("amount", 0))),
@@ -991,7 +965,7 @@ async def send_transaction(
         if tx_record:
             await tx_idempotency.link_transaction_to_idempotency(idempotency_record, tx_record)
 
-    return TransactionResponse(
+    return TransactionApiResponse(
         success=result["success"],
         tx_hash=result.get("tx_hash"),
         amount=Decimal(str(result.get("amount", 0))),
