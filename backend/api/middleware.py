@@ -1,5 +1,7 @@
 """API Middleware for rate limiting, request validation, and idempotency."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable
 from typing import cast

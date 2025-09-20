@@ -1,9 +1,11 @@
 """API Authentication."""
 
+from __future__ import annotations
+
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 
-from backend.config import settings
+from ..config import settings
 
 api_key_header = APIKeyHeader(name="X-API-Key")
 

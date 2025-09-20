@@ -1,5 +1,7 @@
 """Telegram bot service for webhook mode integration."""
 
+from __future__ import annotations
+
 import logging
 import os
 

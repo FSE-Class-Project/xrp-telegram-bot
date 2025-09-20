@@ -29,6 +29,7 @@ repos:
       - id: mypy
         additional_dependencies: [types-requests, types-redis]
         args: [--config-file=pyproject.toml]
+        exclude: ^alembic/
 
   # Ruff - Fast Python linter and formatter (run AFTER MyPy)
   - repo: https://github.com/astral-sh/ruff-pre-commit

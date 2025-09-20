@@ -1,15 +1,18 @@
 # bot/handlers/start.py
 import logging
+import os
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
+from ..constants import ACCOUNT_RESERVE, FAUCET_AMOUNT
 from ..keyboards.menus import keyboards
 from ..utils.formatting import (
     escape_html,
     format_error_message,
+    format_error_message_with_title,
     format_funding_instructions,
     format_success_message,
     format_xrp_address,
@@ -171,7 +174,7 @@ async def handle_create_new_wallet(update: Update, context: ContextTypes.DEFAULT
     funding_message = (
         "🔧 <b>Wallet Funding Options</b>\n\n"
         "How would you like to fund your new wallet?\n\n"
-        "💰 <b>Auto-Fund:</b> Automatically request 10 TestNet XRP from the faucet\n"
+        f"💰 <b>Auto-Fund:</b> Automatically request {FAUCET_AMOUNT} TestNet XRP from the faucet\n"
         "🎯 <b>Manual:</b> I'll create the wallet and you can fund it yourself\n\n"
         "Choose your preferred option:"
     )
@@ -180,7 +183,7 @@ async def handle_create_new_wallet(update: Update, context: ContextTypes.DEFAULT
         [
             [
                 InlineKeyboardButton(
-                    "💰 Auto-Fund (10 XRP)",
+                    f"💰 Auto-Fund ({FAUCET_AMOUNT} XRP)",
                     callback_data="create_wallet_auto",
                 )
             ],
@@ -290,21 +293,32 @@ async def handle_import_wallet(update: Update, context: ContextTypes.DEFAULT_TYP
 
     import_message = (
         "📥 <b>Import Existing Wallet</b>\n\n"
-        "To import your existing XRP wallet, I'll need your wallet's secret/seed phrase.\n\n"
-        "⚠️ <b>Security Notice:</b>\n"
+        "⚠️ <b>CRITICAL SAFETY WARNING</b> ⚠️\n\n"
+        "🚨 <b>TESTNET ONLY:</b> This bot is for TestNet only!\n"
+        "• Do NOT import wallets with real MainNet XRP\n"
+        "• Do NOT import your primary/main wallet\n"
+        "• Use only TestNet wallets or empty wallets\n\n"
+        "🔒 <b>Security Measures:</b>\n"
+        "• We check MainNet for existing funds\n"
+        "• Wallets with MainNet XRP will be REJECTED\n"
         "• Your secret will be encrypted before storage\n"
-        "• Only import TestNet wallets for safety\n"
-        "• Never share your secret with anyone else\n\n"
-        "🔒 <b>How to import:</b>\n"
-        "1. Click 'Proceed' below\n"
-        "2. Send me your wallet secret in the next message\n"
-        "3. I'll validate and import your wallet\n\n"
-        "Ready to proceed?"
+        "• All operations are TestNet only\n\n"
+        "💡 <b>Recommended:</b> Create a new TestNet wallet instead\n\n"
+        "Only proceed if you understand these risks and have a TestNet-only wallet."
     )
 
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🔒 Proceed with Import", callback_data="proceed_import")],
+            [
+                InlineKeyboardButton(
+                    "🚨 I Understand - TestNet Only", callback_data="confirm_testnet_import"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "✨ Create New Wallet Instead", callback_data="create_new_wallet"
+                )
+            ],
             [InlineKeyboardButton("⬅️ Back", callback_data="back_to_start")],
         ]
     )
@@ -331,7 +345,7 @@ async def handle_learn_more(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• TestNet: For testing, uses fake XRP\n"
         "• MainNet: Real network with real XRP value\n\n"
         "💰 <b>Account Reserve:</b>\n"
-        "• XRP accounts require a 10 XRP minimum reserve\n"
+        f"• XRP accounts require a {ACCOUNT_RESERVE} XRP minimum reserve\n"
         "• This reserve cannot be spent\n"
         "• It keeps your account active on the network\n\n"
         "🔒 <b>Security:</b>\n"
@@ -424,3 +438,169 @@ Visit the <a href="https://xrpl.org">XRP Ledger Docs</a>.
         disable_web_page_preview=True,
         reply_markup=keyboard,
     )
+
+
+# Wallet import conversation states
+WAITING_FOR_PRIVATE_KEY = "waiting_for_private_key"
+
+
+async def handle_confirm_testnet_import(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle proceeding with wallet import."""
+    query = update.callback_query
+    if not query or not query.message:
+        return
+
+    await query.answer()
+
+    # Set conversation state
+    context.user_data["import_state"] = WAITING_FOR_PRIVATE_KEY
+
+    proceed_message = (
+        "🔐 <b>Final Step: Send Your TestNet Wallet</b>\n\n"
+        "🔍 <b>Safety Check Process:</b>\n"
+        "1. I'll validate your wallet format\n"
+        "2. Check for MainNet funds (WILL REJECT if found)\n"
+        "3. Verify it's safe for TestNet use\n"
+        "4. Import only if all checks pass\n\n"
+        "📤 <b>Send your wallet credentials now:</b>\n"
+        "• Private key (starts with 'ED', 'sEd', or 's')\n"
+        "• Seed phrase (12-24 words)\n\n"
+        "⚠️ <b>Your message will be deleted immediately for security</b>\n\n"
+        "🛡️ Remember: TestNet wallets only!"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("❌ Cancel Import", callback_data="back_to_start")]]
+    )
+
+    await query.edit_message_text(proceed_message, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+
+
+async def handle_wallet_import_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle receiving the private key/seed phrase for import."""
+    if not update.message or not update.message.text:
+        return
+
+    # Check if user is in import state
+    user_data = context.user_data
+    if user_data.get("import_state") != WAITING_FOR_PRIVATE_KEY:
+        return
+
+    # Clear the import state immediately
+    user_data.pop("import_state", None)
+
+    private_input = update.message.text.strip()
+    user = update.effective_user
+
+    # Delete the user's message for security
+    try:
+        await update.message.delete()
+    except Exception as e:
+        logger.warning(f"Could not delete user message: {e}")
+
+    # Show processing message
+    processing_msg = await update.message.reply_text(
+        "🔄 <b>Processing wallet import...</b>\n\nValidating and importing your wallet...",
+        parse_mode=ParseMode.HTML,
+    )
+
+    try:
+        # Import the wallet using backend API
+        import httpx
+
+        backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{backend_url}/api/users/import-wallet",
+                json={
+                    "telegram_id": str(user.id),
+                    "telegram_username": user.username,
+                    "telegram_first_name": user.first_name,
+                    "telegram_last_name": user.last_name,
+                    "private_key": private_input,
+                },
+                timeout=30.0,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+
+                # Build success message with validation info
+                message_lines = [
+                    f"Address: {format_xrp_address(data['wallet']['xrp_address'])}",
+                    f"TestNet Balance: {data['wallet']['balance']:.6f} XRP",
+                    "",
+                ]
+
+                # Add validation warnings if any
+                validation = data.get("validation", {})
+                if validation.get("warnings"):
+                    message_lines.append("⚠️ Safety Warnings:")
+                    for warning in validation["warnings"]:
+                        message_lines.append(f"• {warning}")
+                    message_lines.append("")
+
+                message_lines.extend(
+                    [
+                        "✅ Wallet passed all safety checks",
+                        "🔒 Your wallet has been imported and encrypted securely",
+                        "🎉 You can now use all bot features with your imported wallet!",
+                    ]
+                )
+
+                success_message = format_success_message(
+                    "Wallet Imported Successfully!", message_lines
+                )
+
+                keyboard = InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("🏠 Continue to Main Menu", callback_data="main_menu")]]
+                )
+
+                await processing_msg.edit_text(
+                    success_message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                )
+
+            else:
+                error_data = response.json()
+                error_message = format_error_message_with_title(
+                    "Import Failed",
+                    [
+                        error_data.get("detail", "Unknown error occurred"),
+                        "",
+                        "Please check your private key/seed phrase and try again.",
+                        "Make sure you're using a valid XRP TestNet wallet.",
+                    ],
+                )
+
+                keyboard = InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton("🔄 Try Again", callback_data="import_wallet")],
+                        [InlineKeyboardButton("⬅️ Back", callback_data="back_to_start")],
+                    ]
+                )
+
+                await processing_msg.edit_text(
+                    error_message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+                )
+
+    except Exception as e:
+        logger.error(f"Error importing wallet: {e}")
+        error_message = format_error_message_with_title(
+            "Import Error",
+            [
+                "Failed to connect to wallet service.",
+                "Please try again later or contact support.",
+            ],
+        )
+
+        keyboard = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("🔄 Try Again", callback_data="import_wallet")],
+                [InlineKeyboardButton("⬅️ Back", callback_data="back_to_start")],
+            ]
+        )
+
+        await processing_msg.edit_text(
+            error_message, parse_mode=ParseMode.HTML, reply_markup=keyboard
+        )

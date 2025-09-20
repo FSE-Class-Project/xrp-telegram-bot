@@ -9,16 +9,18 @@ from typing import Any
 from sqlalchemy import desc  # Import desc directly
 from sqlalchemy.orm import Session
 
-# Use absolute imports to avoid issues
-from backend.database.models import (
+from ..constants import STANDARD_FEE
+
+# Use relative imports for consistency
+from ..database.models import (
     Beneficiary,
     Transaction,
     User,
     UserSettings,
     Wallet,
 )
-from backend.services.cache_service import get_cache_service
-from backend.services.xrp_service import xrp_service
+from .cache_service import get_cache_service
+from .xrp_service import xrp_service
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +109,8 @@ class UserService:
                     # Update balance
                     balance = await xrp_service.get_balance(address)
                     if balance is not None:
-                        wallet.balance = balance  # type: ignore[assignment]
-                        wallet.last_balance_update = datetime.now(timezone.utc)  # type: ignore[assignment]
+                        wallet.balance = balance
+                        wallet.last_balance_update = datetime.now(timezone.utc)
                         db.commit()
                         db.refresh(user)  # Refresh to get updated wallet
                         logger.info(f"Wallet funded successfully. New balance: {balance} XRP")
@@ -146,6 +148,78 @@ class UserService:
             telegram_first_name=telegram_first_name,
             telegram_last_name=telegram_last_name,
         )
+
+    async def create_user_with_wallet(
+        self,
+        db: Session,
+        telegram_id: str,
+        telegram_username: str | None = None,
+        telegram_first_name: str | None = None,
+        telegram_last_name: str | None = None,
+        xrp_address: str | None = None,
+        encrypted_secret: str | None = None,
+    ) -> User:
+        """Create a new user with an existing wallet.
+
+        Args:
+        ----
+            db: Database session
+            telegram_id: Telegram user ID
+            telegram_username: Telegram username
+            telegram_first_name: Telegram first name
+            telegram_last_name: Telegram last name
+            xrp_address: XRP wallet address
+            encrypted_secret: Encrypted wallet secret
+
+        Returns:
+        -------
+            User: Created user with wallet
+        """
+        # Check if user already exists
+        existing_user = self.get_user_by_telegram_id(db, telegram_id)
+        if existing_user:
+            logger.info(f"User {telegram_id} already exists, updating wallet")
+            return existing_user
+
+        # Create user
+        user = User(
+            telegram_id=telegram_id,
+            telegram_username=telegram_username,
+            telegram_first_name=telegram_first_name,
+            telegram_last_name=telegram_last_name,
+            is_active=True,
+        )
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Invalidate cache for this telegram ID
+        self.cache.invalidate_user(telegram_id)
+
+        # Create wallet with provided data
+        wallet = Wallet(
+            user_id=user.id,
+            xrp_address=xrp_address,
+            encrypted_secret=encrypted_secret,
+            balance=0.0,
+        )
+
+        db.add(wallet)
+
+        # Create default settings
+        settings = UserSettings(user_id=user.id)
+        db.add(settings)
+
+        db.commit()
+        db.refresh(user)
+
+        # Cache the new user data
+        self._cache_user_data(user)
+
+        logger.info(f"Created user {telegram_id} with imported wallet {xrp_address}")
+
+        return user
 
     def _cache_user_data(self, user: User) -> None:
         """Cache user and wallet data."""
@@ -267,7 +341,7 @@ class UserService:
                 sender_address=sender.wallet.xrp_address,
                 recipient_address=recipient_address,
                 amount=amount,
-                fee=result.get("fee", 0.00001),
+                fee=result.get("fee", float(STANDARD_FEE)),
                 tx_hash=result.get("tx_hash"),
                 ledger_index=result.get("ledger_index"),
                 status="confirmed",

@@ -15,6 +15,7 @@ from telegram import (
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
+from ..constants import ACCOUNT_RESERVE, STANDARD_FEE
 from ..keyboards.menus import keyboards
 from ..utils.formatting import (
     escape_html,
@@ -113,7 +114,7 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 keyboard, one_time_keyboard=True, resize_keyboard=True
             )
 
-            fee = 0.00001  # Standard fee
+            fee = float(STANDARD_FEE)  # Standard fee
             message = format_transaction_confirmation(address, amount, fee)
             await msg.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
             return CONFIRM
@@ -461,7 +462,7 @@ async def amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 keyboard, one_time_keyboard=True, resize_keyboard=True
             )
 
-            fee = 0.00001  # Standard fee
+            fee = float(STANDARD_FEE)  # Standard fee
             message = format_transaction_confirmation(transaction_state["address"], amount, fee)
             alias = transaction_state.get("beneficiary_alias")
             if alias:
@@ -510,7 +511,7 @@ async def address_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     keyboard = [[KeyboardButton("✅ YES"), KeyboardButton("❌ NO")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
-    fee = 0.00001  # Standard fee
+    fee = float(STANDARD_FEE)  # Standard fee
     message = format_transaction_confirmation(address, amount, fee)
     await update.message.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
     return CONFIRM
@@ -589,7 +590,7 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     low_funds_message = (
                         f"{reason_text}Your available balance is too low to "
                         "complete this transaction. XRPL accounts must keep "
-                        "<b>10 XRP</b> reserved at all times.\n\n"
+                        f"<b>{ACCOUNT_RESERVE} XRP</b> reserved at all times.\n\n"
                         "Visit the <a href='https://test.bithomp.com/en/faucet'>"
                         "XRPL Testnet Faucet</a> to top up your funds, then try again."
                     )

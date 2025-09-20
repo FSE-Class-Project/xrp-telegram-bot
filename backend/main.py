@@ -1,5 +1,7 @@
 """Main FastAPI application with integrated Telegram webhook support."""
 
+from __future__ import annotations
+
 import logging
 import os
 from contextlib import asynccontextmanager

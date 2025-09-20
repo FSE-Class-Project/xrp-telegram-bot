@@ -4,6 +4,8 @@ import html
 from datetime import datetime
 from decimal import Decimal
 
+from ..constants import ACCOUNT_RESERVE, FAUCET_AMOUNT
+
 
 def escape_html(text: str) -> str:
     """Safely escape HTML characters for Telegram HTML parsing.
@@ -152,13 +154,37 @@ def format_error_message(error: str) -> str:
     return "❌ <b>Error</b>\n\n<code>" + escaped_error + "</code>"
 
 
-def format_success_message(title: str, message: str) -> str:
+def format_error_message_with_title(title: str, error: str | list[str]) -> str:
+    """Format error message with custom title for display in Telegram.
+
+    Args:
+    ----
+        title: Error title
+        error: Error message (string or list of strings)
+
+    Returns:
+    -------
+        Formatted error message
+
+    """
+    # Safely escape title to prevent formatting conflicts
+    escaped_title = escape_html(str(title))
+
+    if isinstance(error, list):
+        error_text = "\n".join(str(line) for line in error)
+    else:
+        error_text = str(error)
+
+    return "❌ <b>" + escaped_title + "</b>\n\n" + error_text
+
+
+def format_success_message(title: str, message: str | list[str]) -> str:
     """Format success message for display in Telegram.
 
     Args:
     ----
         title: Success title
-        message: Success message
+        message: Success message (string or list of strings)
 
     Returns:
     -------
@@ -167,7 +193,13 @@ def format_success_message(title: str, message: str) -> str:
     """
     # Safely escape title to prevent formatting conflicts
     escaped_title = escape_html(str(title))
-    return "✅ <b>" + escaped_title + "</b>\n\n" + message
+
+    if isinstance(message, list):
+        message_text = "\n".join(str(line) for line in message)
+    else:
+        message_text = str(message)
+
+    return "✅ <b>" + escaped_title + "</b>\n\n" + message_text
 
 
 def format_warning_message(title: str, message: str) -> str:
@@ -305,11 +337,11 @@ def format_funding_instructions(balance: Decimal | float | str, is_mainnet: bool
     """
     balance_decimal = Decimal(str(balance))
 
-    if balance_decimal < Decimal("1"):  # Below minimum reserve
+    if balance_decimal < ACCOUNT_RESERVE:  # Below minimum reserve
         if is_mainnet:
             return (
                 "\n\n⚠️ <b>Wallet Needs Activation</b>\n"
-                "Your wallet needs at least 1 XRP to activate and transact.\n\n"
+                f"Your wallet needs at least {ACCOUNT_RESERVE} XRP to activate and transact.\n\n"
                 "<b>To fund your wallet:</b>\n"
                 "1. Copy your address above\n"
                 "2. Buy XRP from an exchange (Coinbase, Binance, etc.)\n"
@@ -320,18 +352,18 @@ def format_funding_instructions(balance: Decimal | float | str, is_mainnet: bool
         else:
             return (
                 "\n\n⚠️ <b>Wallet Needs Activation</b>\n"
-                "Your wallet needs at least 1 XRP to activate and transact.\n\n"
+                f"Your wallet needs at least {ACCOUNT_RESERVE} XRP to activate and transact.\n\n"
                 "<b>To fund your wallet:</b>\n"
                 "1. Copy your address above\n"
                 "2. Visit: <a href='https://xrpl.org/xrp-testnet-faucet.html'>\n"
                 "XRPL Testnet Faucet</a>\n"
-                "3. Paste your address and request 10 TestNet XRP\n"
+                f"3. Paste your address and request {FAUCET_AMOUNT} TestNet XRP\n"
                 "4. Check balance again in 5-10 seconds\n\n"
                 "<i>💡 On mainnet, you'd buy XRP from an exchange instead.</i>"
             )
     elif balance_decimal < Decimal("5"):  # Low balance warning
         if is_mainnet:
-            available_amount = format_xrp_amount(balance_decimal - Decimal("1"))
+            available_amount = format_xrp_amount(balance_decimal - ACCOUNT_RESERVE)
             return (
                 "\n\n💡 <b>Low Balance Notice</b>\n"
                 "You have " + available_amount + " XRP available for transactions.\n"
@@ -339,7 +371,7 @@ def format_funding_instructions(balance: Decimal | float | str, is_mainnet: bool
                 "<i>💡 Buy XRP from exchanges like Coinbase or Binance.</i>"
             )
         else:
-            available_amount = format_xrp_amount(balance_decimal - Decimal("1"))
+            available_amount = format_xrp_amount(balance_decimal - ACCOUNT_RESERVE)
             return (
                 "\n\n💡 <b>Low Balance Notice</b>\n"
                 "You have " + available_amount + " XRP available for transactions.\n"

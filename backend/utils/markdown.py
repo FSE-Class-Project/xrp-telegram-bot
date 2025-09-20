@@ -1,6 +1,8 @@
 # bot/utils/markdown.py
 """Utility functions for handling Telegram's MarkdownV2 formatting."""
 
+from __future__ import annotations
+
 
 def escape_markdown_v2(text: str, preserve_code: bool = False) -> str:
     """Escape special characters for Telegram's MarkdownV2 parse mode.

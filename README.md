@@ -1,50 +1,87 @@
 # XRP Telegram Bot
 
-A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Python-Telegram-Bot, and deployed on Render.
+A Telegram bot for XRP Ledger transactions, built with FastAPI,
+Python-Telegram-Bot, and deployed on Render.
 
 ## 🌐 Live Deployment
 
 - **API**: [https://xrp-bot-api.onrender.com](https://xrp-bot-api.onrender.com)
 - **Network**: XRP TestNet
-- **Status**: Production-ready TestNet implementation
+- **Status**: Production-ready POC
+- **Test Coverage**:
 
 ## ✨ Features
 
-### Core Functionality
+### 🏦 Wallet Management (Hybrid Model)
 
-- 🏦 **Automatic Wallet Creation** - Each user gets a secure XRP TestNet wallet *(educational feature)*
-- 💸 **Send XRP** - Send TestNet XRP to any address with confirmation flow
-- 💰 **Balance Checking** - Real-time balance updates from XRP Ledger
-- 📜 **Transaction History** - Complete transaction tracking and history
-- 📊 **Live Price Data** - Real-time XRP price from CoinGecko
-- ⚙️ **User Settings** - Customizable preferences and notifications
+- **Auto-Create Wallets** - Bot generates secure TestNet wallets for new users
+- **Import Existing Wallets** - Advanced users can import their own TestNet
+  wallets
+- **MainNet Protection** - Multi-layer safety checks prevent accidental
+  MainNet wallet imports
+- **Balance Validation** - Automatic rejection of wallets with MainNet funds
+  (>0.1 XRP)
+- **Encrypted Storage** - All private keys encrypted with AES-256 before
+  database storage
 
-### Security & Production Features
+### 💸 Transaction Features
 
-- 🔐 **Encrypted Storage** - Private keys encrypted at rest
-- 🛡️ **Rate Limiting** - Prevents abuse with configurable limits
-- 🔄 **Idempotency** - Prevents duplicate transactions
-- 📱 **Rich UI** - Inline keyboards and formatted messages
-- 🎯 **Input Validation** - Comprehensive XRP address and amount validation
-- 📈 **Monitoring** - Health checks and comprehensive logging
-- 🗄️ **Database Persistence** - PostgreSQL with SQLAlchemy ORM
+- **Send XRP** - Send TestNet XRP with multi-step confirmation flow
+- **Beneficiary Management** - Save frequently used addresses with aliases
+- **Amount Validation** - Smart validation preventing insufficient balance
+  errors
+- **Transaction Confirmation** - Review transaction details before sending
+- **Real-time Updates** - Live balance updates after transactions
+
+### 📊 Information & Monitoring
+
+- **Live Balance Checking** - Real-time balance from XRP Ledger TestNet
+- **Transaction History** - Complete paginated transaction tracking
+- **Price Data** - Live XRP price from CoinGecko API
+- **Account Details** - View wallet address, QR codes, and account info
+
+### ⚙️ User Management
+
+- **Profile Management** - Update user information and preferences
+- **Settings Configuration** - Customize notifications and display
+  preferences
+- **Account Security** - View security settings and wallet status
+- **Telegram Integration** - Seamless sync with Telegram user data
+
+### 🛡️ Security & Production Features
+
+- **Rate Limiting** - SlowAPI-based abuse prevention with configurable
+  limits
+- **Idempotency Protection** - Prevents duplicate transactions with request
+  deduplication
+- **Input Validation** - XRP address and amount validation
+- **Error Handling** - Error recovery with user-friendly messages
+- **Audit Logging** - Transaction and security event logging
+- **Health Monitoring** - health checks and metrics
 
 ## 🏗️ Architecture
 
 ### Backend (FastAPI)
 
-- **API Server**: RESTful API with OpenAPI documentation
-- **Database**: PostgreSQL with Alembic migrations
-- **XRP Integration**: Direct connection to XRP Ledger TestNet
-- **Caching**: Redis for improved performance (optional)
-- **Authentication**: API key-based security
+- **API Framework**: FastAPI with automatic OpenAPI documentation
+- **Database**: PostgreSQL with SQLAlchemy ORM and Alembic migrations
+- **XRP Integration**: Direct connection to XRP Ledger TestNet via xrpl-py
+- **Caching**: Redis-based caching for user data and API responses
+- **Security**: API key authentication, AES-256 encryption, rate limiting
+- **Services Architecture**: Modular services (XRP, User, Cache, Telegram)
+- **Monitoring**: Sentry integration, health checks, audit logging
 
 ### Frontend (Telegram Bot)
 
-- **Framework**: python-telegram-bot v20+
-- **Mode**: Webhook-based for production, polling for development
-- **UI**: Rich inline keyboards and HTML-formatted messages
-- **State Management**: Conversation handlers for multi-step flows
+- **Framework**: python-telegram-bot v20.7+ with asyncio
+- **Deployment**: Webhook-based for production, polling for development
+- **UI Components**: Inline keyboards, HTML-formatted messages,
+  conversation flows
+- **State Management**: Context-based conversation handlers for complex
+  workflows
+- **Error Handling**: Error recovery with user-friendly feedback
+- **Input Processing**: Multi-step forms, validation, and confirmation
+  flows
 
 ### Infrastructure (Render)
 
@@ -85,10 +122,8 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
 3. **Environment setup**
 
    ```bash
-
    cp .env.example .env
    # Edit .env with your configuration
-
    ```
 
 4. **Required Environment Variables**
@@ -110,7 +145,6 @@ A professional Telegram bot for XRP Ledger transactions, built with FastAPI, Pyt
 5. **Run development server**
 
    ```bash
-
    python run.py
    ```
 
@@ -130,21 +164,28 @@ This will:
 
 ## 📱 Bot Commands
 
-| Command | Description |
-|---------|-------------|
-| `/start` | Register and create wallet |
-| `/balance` | Check XRP balance |
-| `/send` | Send XRP to another address |
-| `/cancel` | Cancel ongoing transaction |
-| `/price` | View current XRP price |
-| `/history` | View transaction history |
-| `/profile` | View your profile |
-| `/settings` | Manage preferences |
-| `/help` | Show all commands |
+| Command | Description | Features |
+|---------|-------------|----------|
+| `/start` | Registration and wallet setup | Auto-create or import wallet |
+| `/balance` | Check XRP balance | Real-time balance from XRP Ledger |
+| `/send` | Send XRP to another address | Multi-step confirmation flow |
+| `/price` | View current XRP price | Live price from CoinGecko |
+| `/history` | View transaction history | Paginated history, details |
+| `/profile` | View and edit profile | Telegram sync, account management |
+| `/settings` | Manage preferences | Notifications, display settings, security |
+| `/help` | Show all commands | Interactive help system |
+
+### 🎯 Interactive Features
+
+- **Inline Keyboards** - Rich button-based navigation
+- **Conversation Flows** - Multi-step transaction processes
+- **Real-time Updates** - Live balance and price updates
+- **Error Recovery** - Graceful handling with helpful messages
+- **Beneficiary System** - Save and manage frequent recipients
 
 ### Example Usage
 
-**Send XRP:**
+#### Send XRP
 
 ```text
 /send 10 rN7n7otQDd6FczFgLdSqDtD2XZzWjfrn96
@@ -159,7 +200,8 @@ Or use the interactive flow:
 > Confirm: YES  (or NO to cancel)
 ```
 
-**Cancel Transaction:**
+#### Cancel Transaction
+
 ```text
 /cancel  (cancels any ongoing transaction setup)
 ```
@@ -168,17 +210,69 @@ Or use the interactive flow:
 
 ### Core API
 
-- `GET /api/v1/health` - Health check
-- `POST /api/v1/user/register` - Register user
-- `GET /api/v1/wallet/balance/{telegram_id}` - Get balance
-- `POST /api/v1/transaction/send` - Send transaction
-- `GET /api/v1/transaction/history/{telegram_id}` - Get history
-- `GET /api/v1/price/current` - Get XRP price
+- `GET /api/v1/health` - Health check and system status
+- `POST /api/v1/user/register` - Register user with auto-created wallet
+- `POST /api/v1/users/import-wallet` - Import TestNet wallet with safety checks
+- `GET /api/v1/wallet/balance/{telegram_id}` - Get real-time balance
+- `POST /api/v1/transaction/send` - Send XRP with validation
+- `GET /api/v1/transaction/history/{telegram_id}` - Paginated transaction history
+- `GET /api/v1/price/current` - Live XRP price data
+- `PUT /api/v1/user/profile/{telegram_id}` - Update user profile
+- `GET /api/v1/users/{telegram_id}/beneficiaries` - Manage saved addresses
 
 ### Documentation
 
 - **Interactive Docs**: [https://xrp-bot-api.onrender.com/docs](https://xrp-bot-api.onrender.com/docs)
 - **OpenAPI Schema**: [https://xrp-bot-api.onrender.com/openapi.json](https://xrp-bot-api.onrender.com/openapi.json)
+
+## 🔐 Hybrid Wallet Model
+
+### Wallet Options
+
+#### Option 1: Auto-Created Wallets (Recommended)
+
+- Bot automatically generates secure TestNet wallets
+- Fully managed with encrypted storage
+- Perfect for new users and testing
+
+#### Option 2: Import Existing Wallets (Advanced)
+
+- Import your own TestNet wallets via private key/seed phrase
+- Advanced users who want to use existing wallets
+- Full validation and safety checks
+
+### MainNet Protection (Critical Safety Feature)
+
+#### Multi-Layer Protection
+
+1. **Balance Validation** - Checks both TestNet and MainNet balances
+2. **Automatic Rejection** - Wallets with >0.1 XRP on MainNet are blocked
+3. **User Warnings** - Multiple warning screens before import
+4. **Audit Logging** - All import attempts logged for security
+
+#### Safety Thresholds
+
+- MainNet balance >0.1 XRP: **BLOCKED**
+- MainNet balance >20 XRP: **BLOCKED** (high-value wallet protection)
+- TestNet balance >10,000 XRP: **WARNING** (suspicious test balance)
+
+#### Technical Implementation
+
+```python
+# Validate wallet safety before import
+address, encrypted_secret, validation_info = await xrp_service.validate_testnet_wallet(private_key)
+
+if not validation_info["is_testnet_safe"]:
+    raise HTTPException(400, "Wallet blocked for safety")
+```
+
+### Security Features
+
+- **AES-256 Encryption** - All private keys encrypted before storage
+- **Network Validation** - Dual-network checks (TestNet + MainNet)
+- **Input Validation** - Multiple private key format support
+- **Message Deletion** - Private key messages deleted immediately
+- **Error Recovery** - Clear feedback on validation failures
 
 ## 🔧 Render Deployment
 
@@ -224,19 +318,19 @@ SENTRY_DSN=your_sentry_dsn
 
 ### Build Commands
 
-**Web Service:**
+#### Web Service
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**Start Command:**
+#### Start Command
 
 ```bash
 uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 ```
 
-**Background Worker:**
+#### Background Worker
 
 ```bash
 python -m bot.main
@@ -262,14 +356,14 @@ XRP_FAUCET_URL = "https://faucet.altnet.rippletest.net/accounts"
 - **Price Checks**: 30/minute
 - **General API**: 100/minute
 
-### Security Features
+### Application Security
 
 - Private keys encrypted with Fernet
 - API key authentication
 - Input validation and sanitization
 - SQL injection protection
 - Rate limiting
-- Comprehensive logging
+- Logging
 
 ## 📊 Database Schema
 
@@ -388,11 +482,13 @@ Tracked automatically:
    ```
 
 2. **Update Rate Limits**
+
    - Reduce transaction limits
    - Add wallet funding checks
    - Implement minimum balance requirements
 
 3. **Enhanced Security**
+
    - Add 2FA for large transactions
    - Implement withdrawal limits
    - Add KYC integration if required
@@ -440,12 +536,13 @@ MIT License - See LICENSE file for details.
 
 For issues and questions:
 
-1. **📚 Check the [FAQ](FAQ.md)** - Comprehensive answers to common questions
-2. **📧 Email Support:** support@fse-group3.co.za
+1. **📚 Check the [FAQ](FAQ.md)** - Answers to common questions
+2. **📧 Email Support:** <support@fse-group3.co.za>
 3. **🐛 Report Issues:** [GitHub Issues](https://github.com/FSE-Class-Project/xrp-telegram-bot/issues)
 4. **📊 Project Progress:** [Project Board](https://github.com/orgs/FSE-Class-Project/projects/1/views/1)
 
 When reporting issues, please include:
+
 - Description of the problem
 - Steps to reproduce
 - Error messages or logs
@@ -455,12 +552,15 @@ When reporting issues, please include:
 
 ---
 
-**⚠️ Educational Use Only**: This bot is designed for learning XRP Ledger concepts in a safe TestNet environment. 
+### Key Points
 
-**Key Points:**
 - 🚫 **TestNet only** - No real XRP or monetary value
-- 🎓 **Educational purpose** - Transaction mechanics mirror real XRPL behavior  
-- 🏗️ **Simplified security model** - Real-world implementations require additional security measures
-- 📚 **Production differences** - Wallet management, funding, and security differ significantly on MainNet
+- 🎓 **Test purposes** - Transaction mechanics mirror real XRPL
+  behavior
+- 🏗️ **Simplified security model** - Real-world implementations require
+  additional security measures
+- 📚 **Production differences** - Wallet management, funding, and security
+  differ significantly on MainNet
 
-See [FAQ.md](FAQ.md) for detailed comparisons between this educational bot and real-world XRP usage.
+See [FAQ.md](FAQ.md) for detailed comparisons between this test bot
+and real-world XRP usage.

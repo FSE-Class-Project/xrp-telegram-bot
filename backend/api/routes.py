@@ -26,21 +26,52 @@ from pydantic import (
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from backend.api.auth import verify_api_key
-from backend.api.middleware import (
+from ..config import settings
+from ..constants import (
+    ACCOUNT_RESERVE,
+    DUST_THRESHOLD,
+    MAX_XRP_SUPPLY,
+    MIN_ACCOUNT_BALANCE,
+    OWNER_RESERVE,
+    PRACTICAL_MAX_TRANSACTION,
+    STANDARD_FEE,
+)
+from ..database.connection import get_db
+from ..database.models import Transaction as TransactionModel
+from ..database.models import User
+from ..services import user_service, xrp_service
+from .auth import verify_api_key
+from .middleware import (
     get_idempotency_key,
     limiter,
     rate_limit_transactions,
 )
-from backend.config import settings
-from backend.database.connection import get_db
-from backend.database.models import Transaction as TransactionModel
-from backend.database.models import User
-from backend.services import user_service, xrp_service
+from .schemas import ErrorDetail, ErrorResponse, SendTransactionRequest
 
 # Type aliases
 TelegramID: TypeAlias = str
 XRPAddress: TypeAlias = str
+
+
+# Error handling utilities
+def create_error_response(
+    message: str,
+    status_code: int = 400,
+    field: str | None = None,
+    code: str | None = None,
+    request_id: str | None = None,
+) -> HTTPException:
+    """Create standardized error response."""
+    error_detail = ErrorDetail(field=field, message=message, code=code)
+    error_response = ErrorResponse(
+        message=message,
+        errors=[error_detail],
+        request_id=request_id,
+    )
+    return HTTPException(
+        status_code=status_code,
+        detail=error_response.model_dump(),
+    )
 
 
 # XRP Network Constants
@@ -49,15 +80,15 @@ class XRPConstants:
 
     # Amount limits
     MIN_DROP = Decimal("0.000001")  # 1 drop (smallest XRP unit)
-    MAX_XRP_SUPPLY = Decimal("100000000000")  # 100 billion XRP
-    PRACTICAL_MAX_TRANSACTION = Decimal("1000000")  # 1 million XRP per transaction
-    DUST_THRESHOLD = Decimal("0.001")  # Minimum practical amount
+    MAX_XRP_SUPPLY = MAX_XRP_SUPPLY
+    PRACTICAL_MAX_TRANSACTION = PRACTICAL_MAX_TRANSACTION
+    DUST_THRESHOLD = DUST_THRESHOLD
 
-    # Network requirements (adjusted for TestNet)
-    ACCOUNT_RESERVE = Decimal("1")  # Base reserve for account (TestNet)
-    OWNER_RESERVE = Decimal("0.2")  # Reserve per owned object (TestNet)
-    MIN_ACCOUNT_BALANCE = Decimal("1")  # Minimum for activation (TestNet)
-    STANDARD_FEE = Decimal("0.00001")  # Typical network fee
+    # Network requirements (using shared constants)
+    ACCOUNT_RESERVE = ACCOUNT_RESERVE
+    OWNER_RESERVE = OWNER_RESERVE
+    MIN_ACCOUNT_BALANCE = MIN_ACCOUNT_BALANCE
+    STANDARD_FEE = STANDARD_FEE
 
     # Business logic limits
     LARGE_TRANSACTION_THRESHOLD = Decimal("10000")  # Flag for large amounts
@@ -185,6 +216,34 @@ class UserRegistration(BaseModel):
         return v
 
 
+class WalletImport(BaseModel):
+    """Wallet import request model."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    telegram_id: TelegramID
+    telegram_username: str | None = None
+    telegram_first_name: str | None = None
+    telegram_last_name: str | None = None
+    private_key: str = Field(..., description="Private key or seed phrase to import")
+
+    @field_validator("telegram_id")
+    @classmethod
+    def validate_telegram_id(cls, v: str) -> str:
+        """Validate Telegram ID format."""
+        if not v or not v.isdigit():
+            raise ValueError("Invalid Telegram ID format")
+        return v
+
+    @field_validator("private_key")
+    @classmethod
+    def validate_private_key(cls, v: str) -> str:
+        """Validate private key format."""
+        if not v or len(v.strip()) < 10:
+            raise ValueError("Invalid private key or seed phrase")
+        return v.strip()
+
+
 class UserProfileUpdate(BaseModel):
     """User profile update request model."""
 
@@ -206,32 +265,7 @@ class UserResponse(BaseModel):
     balance: Decimal
 
 
-class SendTransactionRequest(BaseModel):
-    """Send transaction request model."""
-
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    from_telegram_id: TelegramID
-    to_address: XRPAddress
-    amount: Decimal
-    memo: str | None = Field(None, max_length=512)
-
-    @field_validator("to_address")
-    @classmethod
-    def validate_xrp_address(cls, v: str) -> str:
-        """Validate XRP address format."""
-        if not xrp_service.validate_address(v):
-            raise ValueError("Invalid XRP address format")
-        return v
-
-    @field_validator("amount")
-    @classmethod
-    def validate_amount(cls, v: Decimal) -> Decimal:
-        """Comprehensive XRP amount validation using network constants."""
-        return validate_xrp_amount(v)
-
-
-class TransactionResponse(BaseModel):
+class TransactionApiResponse(BaseModel):
     """Transaction response model."""
 
     success: bool
@@ -242,7 +276,7 @@ class TransactionResponse(BaseModel):
     ledger_index: int | None = None
 
     @model_validator(mode="after")
-    def validate_response(self) -> "TransactionResponse":
+    def validate_response(self) -> "TransactionApiResponse":
         """Ensure response has either success data or error."""
         if self.success and not self.tx_hash:
             raise ValueError("Successful transaction must have tx_hash")
@@ -315,7 +349,7 @@ class TransactionValidationRequest(BaseModel):
     @field_validator("amount")
     @classmethod
     def validate_amount(cls, v: Decimal) -> Decimal:
-        """Use the same validation as SendTransactionRequest."""
+        """Validate XRP amount using comprehensive validation."""
         return validate_xrp_amount(v)
 
 
@@ -396,7 +430,9 @@ async def get_current_user(
     """Get current user from database."""
     user = user_service.get_user_by_telegram_id(db, telegram_id)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise create_error_response(
+            "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+        )
     return user
 
 
@@ -457,6 +493,145 @@ async def register_user(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
+@router.post(
+    "/users/import-wallet",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Wallet imported successfully"},
+        400: {"description": "Invalid wallet data or import failed"},
+        401: {"description": "Invalid API key"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def import_wallet(
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
+    wallet_import: WalletImport,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Import an existing wallet for a user."""
+    try:
+        # Try to import the wallet using the XRP service
+        from backend.services.xrp_service import xrp_service
+
+        # Validate the private key and perform safety checks
+        try:
+            address, encrypted_secret, validation_info = await xrp_service.validate_testnet_wallet(
+                wallet_import.private_key
+            )
+
+            # Check if wallet is safe for TestNet import
+            if not validation_info["is_testnet_safe"]:
+                error_details = "; ".join(validation_info["errors"])
+                logger.warning(f"Unsafe wallet import blocked: {error_details}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Wallet import blocked for safety: {error_details}",
+                )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Invalid private key/seed phrase: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid private key or seed phrase. Please check your input and try again.",
+            ) from e
+
+        # Check if user already exists
+        existing_user = user_service.get_user_by_telegram_id(db, wallet_import.telegram_id)
+
+        if existing_user:
+            # Update existing user's wallet
+            if existing_user.wallet:
+                existing_user.wallet.xrp_address = address
+                existing_user.wallet.encrypted_secret = encrypted_secret
+                # Update balance
+                try:
+                    balance = await xrp_service.get_balance(address)
+                    existing_user.wallet.balance = balance if balance is not None else 0.0
+                except Exception:
+                    existing_user.wallet.balance = 0.0
+            else:
+                # Create new wallet for existing user
+                from backend.database.models import Wallet
+
+                wallet = Wallet(
+                    user_id=existing_user.id,
+                    xrp_address=address,
+                    encrypted_secret=encrypted_secret,
+                    balance=0.0,
+                )
+                try:
+                    balance = await xrp_service.get_balance(address)
+                    wallet.balance = balance if balance is not None else 0.0
+                except Exception as e:
+                    logger.warning(f"Could not fetch balance for wallet: {e}")
+                db.add(wallet)
+
+            db.commit()
+            user = existing_user
+        else:
+            # Create new user with imported wallet
+            user = await user_service.create_user_with_wallet(
+                db=db,
+                telegram_id=wallet_import.telegram_id,
+                telegram_username=wallet_import.telegram_username,
+                telegram_first_name=wallet_import.telegram_first_name,
+                telegram_last_name=wallet_import.telegram_last_name,
+                xrp_address=address,
+                encrypted_secret=encrypted_secret,
+            )
+
+        # Get current balance
+        try:
+            current_balance = await xrp_service.get_balance(user.wallet.xrp_address)
+            if current_balance is not None:
+                user.wallet.balance = current_balance
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Could not fetch balance for imported wallet: {e}")
+
+        # Include validation info in response
+        response_data = {
+            "success": True,
+            "message": "Wallet imported successfully",
+            "user": {
+                "id": user.id,
+                "telegram_id": user.telegram_id,
+                "telegram_username": user.telegram_username,
+            },
+            "wallet": {
+                "xrp_address": user.wallet.xrp_address,
+                "balance": float(user.wallet.balance),
+            },
+            "validation": {
+                "testnet_balance": validation_info["balance"],
+                "warnings": validation_info["warnings"],
+                "is_safe": validation_info["is_testnet_safe"],
+            },
+        }
+
+        # Log any warnings for monitoring
+        if validation_info["warnings"]:
+            logger.warning(
+                f"Wallet import warnings for {user.telegram_id}: {validation_info['warnings']}"
+            )
+
+        return response_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Wallet import error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to import wallet. Please try again later.",
+        ) from e
+
+
 @router.put(
     "/user/profile/{telegram_id}",
     response_model=UserResponse,
@@ -478,18 +653,20 @@ async def update_user_profile(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Update only provided fields
         if profile_update.telegram_username is not None:
-            user.telegram_username = profile_update.telegram_username  # type: ignore[assignment]
+            user.telegram_username = profile_update.telegram_username
         if profile_update.telegram_first_name is not None:
-            user.telegram_first_name = profile_update.telegram_first_name  # type: ignore[assignment]
+            user.telegram_first_name = profile_update.telegram_first_name
         if profile_update.telegram_last_name is not None:
-            user.telegram_last_name = profile_update.telegram_last_name  # type: ignore[assignment]
+            user.telegram_last_name = profile_update.telegram_last_name
 
         # Update timestamp
-        user.updated_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+        user.updated_at = datetime.now(timezone.utc)
 
         # Commit changes
         db.commit()
@@ -635,7 +812,7 @@ async def validate_transaction(
 
 @router.post(
     "/transaction/send",
-    response_model=TransactionResponse,
+    response_model=TransactionApiResponse,
     dependencies=[Depends(verify_api_key)],
     responses={
         200: {"description": "Transaction sent successfully"},
@@ -652,7 +829,7 @@ async def send_transaction(
     transaction: SendTransactionRequest,
     db: Session = Depends(get_db),
     idempotency_key: str | None = Depends(get_idempotency_key),
-) -> TransactionResponse:
+) -> TransactionApiResponse:
     """Send XRP to another address with comprehensive validation and idempotency."""
     from ..utils.idempotency import IdempotencyKey, TransactionIdempotency
 
@@ -724,7 +901,7 @@ async def send_transaction(
     if existing:
         # Return existing transaction result
         if isinstance(existing, TransactionModel):
-            return TransactionResponse(
+            return TransactionApiResponse(
                 success=bool(existing.status == "success"),
                 tx_hash=str(existing.tx_hash) if existing.tx_hash else None,
                 amount=Decimal(str(existing.amount)),
@@ -740,7 +917,7 @@ async def send_transaction(
                 import json
 
                 response_data = json.loads(str(existing.response_data))
-                return TransactionResponse(
+                return TransactionApiResponse(
                     success=True,
                     tx_hash=response_data.get("tx_hash"),
                     amount=Decimal(str(response_data.get("amount", 0))),
@@ -787,7 +964,7 @@ async def send_transaction(
         if tx_record:
             await tx_idempotency.link_transaction_to_idempotency(idempotency_record, tx_record)
 
-    return TransactionResponse(
+    return TransactionApiResponse(
         success=result["success"],
         tx_hash=result.get("tx_hash"),
         amount=Decimal(str(result.get("amount", 0))),
