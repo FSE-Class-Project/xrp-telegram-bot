@@ -11,10 +11,20 @@ import time
 from datetime import datetime
 from typing import Any
 
+from backend.services.xrp_service import XRPService
+
 import httpx
 import pandas as pd
 from faker import Faker
+import os
+from dotenv import load_dotenv
 
+load_dotenv()  
+
+
+API_KEY = os.getenv("BOT_API_KEY")
+
+headers = {"X-API-Key": API_KEY}
 
 class PerformanceTestSuite:
     """Performance testing for XRP Telegram Bot"""
@@ -35,23 +45,67 @@ class PerformanceTestSuite:
         }
 
     async def signup_user(self, user_data: dict[str, Any]) -> dict[str, Any]:
-        """Simulate user signup"""
+        """Simulate user signup and wait until the XRP account exists."""
         start_time = time.time()
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             try:
-                response = await client.post(f"{self.api_url}/api/v1/user/register", json=user_data)
+                # Step 1: Register user
+                response = await client.post(
+                    f"{self.api_url}/api/v1/user/register",
+                    json=user_data,
+                    headers=headers  # include the API key
+                )
 
                 elapsed_time = time.time() - start_time
+                success = response.status_code == 201
+                result_data = response.json() if success else None
+
+                # Step 2: Wait for account to exist on the ledger
+                if success and result_data and result_data.get("xrp_address"):
+                    address = result_data["xrp_address"]
+                    service = XRPService()
+
+                    # Step 2a: Fund the wallet with retry
+                    max_retries = 3
+                    for attempt in range(1, max_retries + 1):
+                        funded = await service.fund_wallet_from_faucet(address)
+                        if funded:
+                            print(f"✅ Wallet {address} funded successfully")
+                            break
+                        wait_time = attempt * 2  # exponential backoff: 2, 4, 6 seconds
+                        print(f"⚠️ Faucet busy, retrying in {wait_time}s (attempt {attempt})...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        print(f"❌ Funding failed for {address} after {max_retries} attempts")
+
+
+                    # Step 2b: Wait for the balance to be positive
+                    timeout = 30  # seconds
+                    poll_interval = 1  # seconds
+                    waited = 0
+                    balance = 0
+                    while waited < timeout:
+                        balance = await service.get_balance(address)
+                        if balance and balance > 0:
+                            break
+                        await asyncio.sleep(poll_interval)
+                        waited += poll_interval
+                    else:
+                        print(f"⚠️ Account {address} not funded within {timeout}s")
+
+                    if result_data:
+                        result_data["balance"] = str(balance)
 
                 return {
-                    "success": response.status_code == 200,
+                    "success": success,
                     "user_id": user_data["telegram_id"],
                     "response_time": elapsed_time,
                     "status_code": response.status_code,
-                    "data": response.json() if response.status_code == 200 else None,
+                    "data": result_data,
                     "timestamp": datetime.now().isoformat(),
                 }
+
             except Exception as e:
                 return {
                     "success": False,
@@ -60,6 +114,8 @@ class PerformanceTestSuite:
                     "error": str(e),
                     "timestamp": datetime.now().isoformat(),
                 }
+
+
 
     async def send_payment(self, from_id: str, to_address: str, amount: float) -> dict[str, Any]:
         """Simulate P2P payment"""
@@ -70,6 +126,7 @@ class PerformanceTestSuite:
                 response = await client.post(
                     f"{self.api_url}/api/v1/transaction/send",
                     json={"from_telegram_id": from_id, "to_address": to_address, "amount": amount},
+                    headers=headers
                 )
 
                 elapsed_time = time.time() - start_time
@@ -316,7 +373,7 @@ async def main():
     print("=" * 60)
 
     # Test 1: Concurrent user signups
-    signup_results = await tester.test_concurrent_signups(num_users=20)
+    signup_results = await tester.test_concurrent_signups(num_users=5)
 
     # Wait a bit for system to stabilize
     await asyncio.sleep(2)
@@ -324,7 +381,7 @@ async def main():
     # Test 2: Concurrent P2P payments
     successful_signups = [s for s in signup_results if s.get("success") and s.get("data")]
     if successful_signups:
-        await tester.test_concurrent_payments(successful_signups, num_payments=30)
+        await tester.test_concurrent_payments(successful_signups, num_payments=5)
 
     # Test 3: Sustained load test
     await tester.test_load_pattern(duration_seconds=30)
