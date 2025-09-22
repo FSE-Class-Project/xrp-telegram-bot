@@ -2,11 +2,15 @@ name: Deploy Presentation to GitHub Pages
 
 on:
   push:
-    branches: [ main, prod ]
+    branches: [ main, prod, dev/ces, dev/joe2, dev/sam, dev/Victor2DUSA ]  # Added dev/ces for testing
     paths:
       - 'docs/**'
       - 'presentation/**'
       - '.github/workflows/deploy-presentation.yml'
+  pull_request:  # Also trigger on PRs for preview
+    branches: [ main ]
+    paths:
+      - 'presentation/**'
   workflow_dispatch:  # Allows manual triggering
 
 permissions:
@@ -20,6 +24,8 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    # Only deploy to Pages from main/prod branches
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -38,31 +44,37 @@ jobs:
         run: |
           pip install plotly pandas numpy
 
-      - name: Setup Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
-        with:
-          version: 'latest'
+      - name: Install Quarto
+        run: |
+          # Direct installation method
+          wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.554/quarto-1.4.554-linux-amd64.deb
+          sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
+          sudo apt-get install -f -y
+          quarto --version
 
       - name: Build presentation
         run: |
-          cd presentation
-          quarto render xrp-telegram-bot-presentation.qmd
-          cd ..
+          if [ -f "presentation/xrp-telegram-bot-presentation.qmd" ]; then
+            cd presentation
+            quarto render xrp-telegram-bot-presentation.qmd --to revealjs
+            cd ..
+          else
+            echo "Error: presentation/xrp-telegram-bot-presentation.qmd not found"
+            exit 1
+          fi
 
       - name: Prepare docs folder
         run: |
-          # Ensure docs/presentation exists
           mkdir -p docs/presentation
-
-          # Copy rendered HTML to docs
           cp presentation/xrp-telegram-bot-presentation.html docs/presentation/
+          [ -f "presentation/custom.scss" ] && cp presentation/custom.scss docs/presentation/
 
-          # Update index.html to point to correct location
           cat > docs/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
             <head>
               <title>XRP Telegram Bot - Presentation</title>
+              <meta charset="utf-8">
               <meta http-equiv="refresh" content="0;URL='presentation/xrp-telegram-bot-presentation.html'" />
             </head>
             <body>
@@ -82,3 +94,31 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Separate job for build testing on other branches
+  test-build:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/dev/ces')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install plotly pandas numpy
+          wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.554/quarto-1.4.554-linux-amd64.deb
+          sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
+          sudo apt-get install -f -y
+
+      - name: Test build presentation
+        run: |
+          cd presentation
+          quarto render xrp-telegram-bot-presentation.qmd --to revealjs
+          echo "✅ Presentation builds successfully"
+          ls -la *.html
