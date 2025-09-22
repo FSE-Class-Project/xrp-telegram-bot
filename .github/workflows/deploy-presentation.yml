@@ -2,7 +2,7 @@ name: Deploy Presentation to GitHub Pages
 
 on:
   push:
-    branches: [ main, prod, dev/ces, dev/joe2, dev/sam, dev/Victor2DUSA ]  # Added dev/ces for testing
+    branches: [ main, prod, dev/ces, dev/joe2, dev/sam, dev/Victor2DUSA ]
     paths:
       - 'docs/**'
       - 'presentation/**'
@@ -42,7 +42,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install plotly pandas numpy
+          pip install jupyter plotly pandas numpy kaleido
 
       - name: Install Quarto
         run: |
@@ -51,6 +51,7 @@ jobs:
           sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
           sudo apt-get install -f -y
           quarto --version
+          quarto check jupyter
 
       - name: Build presentation
         run: |
@@ -97,7 +98,7 @@ jobs:
 
   # Separate job for build testing on other branches
   test-build:
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/dev/ces')
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/dev/ces' || github.ref == 'refs/heads/dev/joe2' || github.ref == 'refs/heads/dev/sam' || github.ref == 'refs/heads/dev/Victor2DUSA'))
     runs-on: ubuntu-latest
 
     steps:
@@ -111,10 +112,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install plotly pandas numpy
+          pip install jupyter plotly pandas numpy kaleido
           wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.554/quarto-1.4.554-linux-amd64.deb
           sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
           sudo apt-get install -f -y
+          quarto check jupyter
 
       - name: Test build presentation
         run: |
