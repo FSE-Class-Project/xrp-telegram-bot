@@ -64,13 +64,14 @@ jobs:
             sed -i 's/eval: true/eval: false/g' xrp-telegram-bot-presentation-temp.qmd
 
             # Render the modified version
-            quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs
-
-            # Rename output back to expected name
-            mv xrp-telegram-bot-presentation-temp.html xrp-telegram-bot-presentation.html
+            quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs --output xrp-telegram-bot-presentation.html
 
             # Clean up
             rm xrp-telegram-bot-presentation-temp.qmd
+
+            # List files to verify
+            echo "Files created:"
+            ls -la *.html
 
             cd ..
           else
@@ -81,9 +82,19 @@ jobs:
       - name: Prepare docs folder
         run: |
           mkdir -p docs/presentation
-          cp presentation/xrp-telegram-bot-presentation.html docs/presentation/
+
+          # Copy the generated HTML file
+          if [ -f "presentation/xrp-telegram-bot-presentation.html" ]; then
+            cp presentation/xrp-telegram-bot-presentation.html docs/presentation/
+          else
+            echo "Error: presentation/xrp-telegram-bot-presentation.html not found"
+            exit 1
+          fi
+
+          # Copy custom.scss if it exists
           [ -f "presentation/custom.scss" ] && cp presentation/custom.scss docs/presentation/
 
+          # Create index.html
           cat > docs/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
@@ -140,9 +151,9 @@ jobs:
           sed -i 's/eval: true/eval: false/g' xrp-telegram-bot-presentation-temp.qmd
 
           echo "Attempting render..."
-          quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs
+          quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs --output xrp-telegram-bot-presentation.html
 
-          mv xrp-telegram-bot-presentation-temp.html xrp-telegram-bot-presentation.html
+          # Clean up temp file
           rm xrp-telegram-bot-presentation-temp.qmd
 
           echo "✅ Presentation builds successfully"
