@@ -564,13 +564,13 @@ def setup_handlers(application: Application):
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(send_conversation_handler)
 
-    # Add message handler for wallet imports (highest priority for text messages)
+    # Add message handler for username updates (highest priority for text messages)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_username_update))
+
+    # Add message handler for wallet imports (lower priority)
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_wallet_import_message)
     )
-
-    # Add message handler for username updates (should be before CallbackQueryHandler)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_username_update))
 
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_error_handler(error_handler)
