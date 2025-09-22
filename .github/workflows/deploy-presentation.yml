@@ -5,6 +5,7 @@ on:
     branches: [ main, prod ]
     paths:
       - 'docs/**'
+      - 'presentation/**'
       - '.github/workflows/deploy-presentation.yml'
   workflow_dispatch:  # Allows manual triggering
 
@@ -18,14 +19,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build-and-deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: |
+          pip install plotly pandas numpy
+
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 'latest'
+
+      - name: Build presentation
+        run: |
+          cd presentation
+          quarto render xrp-telegram-bot-presentation.qmd
+          cd ..
+
+      - name: Prepare docs folder
+        run: |
+          # Ensure docs/presentation exists
+          mkdir -p docs/presentation
+
+          # Copy rendered HTML to docs
+          cp presentation/xrp-telegram-bot-presentation.html docs/presentation/
+
+          # Update index.html to point to correct location
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>XRP Telegram Bot - Presentation</title>
+              <meta http-equiv="refresh" content="0;URL='presentation/xrp-telegram-bot-presentation.html'" />
+            </head>
+            <body>
+              <p>Loading presentation...</p>
+            </body>
+          </html>
+          EOF
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
