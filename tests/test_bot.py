@@ -610,21 +610,21 @@ async def test_unit_username_update_validation_and_flow(telegram_update_factory,
     """Test username update feature with validation and API call."""
     user_id = 123456789
     chat_id = 123456789
-    
+
     # Set up context for username update state
     mock_context.user_data["awaiting_username_update"] = True
-    
+
     # Mock API response for successful username update
     with patch("httpx.AsyncClient") as mock_http:
         mock_client = AsyncMock()
         mock_http.return_value.__aenter__.return_value = mock_client
         mock_client.put.return_value = Mock(status_code=200, json=lambda: {"success": True})
-        
+
         # Test valid username update
         update = telegram_update_factory(chat_id, "new_username123", 1, user_id)
-        
+
         await handle_username_update(update, mock_context)
-        
+
         # Assert API was called with correct data
         mock_client.put.assert_called_once()
         call_args = mock_client.put.call_args
@@ -632,7 +632,7 @@ async def test_unit_username_update_validation_and_flow(telegram_update_factory,
         assert "/api/v1/user/profile/" in call_args[0][0]
         # Check the JSON data (keyword argument)
         assert call_args[1]["json"]["telegram_username"] == "new_username123"
-        
+
         # Assert success message was sent
         update.message.reply_text.assert_called_once()
         reply_args = update.message.reply_text.call_args
@@ -640,45 +640,47 @@ async def test_unit_username_update_validation_and_flow(telegram_update_factory,
         assert "✅" in reply_text
         assert "Username Updated!" in reply_text
         assert "@new_username123" in reply_text
-        
+
         # Assert state was cleared
         assert "awaiting_username_update" not in mock_context.user_data
 
 
 @pytest.mark.unit
-@pytest.mark.asyncio 
-async def test_unit_username_validation_rejects_invalid_usernames(telegram_update_factory, mock_context):
+@pytest.mark.asyncio
+async def test_unit_username_validation_rejects_invalid_usernames(
+    telegram_update_factory, mock_context
+):
     """Test username validation rejects invalid formats."""
     user_id = 123456789
     chat_id = 123456789
-    
+
     # Set up context for username update state
     mock_context.user_data["awaiting_username_update"] = True
-    
+
     invalid_usernames = [
         "ab",  # Too short
-        "a" * 33,  # Too long  
+        "a" * 33,  # Too long
         "user name",  # Contains space
         "user@name",  # Contains @
         "user-name",  # Contains hyphen
         "user.name",  # Contains period
     ]
-    
+
     for invalid_username in invalid_usernames:
         # Reset state for each test
         mock_context.user_data["awaiting_username_update"] = True
-        
+
         update = telegram_update_factory(chat_id, invalid_username, 1, user_id)
-        
+
         await handle_username_update(update, mock_context)
-        
+
         # Assert error message was sent
         update.message.reply_text.assert_called()
         reply_args = update.message.reply_text.call_args
         reply_text = reply_args[0][0]
         assert "❌" in reply_text
-        assert ("Invalid username" in reply_text or "Must be 3-32 characters" in reply_text)
-        
+        assert "Invalid username" in reply_text or "Must be 3-32 characters" in reply_text
+
         # Reset mock for next iteration
         update.message.reply_text.reset_mock()
 
@@ -689,33 +691,33 @@ async def test_unit_message_handler_precedence_issue(telegram_update_factory, mo
     """Test that username updates work when user is in the correct state."""
     user_id = 123456789
     chat_id = 123456789
-    
+
     # User is in username update state
     mock_context.user_data["awaiting_username_update"] = True
-    
+
     # But NOT in wallet import state
     assert mock_context.user_data.get("import_state") != "waiting_for_private_key"
-    
+
     update = telegram_update_factory(chat_id, "validusername", 1, user_id)
-    
+
     # Mock the API call for username update
     with patch("httpx.AsyncClient") as mock_http:
         mock_client = AsyncMock()
         mock_http.return_value.__aenter__.return_value = mock_client
         mock_client.put.return_value = Mock(status_code=200, json=lambda: {"success": True})
-        
-        # Now username handler should work properly 
+
+        # Now username handler should work properly
         await handle_username_update(update, mock_context)
-        
+
         # Verify the API was called (username update succeeded)
         mock_client.put.assert_called_once()
-        
+
         # Verify success message was sent
         update.message.reply_text.assert_called_once()
         reply_args = update.message.reply_text.call_args
         reply_text = reply_args[0][0]
         assert "✅" in reply_text
         assert "Username Updated!" in reply_text
-        
+
         # Verify state was cleared after successful update
         assert "awaiting_username_update" not in mock_context.user_data

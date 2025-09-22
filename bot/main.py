@@ -564,7 +564,7 @@ def setup_handlers(application: Application):
     application.add_handler(CommandHandler("settings", settings_command))
     application.add_handler(send_conversation_handler)
 
-    # Add message handler for username updates (highest priority for text messages) 
+    # Add message handler for username updates (highest priority for text messages)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_username_update))
 
     # Add message handler for wallet imports (lower priority)
