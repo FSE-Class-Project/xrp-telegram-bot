@@ -46,7 +46,6 @@ jobs:
 
       - name: Install Quarto
         run: |
-          # Direct installation method
           wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.554/quarto-1.4.554-linux-amd64.deb
           sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
           sudo apt-get install -f -y
@@ -54,6 +53,9 @@ jobs:
 
       - name: Build presentation
         run: |
+          # Create docs/presentation directory first
+          mkdir -p docs/presentation
+
           if [ -f "presentation/xrp-telegram-bot-presentation.qmd" ]; then
             cd presentation
 
@@ -63,17 +65,23 @@ jobs:
             # Replace eval: true with eval: false in the header
             sed -i 's/eval: true/eval: false/g' xrp-telegram-bot-presentation-temp.qmd
 
-            # Render the modified version
+            # Render the modified version (it will output to ../docs/presentation/)
             quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs --output xrp-telegram-bot-presentation.html
 
             # Clean up
             rm xrp-telegram-bot-presentation-temp.qmd
 
-            # List files to verify
-            echo "Files created:"
-            ls -la *.html
-
             cd ..
+
+            # Verify the file was created
+            if [ ! -f "docs/presentation/xrp-telegram-bot-presentation.html" ]; then
+              echo "Error: Expected output file not found"
+              echo "Looking for files in docs/presentation:"
+              ls -la docs/presentation/
+              exit 1
+            fi
+
+            echo "✅ Presentation built successfully at docs/presentation/xrp-telegram-bot-presentation.html"
           else
             echo "Error: presentation/xrp-telegram-bot-presentation.qmd not found"
             exit 1
@@ -81,16 +89,6 @@ jobs:
 
       - name: Prepare docs folder
         run: |
-          mkdir -p docs/presentation
-
-          # Copy the generated HTML file
-          if [ -f "presentation/xrp-telegram-bot-presentation.html" ]; then
-            cp presentation/xrp-telegram-bot-presentation.html docs/presentation/
-          else
-            echo "Error: presentation/xrp-telegram-bot-presentation.html not found"
-            exit 1
-          fi
-
           # Copy custom.scss if it exists
           [ -f "presentation/custom.scss" ] && cp presentation/custom.scss docs/presentation/
 
@@ -108,6 +106,11 @@ jobs:
             </body>
           </html>
           EOF
+
+          echo "Contents of docs directory:"
+          ls -la docs/
+          echo "Contents of docs/presentation directory:"
+          ls -la docs/presentation/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -144,6 +147,9 @@ jobs:
 
       - name: Test build presentation
         run: |
+          # Create output directory
+          mkdir -p docs/presentation
+
           cd presentation
 
           echo "Creating modified version with eval: false..."
@@ -156,5 +162,15 @@ jobs:
           # Clean up temp file
           rm xrp-telegram-bot-presentation-temp.qmd
 
-          echo "✅ Presentation builds successfully"
-          ls -la *.html
+          cd ..
+
+          # Check if file was created
+          if [ -f "docs/presentation/xrp-telegram-bot-presentation.html" ]; then
+            echo "✅ Presentation builds successfully"
+            echo "File size: $(du -h docs/presentation/xrp-telegram-bot-presentation.html)"
+          else
+            echo "❌ Build appeared successful but file not found"
+            echo "Contents of docs/presentation:"
+            ls -la docs/presentation/
+            exit 1
+          fi
