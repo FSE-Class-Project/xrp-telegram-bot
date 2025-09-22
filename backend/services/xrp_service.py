@@ -123,6 +123,7 @@ class XRPService:
         Raises:
         ------
             ValueError: If the private key/seed is invalid
+
         """
         try:
             # Try to create wallet from the input
@@ -171,6 +172,7 @@ class XRPService:
         Raises:
         ------
             ValueError: If the wallet is unsafe for TestNet import
+
         """
         # First, try to import the wallet
         address, encrypted_secret = self.import_wallet(private_key_or_seed)
@@ -243,6 +245,7 @@ class XRPService:
         Returns:
         -------
             float | None: Balance in XRP or None if not found/error
+
         """
         try:
             # Create a temporary mainnet client
@@ -295,7 +298,7 @@ class XRPService:
         from_encrypted_secret: str,
         to_address: str,
         amount: float,
-        memo: str | None = None,  # noqa: ARG002
+        _memo: str | None = None,
     ) -> dict[str, Any]:
         """Send XRP from one address to another.
 
@@ -304,7 +307,7 @@ class XRPService:
             from_encrypted_secret: Encrypted secret of sender
             to_address: Recipient's XRP address
             amount: Amount in XRP to send
-            memo: Optional transaction memo
+            _memo: Optional transaction memo (currently unused)
 
         Returns:
         -------

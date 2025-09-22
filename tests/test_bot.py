@@ -1,32 +1,30 @@
 """Comprehensive bot tests."""
 
 import asyncio
-import json
 import os
-import time
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
-import httpx
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
-from telegram import Update, User, Message, Chat, InlineKeyboardMarkup
+from telegram import Chat, InlineKeyboardMarkup, Update, User
 from telegram.constants import ParseMode
 from telegram.error import RetryAfter
 from telegram.ext import ContextTypes
 
 # Import test fixtures from backend tests
-from backend.database.models import Base, User as DBUser, Wallet, Transaction, Beneficiary
+from backend.database.models import Base, Beneficiary, Transaction, Wallet
+from backend.database.models import User as DBUser
 from backend.services.user_service import UserService
+from bot.handlers.account import handle_username_update
 
 # Import bot modules for testing
-from bot.handlers.start import start_command, handle_import_wallet
-from bot.handlers.transaction import send_command
-from bot.handlers.account import handle_username_update, update_username_command
-from bot.utils.formatting import format_xrp_amount, format_error_message, escape_html
+from bot.handlers.start import handle_import_wallet, start_command
+from bot.utils.formatting import escape_html, format_error_message, format_xrp_amount
 
 
 # Test fixtures and utilities
@@ -45,7 +43,7 @@ def test_db():
 
 @pytest.fixture
 def telegram_update_factory():
-    """Factory for creating Telegram Update objects."""
+    """Create Telegram Update objects for testing."""
 
     def _create_update(chat_id: int, text: str, update_id: int, user_id: int | None = None):
         user_id = user_id or chat_id
@@ -136,7 +134,7 @@ def log_capture(caplog):
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_e2e_onboarding_balance_beneficiary_send_flow(
-    test_db, telegram_update_factory, mock_xrpl_client, mock_context, log_capture
+    test_db, telegram_update_factory, mock_context, log_capture
 ):
     """Test complete user journey from onboarding to sending XRP."""
     user_id = 123456789
@@ -207,7 +205,7 @@ async def test_e2e_onboarding_balance_beneficiary_send_flow(
             )
             test_db.add(duplicate_beneficiary)
 
-            with pytest.raises(Exception):  # SQLAlchemy IntegrityError expected
+            with pytest.raises(IntegrityError):  # SQLAlchemy IntegrityError expected
                 test_db.commit()
             test_db.rollback()
 
@@ -229,9 +227,11 @@ async def test_e2e_onboarding_balance_beneficiary_send_flow(
             assert transaction.amount == 5.0
 
             # Simulate successful submission
-            setattr(transaction, "status", "confirmed")
-            setattr(transaction, "tx_hash", "ABCD1234")
+            test_db.query(Transaction).filter_by(id=transaction.id).update(
+                {"status": "confirmed", "tx_hash": "ABCD1234"}
+            )
             test_db.commit()
+            test_db.refresh(transaction)
 
             assert transaction.status == "confirmed"
             assert transaction.tx_hash == "ABCD1234"
@@ -294,9 +294,7 @@ async def test_e2e_start_import_existing_wallet_flow(telegram_update_factory, mo
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_e2e_idempotent_on_duplicate_update(
-    test_db, telegram_update_factory, mock_context, log_capture
-):
+async def test_e2e_idempotent_on_duplicate_update(test_db, telegram_update_factory, mock_context):
     """Test idempotency when receiving duplicate Telegram updates."""
     user_id = 123456789
     chat_id = 123456789
@@ -307,7 +305,9 @@ async def test_e2e_idempotent_on_duplicate_update(
         telegram_id=str(user_id),
         telegram_username="testuser",
         wallet=Wallet(
-            xrp_address="rTestAddress123", encrypted_secret="encrypted_secret", balance=10.0
+            xrp_address="rTestAddress123",
+            encrypted_secret="encrypted_secret",  # noqa: S106
+            balance=10.0,
         ),
     )
     test_db.add(user)
@@ -346,7 +346,7 @@ async def test_e2e_idempotent_on_duplicate_update(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_integration_webhook_dispatch_and_state_machine(
-    test_db, telegram_update_factory, mock_context
+    telegram_update_factory, mock_context
 ):
     """Test webhook handling and conversation state transitions."""
     user_id = 123456789
@@ -356,7 +356,7 @@ async def test_integration_webhook_dispatch_and_state_machine(
     mock_context.user_data = {"transaction": {"state": "AMOUNT"}, "current_conversation": "send"}
 
     # Create test update for amount input
-    update = telegram_update_factory(chat_id, "5.0", 1, user_id)
+    _update = telegram_update_factory(chat_id, "5.0", 1, user_id)
 
     # Mock the conversation handler state transitions
     # In real code, this would be handled by python-telegram-bot's ConversationHandler
@@ -378,13 +378,13 @@ async def test_integration_webhook_dispatch_and_state_machine(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_integration_xrpl_timeout_then_retry_once(test_db, mock_xrpl_client, log_capture):
+async def test_integration_xrpl_timeout_then_retry_once(mock_xrpl_client):
     """Test XRPL timeout handling with retry logic."""
     # Setup timeout scenario
     mock_xrpl_client.setup_timeout_once_then_success()
 
     retry_count = 0
-    max_retries = 1
+    _max_retries = 1
 
     async def simulate_xrpl_call_with_retry():
         nonlocal retry_count
@@ -446,7 +446,7 @@ async def test_integration_alias_unique_violation_graceful_error(test_db):
     test_db.add(beneficiary2)
 
     # Should raise constraint violation
-    with pytest.raises(Exception):  # SQLAlchemy IntegrityError
+    with pytest.raises(IntegrityError):  # SQLAlchemy IntegrityError
         test_db.commit()
 
     # Rollback to clean state
@@ -478,7 +478,7 @@ async def test_integration_rate_limit_429_from_telegram_backoff():
     # Test rate limit handling
     try:
         result = await mock_send_message_with_rate_limit()
-        assert False, "Should have raised RetryAfter"
+        raise AssertionError("Should have raised RetryAfter")
     except RetryAfter as e:
         assert e.retry_after == 30
 
@@ -524,7 +524,7 @@ def test_unit_command_parsing_and_routing():
 def test_unit_transaction_state_transitions():
     """Test transaction state machine transitions."""
     # Valid transitions
-    valid_transitions = {
+    valid_transitions: dict[str, list[str]] = {
         "CREATED": ["PENDING"],
         "PENDING": ["CONFIRMED", "FAILED"],
         "CONFIRMED": [],  # Terminal state
@@ -532,7 +532,8 @@ def test_unit_transaction_state_transitions():
     }
 
     def is_valid_transition(from_state: str, to_state: str) -> bool:
-        return to_state in valid_transitions.get(from_state, [])
+        transitions: list[str] = valid_transitions.get(from_state, [])
+        return to_state in transitions
 
     # Test valid transitions
     assert is_valid_transition("CREATED", "PENDING")
@@ -577,7 +578,7 @@ def test_unit_environment_variable_defaults():
 def test_unit_formatting_helpers_used_by_bot():
     """Test formatting utilities used in bot responses."""
     # Test XRP amount formatting
-    amount_tests = [
+    amount_tests: list[tuple[Decimal | float, str]] = [
         (Decimal("5.123456"), "5.123456"),
         (Decimal("10.0"), "10.000000"),
         (Decimal("0.000001"), "0.000001"),
