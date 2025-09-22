@@ -42,7 +42,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install jupyter plotly pandas numpy kaleido pyyaml nbformat
+          pip install jupyter plotly pandas numpy kaleido pyyaml nbformat ipykernel
 
       - name: Install Quarto
         run: |
@@ -57,22 +57,20 @@ jobs:
           if [ -f "presentation/xrp-telegram-bot-presentation.qmd" ]; then
             cd presentation
 
-            # Option 1: Try to render with execution disabled
-            echo "Attempting to render with code execution..."
-            quarto render xrp-telegram-bot-presentation.qmd --to revealjs --execute-params '{"enabled": false}' 2>&1 || {
-              echo "Failed with execution. Trying without code execution..."
+            # Create a modified version with eval: false
+            cp xrp-telegram-bot-presentation.qmd xrp-telegram-bot-presentation-temp.qmd
 
-              # Option 2: Render without executing Python code
-              quarto render xrp-telegram-bot-presentation.qmd --to revealjs --no-execute 2>&1 || {
-                echo "Still failing. Trying with freeze..."
+            # Replace eval: true with eval: false in the header
+            sed -i 's/eval: true/eval: false/g' xrp-telegram-bot-presentation-temp.qmd
 
-                # Option 3: Use freeze to prevent re-execution
-                quarto render xrp-telegram-bot-presentation.qmd --to revealjs --freeze 2>&1 || {
-                  echo "All render attempts failed"
-                  exit 1
-                }
-              }
-            }
+            # Render the modified version
+            quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs
+
+            # Rename output back to expected name
+            mv xrp-telegram-bot-presentation-temp.html xrp-telegram-bot-presentation.html
+
+            # Clean up
+            rm xrp-telegram-bot-presentation-temp.qmd
 
             cd ..
           else
@@ -128,7 +126,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install jupyter plotly pandas numpy kaleido pyyaml nbformat
+          pip install jupyter plotly pandas numpy kaleido pyyaml nbformat ipykernel
           wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.554/quarto-1.4.554-linux-amd64.deb
           sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
           sudo apt-get install -f -y
@@ -137,14 +135,15 @@ jobs:
         run: |
           cd presentation
 
-          # Try different rendering approaches
+          echo "Creating modified version with eval: false..."
+          cp xrp-telegram-bot-presentation.qmd xrp-telegram-bot-presentation-temp.qmd
+          sed -i 's/eval: true/eval: false/g' xrp-telegram-bot-presentation-temp.qmd
+
           echo "Attempting render..."
-          quarto render xrp-telegram-bot-presentation.qmd --to revealjs --execute-params '{"enabled": false}' || \
-          quarto render xrp-telegram-bot-presentation.qmd --to revealjs --no-execute || \
-          quarto render xrp-telegram-bot-presentation.qmd --to revealjs --freeze || {
-            echo "All attempts failed"
-            exit 1
-          }
+          quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs
+
+          mv xrp-telegram-bot-presentation-temp.html xrp-telegram-bot-presentation.html
+          rm xrp-telegram-bot-presentation-temp.qmd
 
           echo "✅ Presentation builds successfully"
           ls -la *.html
