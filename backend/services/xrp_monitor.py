@@ -95,7 +95,7 @@ class XRPTransactionMonitor:
                 return
 
             # Subscribe to account transactions for all addresses
-            subscription = Subscribe(accounts=addresses, streams=["transactions"])
+            subscription = Subscribe(accounts=addresses)
 
             response = await self.client.request(subscription)
 
@@ -128,7 +128,7 @@ class XRPTransactionMonitor:
 
         try:
             # Subscribe to this specific address
-            subscription = Subscribe(accounts=[address], streams=["transactions"])
+            subscription = Subscribe(accounts=[address])
             response = await self.client.request(subscription)
 
             if response.is_successful():
@@ -176,29 +176,22 @@ class XRPTransactionMonitor:
     async def _process_transaction_message(self, message: dict[str, Any]) -> None:
         """Process an incoming transaction message from XRP Ledger."""
         try:
-            # Log ALL incoming messages for debugging
-            logger.debug(f"Received WebSocket message: {message.get('type', 'unknown')}")
-
-            # Check if this is a transaction message
+            # Only process transaction messages
             if message.get("type") != "transaction":
-                # Log non-transaction messages for debugging
-                if message.get("type"):
-                    logger.debug(f"Ignoring non-transaction message: {message.get('type')}")
                 return
 
             transaction = message.get("transaction", {})
             meta = message.get("meta", {})
 
-            # Log transaction details for debugging
+            # Skip if no transaction data
+            if not transaction or not meta:
+                return
+
             tx_type = transaction.get("TransactionType")
             tx_result = meta.get("TransactionResult")
-            logger.info(f"Processing transaction: {tx_type} - {tx_result}")
 
             # Only process successful Payment transactions
-            if (
-                transaction.get("TransactionType") != "Payment"
-                or meta.get("TransactionResult") != "tesSUCCESS"
-            ):
+            if tx_type != "Payment" or tx_result != "tesSUCCESS":
                 return
 
             # Extract transaction details
