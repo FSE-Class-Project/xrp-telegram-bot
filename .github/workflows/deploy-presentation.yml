@@ -24,8 +24,8 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    # Only deploy to Pages from main/prod branches
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod')
+    # Only deploy to Pages from main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

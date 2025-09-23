@@ -162,20 +162,19 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
                 webhook_url = f"{settings.API_URL}/webhook/{settings.TELEGRAM_BOT_TOKEN}"
 
             if webhook_url:
-                await telegram_app_instance.bot.set_webhook(
-                    url=webhook_url,
-                    secret_token=(
-                        settings.TELEGRAM_WEBHOOK_SECRET
-                        if settings.TELEGRAM_WEBHOOK_SECRET
-                        else None
-                    ),
-                    drop_pending_updates=True,
-                    allowed_updates=[
+                webhook_kwargs = {
+                    "url": webhook_url,
+                    "drop_pending_updates": True,
+                    "allowed_updates": [
                         "message",
                         "callback_query",
                         "inline_query",
                     ],
-                )
+                }
+                if settings.TELEGRAM_WEBHOOK_SECRET:
+                    webhook_kwargs["secret_token"] = settings.TELEGRAM_WEBHOOK_SECRET
+
+                await telegram_app_instance.bot.set_webhook(**webhook_kwargs)
                 logger.info(f"✅ Webhook set to: {webhook_url}")
 
                 # Verify webhook was set
@@ -198,10 +197,30 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     else:
         logger.warning("⚠️ Telegram bot not initialized - missing TELEGRAM_BOT_TOKEN")
 
+    # Start XRP transaction monitoring service
+    try:
+        from .services.xrp_monitor import start_xrp_monitoring
+
+        await start_xrp_monitoring()
+        logger.info("✅ XRP transaction monitoring started")
+    except Exception as e:
+        logger.error(f"❌ Failed to start XRP monitoring: {e}")
+        if settings.ENVIRONMENT == "production":
+            raise
+
     yield
 
     # Shutdown
     logger.info("👋 Shutting down application...")
+
+    # Stop XRP transaction monitoring
+    try:
+        from .services.xrp_monitor import stop_xrp_monitoring
+
+        await stop_xrp_monitoring()
+        logger.info("✅ XRP transaction monitoring stopped")
+    except Exception as e:
+        logger.error(f"⚠️ XRP monitoring shutdown warning: {e}")
 
     # Cleanup Telegram app if initialized
     if telegram_app_instance:
