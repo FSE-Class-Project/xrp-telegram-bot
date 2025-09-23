@@ -1,5 +1,7 @@
 """Encryption utilities for secure data storage."""
 
+from __future__ import annotations
+
 import base64
 import os
 
@@ -13,8 +15,10 @@ class EncryptionService:
         """Initialize with encryption key.
 
         Args:
+        ----
             key: Encryption key as string, bytes, or None.
                  If None, will use env variable or generate new.
+
         """
         if key is not None:
             # Convert to bytes if needed

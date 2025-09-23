@@ -1,5 +1,7 @@
 """Telegram bot service for webhook mode integration."""
 
+from __future__ import annotations
+
 import logging
 import os
 
@@ -16,11 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 async def create_telegram_application() -> Application | None:
-    """
-    Create and configure a Telegram application for webhook mode.
+    """Create and configure a Telegram application for webhook mode.
 
-    Returns:
+    Returns
+    -------
         Configured Telegram Application instance or None if failed
+
     """
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
@@ -86,7 +89,8 @@ async def create_telegram_application() -> Application | None:
         async def error_handler(update, context):
             """Log errors."""
             logger.error(
-                f'Webhook update "{update}" caused error "{context.error}"', exc_info=context.error
+                f'Webhook update "{update}" caused error "{context.error}"',
+                exc_info=context.error,
             )
 
         application.add_error_handler(error_handler)
@@ -100,15 +104,17 @@ async def create_telegram_application() -> Application | None:
 
 
 async def setup_webhook(application: Application, webhook_url: str) -> bool:
-    """
-    Set up webhook for the Telegram bot.
+    """Set up webhook for the Telegram bot.
 
     Args:
+    ----
         application: Telegram Application instance
         webhook_url: URL where Telegram should send updates
 
     Returns:
+    -------
         True if webhook was set successfully, False otherwise
+
     """
     try:
         await application.bot.set_webhook(
@@ -137,14 +143,16 @@ async def setup_webhook(application: Application, webhook_url: str) -> bool:
 
 
 async def delete_webhook(application: Application) -> bool:
-    """
-    Delete the current webhook.
+    """Delete the current webhook.
 
     Args:
+    ----
         application: Telegram Application instance
 
     Returns:
+    -------
         True if webhook was deleted successfully, False otherwise
+
     """
     try:
         await application.bot.delete_webhook(drop_pending_updates=True)

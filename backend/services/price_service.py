@@ -1,5 +1,7 @@
 """XRP price service with caching."""
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -22,14 +24,16 @@ class PriceService:
         self.api_key = settings.PRICE_API_KEY
 
     async def get_xrp_price(self, force_refresh: bool = False) -> dict[str, Any]:
-        """
-        Get XRP price data with caching.
+        """Get XRP price data with caching.
 
         Args:
+        ----
             force_refresh: Force API call even if cached data exists
 
         Returns:
+        -------
             Price data dictionary
+
         """
         # Check cache first unless forced refresh
         if not force_refresh:
@@ -104,30 +108,32 @@ class PriceService:
             }
 
     async def get_price_history(self, days: int = 7, currency: str = "usd") -> dict[str, Any]:
-        """
-        Get XRP price history.
+        """Get XRP price history.
 
         Args:
+        ----
             days: Number of days of history
             currency: Currency to get prices in
 
         Returns:
+        -------
             Price history data
+
         """
         # Check cache for this specific timeframe
         cache_key = f"price:xrp:history:{days}d_{currency}"
         cached_history = self.cache.cache.get_json(cache_key)
 
-        if cached_history:
+        if cached_history and isinstance(cached_history, dict):
             cached_history["from_cache"] = True
-            return cached_history
+            return cached_history  # type: ignore[no-any-return]
 
         try:
             async with httpx.AsyncClient() as client:
                 url = f"{self.api_url}/coins/ripple/market_chart"
                 params = {
                     "vs_currency": currency,
-                    "days": days,
+                    "days": str(days),
                     "interval": "daily" if days > 1 else "hourly",
                 }
 
@@ -158,7 +164,12 @@ class PriceService:
 
         except Exception as e:
             logger.error(f"Error fetching price history: {e}")
-            return {"error": str(e), "prices": [], "days": days, "currency": currency}
+            return {
+                "error": str(e),
+                "prices": [],
+                "days": days,
+                "currency": currency,
+            }
 
     def calculate_price_change(
         self, current_price: float, previous_price: float
@@ -179,9 +190,9 @@ class PriceService:
         """Get comprehensive XRP market statistics."""
         # Try cache first
         cached_stats = self.cache.cache.get_json("market:xrp:stats")
-        if cached_stats:
+        if cached_stats and isinstance(cached_stats, dict):
             cached_stats["from_cache"] = True
-            return cached_stats
+            return cached_stats  # type: ignore[no-any-return]
 
         try:
             async with httpx.AsyncClient() as client:
@@ -236,7 +247,10 @@ class PriceService:
 
         except Exception as e:
             logger.error(f"Error fetching market stats: {e}")
-            return {"error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
+            return {
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
 
 
 # Create singleton instance

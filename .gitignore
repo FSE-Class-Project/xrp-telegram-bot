@@ -11,6 +11,8 @@ env/
 # Environment
 .env
 .env.local
+.env.development
+.env.production
 
 # Database
 *.db
@@ -29,6 +31,11 @@ ARCHITECTURE.md
 .coverage
 htmlcov/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Temporary files
+=*
 
 # Logs
 *.log

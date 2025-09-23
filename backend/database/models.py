@@ -17,7 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import (
-    declarative_base,
+    DeclarativeBase,
     relationship,
 )
 
@@ -26,7 +26,12 @@ if TYPE_CHECKING:
     pass
 
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    """Base class for all database models."""
+
+    pass
+
+
 # Base class for all models
 
 
@@ -43,7 +48,9 @@ class User(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
@@ -56,7 +63,10 @@ class User(Base):
     # Relationships - use string references to avoid circular imports
     wallet = relationship("Wallet", back_populates="user", uselist=False, lazy="selectin")
     sent_transactions = relationship(
-        "Transaction", foreign_keys="Transaction.sender_id", back_populates="sender", lazy="select"
+        "Transaction",
+        foreign_keys="Transaction.sender_id",
+        back_populates="sender",
+        lazy="select",
     )
     beneficiaries = relationship(
         "Beneficiary",
@@ -67,7 +77,10 @@ class User(Base):
     settings = relationship("UserSettings", back_populates="user", uselist=False, lazy="selectin")
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, telegram_id={self.telegram_id}, username={self.telegram_username})>"
+        return (
+            f"<User(id={self.id}, telegram_id={self.telegram_id}, "
+            f"username={self.telegram_username})>"
+        )
 
 
 class Wallet(Base):
@@ -91,7 +104,9 @@ class Wallet(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
@@ -137,7 +152,9 @@ class Transaction(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     confirmed_at = Column(DateTime(timezone=True), nullable=True, default=None)
 
@@ -145,7 +162,10 @@ class Transaction(Base):
     sender = relationship("User", back_populates="sent_transactions")
 
     def __repr__(self) -> str:
-        return f"<Transaction(id={self.id}, hash={self.tx_hash}, amount={self.amount}, status={self.status})>"
+        return (
+            f"<Transaction(id={self.id}, hash={self.tx_hash}, "
+            f"amount={self.amount}, status={self.status})>"
+        )
 
 
 class Beneficiary(Base):
@@ -160,7 +180,9 @@ class Beneficiary(Base):
     address = Column(String(255), nullable=False)
 
     created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),
@@ -231,7 +253,9 @@ class IdempotencyRecord(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
@@ -240,7 +264,10 @@ class IdempotencyRecord(Base):
     transaction = relationship("Transaction")
 
     def __repr__(self) -> str:
-        return f"<IdempotencyRecord(key={self.idempotency_key}, operation={self.operation_type}, status={self.response_status})>"
+        return (
+            f"<IdempotencyRecord(key={self.idempotency_key}, "
+            f"operation={self.operation_type}, status={self.response_status})>"
+        )
 
 
 class UserSettings(Base):
@@ -265,7 +292,9 @@ class UserSettings(Base):
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     updated_at = Column(
         DateTime(timezone=True),

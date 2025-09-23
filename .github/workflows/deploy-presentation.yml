@@ -2,10 +2,15 @@ name: Deploy Presentation to GitHub Pages
 
 on:
   push:
-    branches: [main, dev/ces, dev/joe, dev/sam, dev/Victor2DUSA]
+    branches: [ main, prod, dev/ces, dev/joe2, dev/sam, dev/Victor2DUSA ]
     paths:
       - 'docs/**'
+      - 'presentation/**'
       - '.github/workflows/deploy-presentation.yml'
+  pull_request:  # Also trigger on PRs for preview
+    branches: [ main ]
+    paths:
+      - 'presentation/**'
   workflow_dispatch:  # Allows manual triggering
 
 permissions:
@@ -18,14 +23,94 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build-and-deploy:
+    # Only deploy to Pages from main/prod branches
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: |
+          pip install jupyter plotly pandas numpy kaleido pyyaml nbformat ipykernel
+
+      - name: Install Quarto
+        run: |
+          wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.554/quarto-1.4.554-linux-amd64.deb
+          sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
+          sudo apt-get install -f -y
+          quarto --version
+
+      - name: Build presentation
+        run: |
+          # Create docs/presentation directory first
+          mkdir -p docs/presentation
+
+          if [ -f "presentation/xrp-telegram-bot-presentation.qmd" ]; then
+            cd presentation
+
+            # Create a modified version with eval: false
+            cp xrp-telegram-bot-presentation.qmd xrp-telegram-bot-presentation-temp.qmd
+
+            # Replace eval: true with eval: false in the header
+            sed -i 's/eval: true/eval: false/g' xrp-telegram-bot-presentation-temp.qmd
+
+            # Render the modified version (it will output to ../docs/presentation/)
+            quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs --output xrp-telegram-bot-presentation.html
+
+            # Clean up
+            rm xrp-telegram-bot-presentation-temp.qmd
+
+            cd ..
+
+            # Verify the file was created
+            if [ ! -f "docs/presentation/xrp-telegram-bot-presentation.html" ]; then
+              echo "Error: Expected output file not found"
+              echo "Looking for files in docs/presentation:"
+              ls -la docs/presentation/
+              exit 1
+            fi
+
+            echo "✅ Presentation built successfully at docs/presentation/xrp-telegram-bot-presentation.html"
+          else
+            echo "Error: presentation/xrp-telegram-bot-presentation.qmd not found"
+            exit 1
+          fi
+
+      - name: Prepare docs folder
+        run: |
+          # Copy custom.scss if it exists
+          [ -f "presentation/custom.scss" ] && cp presentation/custom.scss docs/presentation/
+
+          # Create index.html
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>XRP Telegram Bot - Presentation</title>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0;URL='presentation/xrp-telegram-bot-presentation.html'" />
+            </head>
+            <body>
+              <p>Loading presentation...</p>
+            </body>
+          </html>
+          EOF
+
+          echo "Contents of docs directory:"
+          ls -la docs/
+          echo "Contents of docs/presentation directory:"
+          ls -la docs/presentation/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -38,3 +123,54 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Separate job for build testing on other branches
+  test-build:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/dev/ces' || github.ref == 'refs/heads/dev/joe2' || github.ref == 'refs/heads/dev/sam' || github.ref == 'refs/heads/dev/Victor2DUSA'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install jupyter plotly pandas numpy kaleido pyyaml nbformat ipykernel
+          wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.554/quarto-1.4.554-linux-amd64.deb
+          sudo dpkg -i quarto-1.4.554-linux-amd64.deb || true
+          sudo apt-get install -f -y
+
+      - name: Test build presentation
+        run: |
+          # Create output directory
+          mkdir -p docs/presentation
+
+          cd presentation
+
+          echo "Creating modified version with eval: false..."
+          cp xrp-telegram-bot-presentation.qmd xrp-telegram-bot-presentation-temp.qmd
+          sed -i 's/eval: true/eval: false/g' xrp-telegram-bot-presentation-temp.qmd
+
+          echo "Attempting render..."
+          quarto render xrp-telegram-bot-presentation-temp.qmd --to revealjs --output xrp-telegram-bot-presentation.html
+
+          # Clean up temp file
+          rm xrp-telegram-bot-presentation-temp.qmd
+
+          cd ..
+
+          # Check if file was created
+          if [ -f "docs/presentation/xrp-telegram-bot-presentation.html" ]; then
+            echo "✅ Presentation builds successfully"
+            echo "File size: $(du -h docs/presentation/xrp-telegram-bot-presentation.html)"
+          else
+            echo "❌ Build appeared successful but file not found"
+            echo "Contents of docs/presentation:"
+            ls -la docs/presentation/
+            exit 1
+          fi

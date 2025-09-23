@@ -1,5 +1,7 @@
 """Idempotency utilities for preventing duplicate operations."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 import uuid
@@ -9,7 +11,6 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..database.connection import get_db
 from ..database.models import IdempotencyRecord, Transaction
 
 
@@ -55,16 +56,17 @@ class IdempotencyManager:
     async def check_idempotency(
         self,
         idempotency_key: str,
-        user_id: int | None,
-        operation_type: str,
+        user_id: int | None,  # noqa: ARG002
+        operation_type: str,  # noqa: ARG002
         request_data: dict[str, Any],
-        ttl_hours: int = 24,
+        ttl_hours: int = 24,  # noqa: ARG002
     ) -> IdempotencyRecord | None:
-        """
-        Check if operation already exists and return existing record if found.
+        """Check if operation already exists and return existing record if found.
 
-        Returns:
+        Returns
+        -------
             IdempotencyRecord if duplicate request found, None if new request
+
         """
         if not IdempotencyKey.validate(idempotency_key):
             raise ValueError("Invalid idempotency key format")
@@ -124,7 +126,11 @@ class IdempotencyManager:
             self.db.rollback()
             # Race condition - record was created by another request
             existing = await self.check_idempotency(
-                idempotency_key, user_id, operation_type, request_data, ttl_hours
+                idempotency_key,
+                user_id,
+                operation_type,
+                request_data,
+                ttl_hours,
             )
             if existing:
                 return existing
@@ -176,15 +182,20 @@ class TransactionIdempotency:
         self.manager = IdempotencyManager(db)
 
     async def check_transaction_idempotency(
-        self, idempotency_key: str, user_id: int, to_address: str, amount: float
+        self,
+        idempotency_key: str,
+        user_id: int,
+        to_address: str,
+        amount: float,
     ) -> IdempotencyRecord | Transaction | None:
-        """
-        Check for duplicate transaction requests.
+        """Check for duplicate transaction requests.
 
-        Returns:
+        Returns
+        -------
             IdempotencyRecord if duplicate in progress
             Transaction if completed duplicate
             None if new request
+
         """
         request_data = {
             "to_address": to_address,
@@ -212,13 +223,25 @@ class TransactionIdempotency:
         return None
 
     async def create_transaction_idempotency(
-        self, idempotency_key: str, user_id: int, to_address: str, amount: float
+        self,
+        idempotency_key: str,
+        user_id: int,
+        to_address: str,
+        amount: float,
     ) -> IdempotencyRecord:
         """Create idempotency record for new transaction."""
-        request_data = {"to_address": to_address, "amount": str(amount), "user_id": user_id}
+        request_data = {
+            "to_address": to_address,
+            "amount": str(amount),
+            "user_id": user_id,
+        }
 
         return await self.manager.create_idempotency_record(
-            idempotency_key, user_id, "send_transaction", request_data, ttl_hours=1
+            idempotency_key,
+            user_id,
+            "send_transaction",
+            request_data,
+            ttl_hours=1,
         )
 
     async def link_transaction_to_idempotency(
@@ -235,17 +258,15 @@ class TransactionIdempotency:
         }
 
         await self.manager.update_idempotency_record(
-            record, "success", response_data, transaction.id
+            record, "success", response_data, int(transaction.id) if transaction.id else None
         )
 
 
-def get_idempotency_manager() -> IdempotencyManager:
-    """Get idempotency manager with database session."""
-    db = next(get_db())
+def get_idempotency_manager(db: Session) -> IdempotencyManager:
+    """Get idempotency manager with provided database session."""
     return IdempotencyManager(db)
 
 
-def get_transaction_idempotency() -> TransactionIdempotency:
-    """Get transaction idempotency manager with database session."""
-    db = next(get_db())
+def get_transaction_idempotency(db: Session) -> TransactionIdempotency:
+    """Get transaction idempotency manager with provided database session."""
     return TransactionIdempotency(db)

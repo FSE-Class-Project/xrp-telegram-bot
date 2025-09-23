@@ -1,4 +1,4 @@
-"""API schemas"""
+"""API schemas."""
 
 from __future__ import annotations
 
@@ -7,7 +7,13 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class TransactionStatus(str, Enum):
@@ -122,7 +128,7 @@ class WalletResponse(WalletBase, TimestampMixin):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    balance: Decimal = Field(default=Decimal("0"), decimal_places=6)
+    balance: Decimal = Field(default=Decimal("0"))
     is_active: bool
     sequence: int | None = None
 
@@ -131,9 +137,9 @@ class WalletBalanceResponse(BaseResponse):
     """Wallet balance response."""
 
     address: str
-    balance: Decimal = Field(default=Decimal("0"), decimal_places=6)
-    reserved_balance: Decimal = Field(default=Decimal("10"), decimal_places=6)
-    available_balance: Decimal = Field(default=Decimal("0"), decimal_places=6)
+    balance: Decimal = Field(default=Decimal("0"))
+    reserved_balance: Decimal = Field(default=Decimal("1"))
+    available_balance: Decimal = Field(default=Decimal("0"))
 
     @model_validator(mode="after")
     def calculate_available(self) -> WalletBalanceResponse:
@@ -148,7 +154,7 @@ class TransactionBase(BaseModel):
 
     sender_address: str
     receiver_address: str
-    amount: Decimal = Field(gt=0, decimal_places=6)
+    amount: Decimal = Field(gt=0)
 
     @field_validator("sender_address", "receiver_address")
     @classmethod
@@ -181,7 +187,7 @@ class TransactionResponse(TransactionBase, TimestampMixin):
 
     id: int
     transaction_hash: str
-    fee: Decimal = Field(default=Decimal("0.00001"), decimal_places=6)
+    fee: Decimal = Field(default=Decimal("0.00001"))
     status: TransactionStatus
     ledger_index: int | None = None
     sequence: int | None = None
@@ -228,12 +234,12 @@ class TransactionHistoryResponse(BaseResponse):
 class PriceData(BaseModel):
     """Price data schema."""
 
-    price: Decimal = Field(decimal_places=6)
+    price: Decimal
     currency: Currency
-    change_24h: Decimal | None = Field(default=None, decimal_places=2)
-    change_percentage_24h: Decimal | None = Field(default=None, decimal_places=2)
-    volume_24h: Decimal | None = Field(default=None, decimal_places=2)
-    market_cap: Decimal | None = Field(default=None, decimal_places=2)
+    change_24h: Decimal | None = Field(default=None)
+    change_percentage_24h: Decimal | None = Field(default=None)
+    volume_24h: Decimal | None = Field(default=None)
+    market_cap: Decimal | None = Field(default=None)
     last_updated: datetime
 
 
@@ -269,7 +275,7 @@ class UserSettingsUpdate(BaseModel):
     currency: Currency | None = None
     notifications_enabled: bool | None = None
     price_alerts_enabled: bool | None = None
-    price_alert_threshold: Decimal | None = Field(default=None, gt=0, decimal_places=6)
+    price_alert_threshold: Decimal | None = Field(default=None, gt=0)
     transaction_confirmations: bool | None = None
     show_testnet_warning: bool | None = None
 
@@ -280,7 +286,7 @@ class UserSettingsResponse(UserSettingsBase, TimestampMixin):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    price_alert_threshold: Decimal | None = Field(default=None, decimal_places=6)
+    price_alert_threshold: Decimal | None = Field(default=None)
 
 
 # Authentication schemas
@@ -343,6 +349,55 @@ class TelegramUpdate(BaseModel):
         if not any([self.message, self.callback_query, self.inline_query]):
             raise ValueError("Invalid update: no content")
         return self
+
+
+# Transaction request schemas
+class SendTransactionRequest(BaseModel):
+    """Send transaction request model."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    from_telegram_id: str
+    to_address: str
+    amount: Decimal = Field(gt=0)
+    memo: str | None = Field(None, max_length=512)
+
+    @field_validator("to_address")
+    @classmethod
+    def validate_xrp_address(cls, v: str) -> str:
+        """Validate XRP address format."""
+        import re
+
+        if not v.startswith("r"):
+            raise ValueError("XRP address must start with 'r'")
+
+        if len(v) < 25 or len(v) > 34:
+            raise ValueError("XRP address must be 25-34 characters long")
+
+        pattern = r"^r[a-zA-Z0-9]{24,33}$"
+        if not re.match(pattern, v):
+            raise ValueError("Invalid XRP address format")
+
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, v: Decimal) -> Decimal:
+        """Validate XRP amount."""
+        if v <= 0:
+            raise ValueError("Amount must be positive")
+
+        # Check minimum transaction amount (1 drop = 0.000001 XRP)
+        min_amount = Decimal("0.000001")
+        if v < min_amount:
+            raise ValueError(f"Amount must be at least {min_amount} XRP")
+
+        # Check maximum practical amount
+        max_amount = Decimal("100000000000")  # 100 billion XRP
+        if v > max_amount:
+            raise ValueError(f"Amount cannot exceed {max_amount} XRP")
+
+        return v
 
 
 # Error schemas
