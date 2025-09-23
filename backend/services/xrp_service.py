@@ -10,9 +10,9 @@ from typing import Any
 from xrpl.asyncio.clients import AsyncJsonRpcClient
 from xrpl.asyncio.transaction import autofill, sign, submit_and_wait
 from xrpl.models.requests import AccountInfo, AccountTx
-from xrpl.models.transactions import Payment
+from xrpl.models.transactions import Memo, Payment
 from xrpl.utils import drops_to_xrp, xrp_to_drops
-from xrpl.wallet import Wallet  # Remove 'generate' import - it's deprecated
+from xrpl.wallet import Wallet as XRPLWallet  # Alias to avoid conflict with DB model
 
 from ..config import settings
 from ..constants import ACCOUNT_RESERVE, STANDARD_FEE
@@ -43,7 +43,7 @@ class XRPService:
         """
         try:
             # Use Wallet.create() instead of generate() for xrpl-py 2.5.0
-            wallet = Wallet.create()
+            wallet = XRPLWallet.create()
             logger.debug("Created new XRP wallet")
 
             # Ensure seed exists before encrypting
@@ -98,11 +98,11 @@ class XRPService:
             logger.error(f"Error funding wallet {address}: {e}")
             return False
 
-    def get_wallet_from_secret(self, encrypted_secret: str) -> Wallet:
+    def get_wallet_from_secret(self, encrypted_secret: str) -> XRPLWallet:
         """Reconstruct wallet from encrypted secret."""
         try:
             secret = encryption_service.decrypt(encrypted_secret)
-            wallet = Wallet.from_seed(secret)
+            wallet = XRPLWallet.from_seed(secret)
             logger.debug(f"Successfully reconstructed wallet: {wallet.classic_address}")
             return wallet
         except Exception as e:
@@ -132,16 +132,16 @@ class XRPService:
 
             # Try creating wallet from seed first (most common format)
             try:
-                wallet = Wallet.from_seed(input_str)
+                wallet = XRPLWallet.from_seed(input_str)
             except Exception:
                 # If seed fails, try other formats
                 # Check if it looks like a private key (starts with ED, etc.)
                 if input_str.startswith(("ED", "sEd", "s")):
                     # Try as secret key
-                    wallet = Wallet.from_secret(input_str)
+                    wallet = XRPLWallet.from_secret(input_str)
                 else:
                     # Try as entropy/seed
-                    wallet = Wallet.from_entropy(input_str)
+                    wallet = XRPLWallet.from_entropy(input_str)
 
             # Validate the wallet was created successfully
             if not wallet or not wallet.classic_address:
@@ -298,7 +298,7 @@ class XRPService:
         from_encrypted_secret: str,
         to_address: str,
         amount: float,
-        _memo: str | None = None,
+        memo: str | None = None,
     ) -> dict[str, Any]:
         """Send XRP from one address to another.
 
@@ -307,7 +307,7 @@ class XRPService:
             from_encrypted_secret: Encrypted secret of sender
             to_address: Recipient's XRP address
             amount: Amount in XRP to send
-            _memo: Optional transaction memo (currently unused)
+            memo: Optional transaction memo
 
         Returns:
         -------
@@ -349,11 +349,26 @@ class XRPService:
                 }
 
             # Create payment transaction (let autofill set Fee/Sequence/LastLedgerSequence)
-            payment = Payment(
-                account=wallet.classic_address,
-                destination=to_address,
-                amount=xrp_to_drops(amount),
-            )
+            if memo:
+                # Create payment with memo
+                payment = Payment(
+                    account=wallet.classic_address,
+                    destination=to_address,
+                    amount=xrp_to_drops(amount),
+                    memos=[
+                        Memo(
+                            memo_data=memo.encode("utf-8").hex().upper(),
+                            memo_type=b"text/plain".hex().upper(),
+                        )
+                    ],
+                )
+            else:
+                # Create payment without memo
+                payment = Payment(
+                    account=wallet.classic_address,
+                    destination=to_address,
+                    amount=xrp_to_drops(amount),
+                )
 
             # Autofill required fields then sign
             prepared = await autofill(payment, self.client)
