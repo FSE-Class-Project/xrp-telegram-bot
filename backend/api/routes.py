@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated, TypeAlias, cast
 
-import httpx
 from fastapi import (
     APIRouter,
     Depends,
@@ -1080,61 +1079,70 @@ async def create_beneficiary(
 )
 @limiter.limit("30/minute")  # Allow reasonable price checking
 async def get_current_price(request: Request, response: Response) -> PriceInfo:  # noqa: ARG001
-    """Get current XRP price from CoinGecko."""
+    """Get current XRP price using cached price service."""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            api_response = await client.get(
-                "https://api.coingecko.com/api/v3/simple/price",
-                params={
-                    "ids": "ripple",
-                    "vs_currencies": "usd,eur,gbp,zar,jpy,btc,eth",
-                    "include_24hr_change": "true",
-                    "include_market_cap": "true",
-                    "include_24hr_vol": "true",
-                },
+        from ..services.price_service import PriceService
+
+        # Use the cached price service
+        price_service = PriceService()
+        price_data = await price_service.get_xrp_price()
+
+        # Check if we got an error response
+        if "error" in price_data:
+            logger.error(f"Price service error: {price_data['error']}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Price service unavailable",
             )
 
-            if api_response.status_code == 200:
-                data = api_response.json()["ripple"]
-                return PriceInfo(
-                    price_usd=Decimal(str(data.get("usd", 0))),
-                    price_btc=(
-                        Decimal(str(data.get("btc", 0))) if data.get("btc") is not None else None
-                    ),
-                    price_eur=(
-                        Decimal(str(data.get("eur", 0))) if data.get("eur") is not None else None
-                    ),
-                    price_gbp=(
-                        Decimal(str(data.get("gbp", 0))) if data.get("gbp") is not None else None
-                    ),
-                    price_zar=(
-                        Decimal(str(data.get("zar", 0))) if data.get("zar") is not None else None
-                    ),
-                    price_jpy=(
-                        Decimal(str(data.get("jpy", 0))) if data.get("jpy") is not None else None
-                    ),
-                    price_eth=(
-                        Decimal(str(data.get("eth", 0))) if data.get("eth") is not None else None
-                    ),
-                    change_24h=Decimal(str(data.get("usd_24h_change", 0))),
-                    market_cap=Decimal(str(data.get("usd_market_cap", 0))),
-                    volume_24h=Decimal(str(data.get("usd_24h_vol", 0))),
-                    last_updated=datetime.now(timezone.utc),
-                )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Price service unavailable",
-                )
+        # Convert to PriceInfo response model
+        return PriceInfo(
+            price_usd=Decimal(str(price_data.get("price_usd", 0))),
+            price_btc=(
+                Decimal(str(price_data.get("price_btc", 0)))
+                if price_data.get("price_btc") is not None
+                else None
+            ),
+            price_eur=(
+                Decimal(str(price_data.get("price_eur", 0)))
+                if price_data.get("price_eur") is not None
+                else None
+            ),
+            price_gbp=(
+                Decimal(str(price_data.get("price_gbp", 0)))
+                if price_data.get("price_gbp") is not None
+                else None
+            ),
+            price_zar=(
+                Decimal(str(price_data.get("price_zar", 0)))
+                if price_data.get("price_zar") is not None
+                else None
+            ),
+            price_jpy=(
+                Decimal(str(price_data.get("price_jpy", 0)))
+                if price_data.get("price_jpy") is not None
+                else None
+            ),
+            price_eth=(
+                Decimal(str(price_data.get("price_eth", 0)))
+                if price_data.get("price_eth") is not None
+                else None
+            ),
+            change_24h=Decimal(str(price_data.get("change_24h_percent", 0))),
+            market_cap=Decimal(str(price_data.get("market_cap_usd", 0))),
+            volume_24h=Decimal(str(price_data.get("volume_24h_usd", 0))),
+            last_updated=datetime.now(timezone.utc),
+        )
 
-    except httpx.TimeoutException as e:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Price service timeout",
-        ) from e
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Price fetch error: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        logger.error(f"Price service error: {str(e)}")
+        # Even if price service fails, try to provide a fallback
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Price service temporarily unavailable",
+        ) from e
 
 
 @router.get(

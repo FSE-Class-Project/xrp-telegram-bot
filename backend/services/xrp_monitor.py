@@ -95,13 +95,15 @@ class XRPTransactionMonitor:
                 return
 
             # Subscribe to account transactions for all addresses
-            subscription = Subscribe(accounts=addresses)
+            subscription = Subscribe(accounts=addresses, streams=["transactions"])
 
             response = await self.client.request(subscription)
 
             if response.is_successful():
                 self.subscribed_addresses.update(addresses)
-                logger.info(f"✅ Subscribed to {len(addresses)} wallet addresses")
+                logger.info(
+                    f"✅ Subscribed to {len(addresses)} wallet addresses with transaction stream"
+                )
             else:
                 logger.error(f"Failed to subscribe to wallets: {response.result}")
 
@@ -123,12 +125,12 @@ class XRPTransactionMonitor:
 
         try:
             # Subscribe to this specific address
-            subscription = Subscribe(accounts=[address])
+            subscription = Subscribe(accounts=[address], streams=["transactions"])
             response = await self.client.request(subscription)
 
             if response.is_successful():
                 self.subscribed_addresses.add(address)
-                logger.info(f"✅ Added wallet {address} to monitoring")
+                logger.info(f"✅ Added wallet {address} to monitoring with transaction stream")
             else:
                 logger.error(f"Failed to subscribe to wallet {address}: {response.result}")
 
@@ -176,7 +178,8 @@ class XRPTransactionMonitor:
 
             # Extract transaction details
             destination = transaction.get("Destination")
-            amount = transaction.get("Amount")
+            # Try DeliverMax first (newer transactions), then fallback to Amount
+            amount = transaction.get("DeliverMax") or transaction.get("Amount")
             sender = transaction.get("Account")
             tx_hash = transaction.get("hash")
 

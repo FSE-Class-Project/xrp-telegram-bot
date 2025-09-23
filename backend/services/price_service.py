@@ -77,7 +77,7 @@ class PriceService:
             url = f"{self.api_url}/simple/price"
             params = {
                 "ids": "ripple",
-                "vs_currencies": "usd,btc",
+                "vs_currencies": "usd,eur,gbp,zar,jpy,btc,eth",
                 "include_market_cap": "true",
                 "include_24hr_vol": "true",
                 "include_24hr_change": "true",
@@ -98,7 +98,12 @@ class PriceService:
 
             return {
                 "price_usd": ripple_data.get("usd", 0),
+                "price_eur": ripple_data.get("eur", 0),
+                "price_gbp": ripple_data.get("gbp", 0),
+                "price_zar": ripple_data.get("zar", 0),
+                "price_jpy": ripple_data.get("jpy", 0),
                 "price_btc": ripple_data.get("btc", 0),
+                "price_eth": ripple_data.get("eth", 0),
                 "market_cap_usd": ripple_data.get("usd_market_cap", 0),
                 "volume_24h_usd": ripple_data.get("usd_24h_vol", 0),
                 "change_24h_percent": ripple_data.get("usd_24h_change", 0),

@@ -447,6 +447,24 @@ if settings.DEBUG:
         except Exception as e:
             return {"error": str(e)}
 
+    @app.get("/monitor/status")
+    async def monitor_status():
+        """Get current XRP monitor status (debug only)."""
+        try:
+            from .services.xrp_monitor import xrp_monitor
+
+            return {
+                "running": xrp_monitor.running,
+                "subscribed_addresses": list(xrp_monitor.subscribed_addresses),
+                "client_connected": xrp_monitor.client is not None,
+                "monitor_task_running": xrp_monitor._monitor_task is not None
+                and not xrp_monitor._monitor_task.done()
+                if xrp_monitor._monitor_task
+                else False,
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
 
 # Run application
 if __name__ == "__main__":
