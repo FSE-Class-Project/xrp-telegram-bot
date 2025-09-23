@@ -359,7 +359,7 @@ class UserService:
             from_encrypted_secret=sender.wallet.encrypted_secret,
             to_address=recipient_address,
             amount=amount,
-            _memo=memo,
+            memo=memo,
         )
 
         if result["success"]:
