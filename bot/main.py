@@ -436,17 +436,22 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
                     )
 
                 try:
-                    await update.effective_message.reply_text(
-                        error_msg,
-                        parse_mode=ParseMode.HTML,
-                        reply_markup=(keyboards.error_menu() if "keyboards" in locals() else None),
-                    )
+                    if "keyboards" in locals() and keyboards is not None:
+                        await update.effective_message.reply_text(
+                            error_msg,
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=keyboards.error_menu(),
+                        )
+                    else:
+                        await update.effective_message.reply_text(
+                            error_msg,
+                            parse_mode=ParseMode.HTML,
+                        )
                 except Exception as send_error:
                     logger.error(f"Failed to send formatted error message: {send_error}")
                     try:
                         await update.effective_message.reply_text(
-                            "⚠️ An error occurred. Please try again later.",
-                            reply_markup=None,
+                            "⚠️ An error occurred. Please try again later."
                         )
                     except Exception as final_error:
                         logger.error(f"Failed to send fallback error message: {final_error}")
@@ -499,6 +504,19 @@ async def post_init(application: Application):
             logger.warning("⚠️ Webhooks are handled by the backend service")
     else:
         logger.info("Development mode - using polling")
+
+        # Initialize database for development mode
+        try:
+            from backend.config import initialize_settings
+            from backend.database.connection import init_database, initialize_database_engine
+
+            settings = initialize_settings()
+            initialize_database_engine(settings.DATABASE_URL, settings.DEBUG)
+            init_database()
+            logger.info("✅ Database initialized for development mode")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize database in development mode: {e}")
+
         # Development mode - start XRP monitoring
         try:
             from backend.services.xrp_monitor import start_xrp_monitoring
