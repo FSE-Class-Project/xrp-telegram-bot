@@ -109,11 +109,14 @@ class UserService:
                     # Update balance
                     balance = await xrp_service.get_balance(address)
                     if balance is not None:
-                        wallet.balance = balance
-                        wallet.last_balance_update = datetime.now(timezone.utc)
-                        db.commit()
-                        db.refresh(user)  # Refresh to get updated wallet
-                        logger.info(f"Wallet funded successfully. New balance: {balance} XRP")
+                        # Update wallet balance properly
+                        wallet_obj = db.query(Wallet).filter(Wallet.user_id == user.id).first()
+                        if wallet_obj:
+                            wallet_obj.balance = balance
+                            wallet_obj.last_balance_update = datetime.now(timezone.utc)
+                            db.commit()
+                            db.refresh(user)  # Refresh to get updated wallet
+                            logger.info(f"Wallet funded successfully. New balance: {balance} XRP")
                     else:
                         logger.warning("Faucet funding reported success but balance is still None")
                 else:
@@ -122,6 +125,15 @@ class UserService:
                 logger.error(f"Error funding wallet: {str(e)}")
         else:
             logger.info(f"Auto-funding disabled for wallet {address}")
+
+        # Add wallet to XRP monitoring
+        try:
+            from .xrp_monitor import add_wallet_to_monitoring
+
+            await add_wallet_to_monitoring(address)
+            logger.info(f"Added wallet {address} to XRP monitoring")
+        except Exception as e:
+            logger.error(f"Failed to add wallet {address} to monitoring: {e}")
 
         return user  # Return User model instance
 
@@ -174,6 +186,7 @@ class UserService:
         Returns:
         -------
             User: Created user with wallet
+
         """
         # Check if user already exists
         existing_user = self.get_user_by_telegram_id(db, telegram_id)
@@ -216,6 +229,16 @@ class UserService:
 
         # Cache the new user data
         self._cache_user_data(user)
+
+        # Add wallet to XRP monitoring
+        if xrp_address:
+            try:
+                from .xrp_monitor import add_wallet_to_monitoring
+
+                await add_wallet_to_monitoring(xrp_address)
+                logger.info(f"Added wallet {xrp_address} to XRP monitoring")
+            except Exception as e:
+                logger.error(f"Failed to add wallet {xrp_address} to monitoring: {e}")
 
         logger.info(f"Created user {telegram_id} with imported wallet {xrp_address}")
 
@@ -297,12 +320,17 @@ class UserService:
         balance = await xrp_service.get_balance(user.wallet.xrp_address)
 
         if balance is not None:
-            user.wallet.balance = balance
-            user.wallet.last_balance_update = datetime.now(timezone.utc)
-            db.commit()
-            db.refresh(user)
+            # Update wallet balance properly
+            wallet_instance = user.wallet
+            if wallet_instance:
+                wallet_instance.balance = balance
+                wallet_instance.last_balance_update = datetime.now(timezone.utc)
+                db.commit()
+                db.refresh(user)
 
-        return float(balance if balance is not None else user.wallet.balance)
+        return float(
+            balance if balance is not None else (user.wallet.balance if user.wallet else 0.0)
+        )
 
     async def send_xrp(
         self,

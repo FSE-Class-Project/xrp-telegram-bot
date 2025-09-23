@@ -499,6 +499,14 @@ async def post_init(application: Application):
             logger.warning("⚠️ Webhooks are handled by the backend service")
     else:
         logger.info("Development mode - using polling")
+        # Development mode - start XRP monitoring
+        try:
+            from backend.services.xrp_monitor import start_xrp_monitoring
+
+            await start_xrp_monitoring()
+            logger.info("✅ XRP transaction monitoring started (development mode)")
+        except Exception as e:
+            logger.error(f"❌ Failed to start XRP monitoring in development mode: {e}")
 
 
 def setup_handlers(application: Application):
