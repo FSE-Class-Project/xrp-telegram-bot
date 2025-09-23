@@ -1203,3 +1203,37 @@ async def health_check(db: Session = Depends(get_db)) -> HealthCheckResponse:
         )
 
     return response
+
+
+@router.post(
+    "/admin/refresh-monitoring",
+    response_model=dict,
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        200: {"description": "Monitoring refreshed successfully"},
+        401: {"description": "Invalid API key"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def refresh_wallet_monitoring(
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
+) -> dict:
+    """Refresh XRP wallet monitoring to include all active wallets."""
+    try:
+        from ..services.xrp_monitor import refresh_wallet_subscriptions
+
+        await refresh_wallet_subscriptions()
+        logger.info("Wallet monitoring subscriptions refreshed")
+
+        return {
+            "success": True,
+            "message": "Wallet monitoring subscriptions refreshed successfully",
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to refresh wallet monitoring: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh wallet monitoring",
+        ) from e
