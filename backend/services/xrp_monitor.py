@@ -322,3 +322,14 @@ async def add_wallet_to_monitoring(address: str) -> None:
         await xrp_monitor.add_wallet_subscription(address)
     except Exception as e:
         logger.error(f"Failed to add wallet {address} to monitoring: {e}")
+
+
+async def refresh_wallet_subscriptions() -> None:
+    """Refresh all wallet subscriptions to include any missing wallets."""
+    try:
+        if xrp_monitor.running:
+            await xrp_monitor._subscribe_to_user_wallets()
+        else:
+            logger.warning("XRP monitor not running - cannot refresh subscriptions")
+    except Exception as e:
+        logger.error(f"Failed to refresh wallet subscriptions: {e}")

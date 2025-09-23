@@ -465,6 +465,17 @@ if settings.DEBUG:
         except Exception as e:
             return {"error": str(e)}
 
+    @app.post("/monitor/refresh")
+    async def refresh_monitor():
+        """Refresh wallet subscriptions to include any missing wallets (debug only)."""
+        try:
+            from .services.xrp_monitor import refresh_wallet_subscriptions
+
+            await refresh_wallet_subscriptions()
+            return {"success": True, "message": "Wallet subscriptions refreshed"}
+        except Exception as e:
+            return {"error": str(e)}
+
 
 # Run application
 if __name__ == "__main__":
