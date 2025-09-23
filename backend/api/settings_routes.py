@@ -2,18 +2,48 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.api.auth import verify_api_key
-from backend.api.middleware import limiter
-from backend.database.connection import get_db
-from backend.database.models import User, UserSettings
+from ..database.connection import get_db
+from ..database.models import User, UserSettings
+from .auth import verify_api_key
+from .middleware import limiter
+
+# Import error response utilities
+from .schemas import ErrorDetail, ErrorResponse
 
 logger = logging.getLogger(__name__)
+
+
+# Error handling utilities for settings
+def create_settings_error_response(
+    message: str,
+    status_code: int = 400,
+    field: str | None = None,
+    code: str | None = None,
+) -> HTTPException:
+    """Create standardized error response for settings endpoints."""
+    error_detail = ErrorDetail(field=field, message=message, code=code)
+    error_response = ErrorResponse(
+        message=message,
+        errors=[error_detail],
+    )
+    return HTTPException(
+        status_code=status_code,
+        detail=error_response.model_dump(),
+    )
+
 
 # Create router
 settings_router = APIRouter(prefix="/api/v1/user", tags=["Settings"])
@@ -48,7 +78,8 @@ class ToggleSettingRequest(BaseModel):
     """Toggle setting request model."""
 
     setting: str = Field(
-        ..., pattern="^(price_alerts|transaction_notifications|two_factor_enabled)$"
+        ...,
+        pattern="^(price_alerts|transaction_notifications|two_factor_enabled)$",
     )
 
 
@@ -78,14 +109,19 @@ class UserExportData(BaseModel):
 )
 @limiter.limit("60/minute")
 async def get_user_settings(
-    request: Request, response: Response, telegram_id: str, db: Session = Depends(get_db)
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
+    telegram_id: str,
+    db: Session = Depends(get_db),
 ) -> SettingsResponse:
     """Get user settings."""
     try:
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get or create user settings
         settings = user.settings
@@ -96,15 +132,15 @@ async def get_user_settings(
             db.refresh(settings)
 
         return SettingsResponse(
-            user_id=user.id,  # type: ignore[arg-type]
-            price_alerts=settings.price_alerts,  # type: ignore[arg-type]
-            transaction_notifications=settings.transaction_notifications,  # type: ignore[arg-type]
-            currency_display=settings.currency_display,  # type: ignore[arg-type]
-            language=settings.language,  # type: ignore[arg-type]
-            two_factor_enabled=settings.two_factor_enabled,  # type: ignore[arg-type]
+            user_id=cast(int, user.id),
+            price_alerts=settings.price_alerts,
+            transaction_notifications=settings.transaction_notifications,
+            currency_display=settings.currency_display,
+            language=settings.language,
+            two_factor_enabled=settings.two_factor_enabled,
             pin_code="****" if settings.pin_code else None,  # Mask PIN
-            created_at=settings.created_at,  # type: ignore[arg-type]
-            updated_at=settings.updated_at,  # type: ignore[arg-type]
+            created_at=settings.created_at,
+            updated_at=settings.updated_at,
         )
 
     except HTTPException:
@@ -112,7 +148,8 @@ async def get_user_settings(
     except Exception as e:
         logger.error(f"Error getting user settings for telegram_id {telegram_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         ) from e
 
 
@@ -129,8 +166,8 @@ async def get_user_settings(
 )
 @limiter.limit("30/minute")
 async def update_user_settings(
-    request: Request,
-    response: Response,
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
     telegram_id: str,
     settings_update: SettingsUpdate,
     db: Session = Depends(get_db),
@@ -140,7 +177,9 @@ async def update_user_settings(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get or create user settings
         settings = user.settings
@@ -169,15 +208,15 @@ async def update_user_settings(
         logger.info(f"Updated settings for user telegram_id {telegram_id}")
 
         return SettingsResponse(
-            user_id=user.id,  # type: ignore[arg-type]
-            price_alerts=settings.price_alerts,  # type: ignore[arg-type]
-            transaction_notifications=settings.transaction_notifications,  # type: ignore[arg-type]
-            currency_display=settings.currency_display,  # type: ignore[arg-type]
-            language=settings.language,  # type: ignore[arg-type]
-            two_factor_enabled=settings.two_factor_enabled,  # type: ignore[arg-type]
+            user_id=cast(int, user.id),
+            price_alerts=settings.price_alerts,
+            transaction_notifications=settings.transaction_notifications,
+            currency_display=settings.currency_display,
+            language=settings.language,
+            two_factor_enabled=settings.two_factor_enabled,
             pin_code="****" if settings.pin_code else None,
-            created_at=settings.created_at,  # type: ignore[arg-type]
-            updated_at=settings.updated_at,  # type: ignore[arg-type]
+            created_at=settings.created_at,
+            updated_at=settings.updated_at,
         )
 
     except HTTPException:
@@ -185,7 +224,8 @@ async def update_user_settings(
     except Exception as e:
         logger.error(f"Error updating settings for telegram_id {telegram_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         ) from e
 
 
@@ -202,8 +242,8 @@ async def update_user_settings(
 )
 @limiter.limit("30/minute")
 async def toggle_user_setting(
-    request: Request,
-    response: Response,
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
     telegram_id: str,
     toggle_request: ToggleSettingRequest,
     db: Session = Depends(get_db),
@@ -213,7 +253,9 @@ async def toggle_user_setting(
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get or create user settings
         settings = user.settings
@@ -241,15 +283,15 @@ async def toggle_user_setting(
             )
 
         return SettingsResponse(
-            user_id=user.id,  # type: ignore[arg-type]
-            price_alerts=settings.price_alerts,  # type: ignore[arg-type]
-            transaction_notifications=settings.transaction_notifications,  # type: ignore[arg-type]
-            currency_display=settings.currency_display,  # type: ignore[arg-type]
-            language=settings.language,  # type: ignore[arg-type]
-            two_factor_enabled=settings.two_factor_enabled,  # type: ignore[arg-type]
+            user_id=cast(int, user.id),
+            price_alerts=settings.price_alerts,
+            transaction_notifications=settings.transaction_notifications,
+            currency_display=settings.currency_display,
+            language=settings.language,
+            two_factor_enabled=settings.two_factor_enabled,
             pin_code="****" if settings.pin_code else None,
-            created_at=settings.created_at,  # type: ignore[arg-type]
-            updated_at=settings.updated_at,  # type: ignore[arg-type]
+            created_at=settings.created_at,
+            updated_at=settings.updated_at,
         )
 
     except HTTPException:
@@ -257,7 +299,8 @@ async def toggle_user_setting(
     except Exception as e:
         logger.error(f"Error toggling setting for telegram_id {telegram_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         ) from e
 
 
@@ -273,14 +316,19 @@ async def toggle_user_setting(
 )
 @limiter.limit("5/hour")  # Limit data exports
 async def export_user_data(
-    request: Request, response: Response, telegram_id: str, db: Session = Depends(get_db)
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
+    telegram_id: str,
+    db: Session = Depends(get_db),
 ) -> UserExportData:
     """Export user data."""
     try:
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Get user statistics
         from sqlalchemy import func
@@ -306,12 +354,12 @@ async def export_user_data(
             total_sent = 0.0
 
         # Get current balance
-        current_balance = user.wallet.balance if user.wallet else 0.0  # type: ignore[attr-defined]
+        current_balance = user.wallet.balance if user.wallet else 0.0
 
         # Get settings
         settings_dict: dict[str, Any] = {}
         if user.settings:
-            settings_dict = {  # type: ignore[unreachable]
+            settings_dict = {
                 "price_alerts": user.settings.price_alerts,
                 "transaction_notifications": user.settings.transaction_notifications,
                 "currency_display": user.settings.currency_display,
@@ -323,11 +371,11 @@ async def export_user_data(
         logger.info(f"Exported data for telegram_id {telegram_id}")
 
         return UserExportData(
-            user_id=user.id,  # type: ignore[arg-type]
-            telegram_id=user.telegram_id,  # type: ignore[arg-type]
-            telegram_username=user.telegram_username,
-            created_at=user.created_at,  # type: ignore[arg-type]
-            wallet_address=user.wallet.xrp_address if user.wallet else None,  # type: ignore[attr-defined]
+            user_id=cast(int, user.id),
+            telegram_id=cast(str, user.telegram_id),
+            telegram_username=cast(str | None, user.telegram_username),
+            created_at=cast(datetime, user.created_at),
+            wallet_address=user.wallet.xrp_address if user.wallet else None,
             current_balance=current_balance,
             transaction_count=total_transactions,
             total_sent=total_sent,
@@ -339,7 +387,8 @@ async def export_user_data(
     except Exception as e:
         logger.error(f"Error exporting data for telegram_id {telegram_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         ) from e
 
 
@@ -354,14 +403,19 @@ async def export_user_data(
 )
 @limiter.limit("1/hour")  # Very strict limit for account deletion
 async def delete_user_account(
-    request: Request, response: Response, telegram_id: str, db: Session = Depends(get_db)
+    request: Request,  # noqa: ARG001
+    response: Response,  # noqa: ARG001
+    telegram_id: str,
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Delete user account and all associated data."""
     try:
         # Get user from database
         user = db.query(User).filter(User.telegram_id == telegram_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise create_settings_error_response(
+                "User not found", status_code=status.HTTP_404_NOT_FOUND, code="USER_NOT_FOUND"
+            )
 
         # Log the deletion for audit purposes
         logger.warning(
@@ -377,10 +431,10 @@ async def delete_user_account(
         # For now, we'll just mark as inactive instead of hard delete
         user.is_active = False
         if user.settings:
-            db.delete(user.settings)  # type: ignore[unreachable]
+            db.delete(user.settings)
         if user.wallet:
             # In production, ensure wallet is empty before deletion
-            db.delete(user.wallet)  # type: ignore[unreachable]
+            db.delete(user.wallet)
 
         db.commit()
 
@@ -393,5 +447,6 @@ async def delete_user_account(
     except Exception as e:
         logger.error(f"Error deleting account for telegram_id {telegram_id}: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         ) from e

@@ -4,7 +4,7 @@ This project uses Alembic for database schema migrations.
 
 ## Migration Commands
 
-### Using the migrate.py script (Recommended):
+### Using the migrate.py script (Recommended)
 
 ```bash
 # Check current migration status
@@ -29,7 +29,7 @@ python migrate.py history
 python migrate.py stamp head
 ```
 
-### Using Alembic directly:
+### Using Alembic directly
 
 ```bash
 # Check current revision

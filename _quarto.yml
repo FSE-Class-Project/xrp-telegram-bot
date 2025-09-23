@@ -1,0 +1,13 @@
+project:
+  type: website
+  output-dir: docs
+
+format:
+  revealjs:
+    theme: [default, presentation/custom.scss]
+    self-contained: true
+    embed-resources: true
+
+execute:
+  echo: false
+  warning: false

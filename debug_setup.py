@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""
-XRP Telegram Bot - Debug & Setup Validation Script
-Cross-platform script to help users get up and running on Mac and Windows
+"""XRP Telegram Bot - Debug & Setup Validation Script.
+
+Cross-platform script to help users get up and running on Mac and Windows.
 """
 
 import importlib.util
@@ -24,34 +24,34 @@ class Colors:
 
 
 def print_header(text: str) -> None:
-    """Print a formatted header"""
-    print(f"\n{Colors.BLUE}{Colors.BOLD}{'='*60}")
+    """Print a formatted header."""
+    print(f"\n{Colors.BLUE}{Colors.BOLD}{'=' * 60}")
     print(f"{text:^60}")
-    print(f"{'='*60}{Colors.RESET}\n")
+    print(f"{'=' * 60}{Colors.RESET}\n")
 
 
 def print_success(text: str) -> None:
-    """Print success message"""
+    """Print success message."""
     print(f"{Colors.GREEN}[OK] {text}{Colors.RESET}")
 
 
 def print_warning(text: str) -> None:
-    """Print warning message"""
+    """Print warning message."""
     print(f"{Colors.YELLOW}[WARN] {text}{Colors.RESET}")
 
 
 def print_error(text: str) -> None:
-    """Print error message"""
+    """Print error message."""
     print(f"{Colors.RED}[ERROR] {text}{Colors.RESET}")
 
 
 def print_info(text: str) -> None:
-    """Print info message"""
+    """Print info message."""
     print(f"{Colors.CYAN}[INFO] {text}{Colors.RESET}")
 
 
 def check_python_version() -> bool:
-    """Check if Python version is compatible"""
+    """Check if Python version is compatible."""
     version = sys.version_info
     min_version = (3, 8)
 
@@ -66,7 +66,7 @@ def check_python_version() -> bool:
 
 
 def check_platform_info() -> dict[str, str]:
-    """Get platform information"""
+    """Get platform information."""
     info = {
         "system": platform.system(),
         "release": platform.release(),
@@ -81,8 +81,14 @@ def check_platform_info() -> dict[str, str]:
 
 
 def check_required_files() -> bool:
-    """Check if required files exist"""
-    required_files = [".env", "requirements.txt", "backend/config.py", "backend/main.py", "run.py"]
+    """Check if required files exist."""
+    required_files = [
+        ".env",
+        "requirements.txt",
+        "backend/config.py",
+        "backend/main.py",
+        "run.py",
+    ]
 
     missing_files = []
     for file_path in required_files:
@@ -100,7 +106,7 @@ def check_required_files() -> bool:
 
 
 def check_dependencies() -> tuple[bool, list[str]]:
-    """Check if required Python packages are installed"""
+    """Check if required Python packages are installed."""
     required_packages = [
         "fastapi",
         "telegram",
@@ -141,7 +147,7 @@ def check_dependencies() -> tuple[bool, list[str]]:
 
 
 def check_env_file() -> tuple[bool, dict[str, Any]]:
-    """Check .env file configuration"""
+    """Check .env file configuration."""
     env_path = Path(".env")
     if not env_path.exists():
         print_error(".env file not found")
@@ -150,11 +156,16 @@ def check_env_file() -> tuple[bool, dict[str, Any]]:
     # Load .env file manually to check contents
     env_vars = {}
     required_vars = ["TELEGRAM_BOT_TOKEN", "ENCRYPTION_KEY"]
-    optional_vars = ["DATABASE_URL", "JWT_SECRET", "BOT_API_KEY", "ADMIN_API_KEY"]
+    optional_vars = [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "BOT_API_KEY",
+        "ADMIN_API_KEY",
+    ]
 
     try:
         with open(env_path, encoding="utf-8") as f:
-            for line_num, line in enumerate(f, 1):
+            for _line_num, line in enumerate(f, 1):
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, value = line.split("=", 1)
@@ -183,7 +194,7 @@ def check_env_file() -> tuple[bool, dict[str, Any]]:
 
 
 def test_config_loading() -> bool:
-    """Test if configuration can be loaded successfully"""
+    """Test if configuration can be loaded successfully."""
     try:
         # Add current directory to Python path
         sys.path.insert(0, str(Path.cwd()))
@@ -220,12 +231,15 @@ def test_config_loading() -> bool:
 
 
 def test_database_connection() -> bool:
-    """Test database connection"""
+    """Test database connection."""
     try:
         sys.path.insert(0, str(Path.cwd()))
 
         from backend.config import initialize_settings
-        from backend.database.connection import check_database_health, initialize_database_engine
+        from backend.database.connection import (
+            check_database_health,
+            initialize_database_engine,
+        )
 
         settings = initialize_settings()
         initialize_database_engine(settings.DATABASE_URL, settings.DEBUG)
@@ -243,7 +257,7 @@ def test_database_connection() -> bool:
 
 
 def generate_install_commands(missing_packages: list[str], platform_info: dict[str, str]) -> None:
-    """Generate platform-specific installation commands"""
+    """Generate platform-specific installation commands."""
     if not missing_packages:
         return
 
@@ -264,7 +278,7 @@ def generate_install_commands(missing_packages: list[str], platform_info: dict[s
 
 
 def run_startup_test() -> bool:
-    """Test if the application can start successfully"""
+    """Test if the application can start successfully."""
     try:
         print_info("Testing application startup (backend only)...")
 
@@ -272,7 +286,7 @@ def run_startup_test() -> bool:
         python_cmd = "python3" if platform.system() in ["Darwin", "Linux"] else "python"
 
         # Try to import and run a quick test
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             [
                 python_cmd,
                 "-c",
@@ -299,7 +313,7 @@ def run_startup_test() -> bool:
 
 
 def main():
-    """Main debug and setup validation"""
+    """Run debug and setup validation."""
     print_header("XRP TELEGRAM BOT - SETUP VALIDATION")
 
     results = {}

@@ -1,4 +1,5 @@
 # bot/handlers/transaction.py
+import logging
 import re
 import uuid
 
@@ -14,16 +15,19 @@ from telegram import (
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 
+from ..constants import ACCOUNT_RESERVE, STANDARD_FEE
 from ..keyboards.menus import keyboards
 from ..utils.formatting import (
     escape_html,
     format_error_message,
-    format_warning_message,
     format_hash,
     format_transaction_confirmation,
     format_transaction_success,
+    format_warning_message,
     format_xrp_address,
 )
+
+logger = logging.getLogger(__name__)
 
 # --- Conversation States ---
 # Define states for the multi-step "send" process
@@ -47,8 +51,9 @@ async def _send_prompt(message, text: str, reply_markup=None, edit: bool = False
         try:
             await message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
             return
-        except Exception:
-            pass
+        except Exception as e:
+            # Failed to edit message, will send a new one instead
+            logger.debug(f"Failed to edit message, sending new one: {e}")
 
     await message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
 
@@ -57,13 +62,14 @@ async def _send_prompt(message, text: str, reply_markup=None, edit: bool = False
 
 
 async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Starts the send conversation flow (via /send or inline button)."""
+    """Start the send conversation flow (via /send or inline button)."""
     # If triggered from an inline button, answer the callback
     if update.callback_query:
         try:
             await update.callback_query.answer()
-        except Exception:
-            pass
+        except Exception as e:
+            # Failed to answer callback query, not critical
+            logger.debug(f"Failed to answer callback query in send_command: {e}")
 
     msg = update.effective_message
     if not msg or not update.effective_user or context.user_data is None:
@@ -84,20 +90,23 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
             if amount <= 0:
                 await msg.reply_text(
-                    "❌ <b>Invalid Amount</b>\n\nPlease enter a positive number.",
+                    ("❌ <b>Invalid Amount</b>\n\nPlease enter a positive number."),
                     parse_mode=ParseMode.HTML,
                 )
                 return ConversationHandler.END
 
             if not re.match(r"^r[a-zA-Z0-9]{24,33}$", address):
                 await msg.reply_text(
-                    "❌ <b>Invalid Address</b>\n\nThe XRP address format is incorrect.",
+                    ("❌ <b>Invalid Address</b>\n\nThe XRP address format is incorrect."),
                     parse_mode=ParseMode.HTML,
                 )
                 return ConversationHandler.END
 
             # Store data in the user-specific context
-            context.user_data["transaction"] = {"amount": amount, "address": address}
+            context.user_data["transaction"] = {
+                "amount": amount,
+                "address": address,
+            }
 
             # Ask for confirmation
             keyboard = [[KeyboardButton("✅ YES"), KeyboardButton("❌ NO")]]
@@ -105,13 +114,16 @@ async def send_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 keyboard, one_time_keyboard=True, resize_keyboard=True
             )
 
-            fee = 0.00001  # Standard fee
+            fee = float(STANDARD_FEE)  # Standard fee
             message = format_transaction_confirmation(address, amount, fee)
             await msg.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
             return CONFIRM
         except (ValueError, IndexError):
             await msg.reply_text(
-                "Invalid command format. Use <code>/send [amount] [address]</code> or just <code>/send</code>.",
+                (
+                    "Invalid command format. Use <code>/send [amount] "
+                    "[address]</code> or just <code>/send</code>."
+                ),
                 parse_mode=ParseMode.HTML,
             )
             return ConversationHandler.END
@@ -257,7 +269,8 @@ async def beneficiary_selection_handler(update: Update, context: ContextTypes.DE
         context.user_data["beneficiary_add"] = {}
         prompt_text = (
             "➕ <b>Add Beneficiary</b>\n\n"
-            "Send me a nickname for this beneficiary (e.g. <code>Mom</code>, <code>Cold Wallet</code>)."
+            "Send me a nickname for this beneficiary "
+            "(e.g. <code>Mom</code>, <code>Cold Wallet</code>)."
         )
         cancel_markup = InlineKeyboardMarkup(
             [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_send")]]
@@ -427,7 +440,7 @@ async def beneficiary_add_address_handler(
 
 
 async def amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handles the amount input and asks for the address."""
+    """Handle the amount input and ask for the address."""
     if not update.message or not update.message.text or context.user_data is None:
         return ConversationHandler.END
 
@@ -435,7 +448,8 @@ async def amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         amount = float(update.message.text.strip())
         if amount <= 0:
             await update.message.reply_text(
-                "Please enter a positive number for the amount.", parse_mode=ParseMode.HTML
+                "Please enter a positive number for the amount.",
+                parse_mode=ParseMode.HTML,
             )
             return AMOUNT
 
@@ -448,7 +462,7 @@ async def amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 keyboard, one_time_keyboard=True, resize_keyboard=True
             )
 
-            fee = 0.00001  # Standard fee
+            fee = float(STANDARD_FEE)  # Standard fee
             message = format_transaction_confirmation(transaction_state["address"], amount, fee)
             alias = transaction_state.get("beneficiary_alias")
             if alias:
@@ -470,20 +484,21 @@ async def amount_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ADDRESS
     except ValueError:
         await update.message.reply_text(
-            "That's not a valid number. Please try again.", parse_mode=ParseMode.HTML
+            "That's not a valid number. Please try again.",
+            parse_mode=ParseMode.HTML,
         )
         return AMOUNT
 
 
 async def address_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handles the address input and asks for confirmation."""
+    """Handle the address input and ask for confirmation."""
     if not update.message or not update.message.text or context.user_data is None:
         return ConversationHandler.END
 
     address = update.message.text.strip()
     if not re.match(r"^r[a-zA-Z0-9]{24,33}$", address):
         await update.message.reply_text(
-            "Invalid address format. It must start with 'r'. Please try again.",
+            ("Invalid address format. It must start with 'r'. Please try again."),
             parse_mode=ParseMode.HTML,
         )
         return ADDRESS
@@ -496,14 +511,14 @@ async def address_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     keyboard = [[KeyboardButton("✅ YES"), KeyboardButton("❌ NO")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
-    fee = 0.00001  # Standard fee
+    fee = float(STANDARD_FEE)  # Standard fee
     message = format_transaction_confirmation(address, amount, fee)
     await update.message.reply_text(message, parse_mode=ParseMode.HTML, reply_markup=reply_markup)
     return CONFIRM
 
 
 async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handles the final confirmation and executes the transaction."""
+    """Handle the final confirmation and execute the transaction."""
     if (
         not update.message
         or not update.message.text
@@ -539,7 +554,10 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # Generate idempotency key for this transaction
             idempotency_key = f"tg_{update.effective_user.id}_{uuid.uuid4().hex[:16]}"
 
-            headers = {"X-API-Key": api_key, "Idempotency-Key": idempotency_key}
+            headers = {
+                "X-API-Key": api_key,
+                "Idempotency-Key": idempotency_key,
+            }
             response = await client.post(
                 f"{api_url}/api/v1/transaction/send",
                 json={
@@ -570,9 +588,11 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         else ""
                     )
                     low_funds_message = (
-                        f"{reason_text}Your available balance is too low to complete this transaction. "
-                        "XRPL accounts must keep <b>10 XRP</b> reserved at all times.\n\n"
-                        "Visit the <a href='https://test.bithomp.com/en/faucet'>XRPL Testnet Faucet</a> to top up your funds, then try again."
+                        f"{reason_text}Your available balance is too low to "
+                        "complete this transaction. XRPL accounts must keep "
+                        f"<b>{ACCOUNT_RESERVE} XRP</b> reserved at all times.\n\n"
+                        "Visit the <a href='https://test.bithomp.com/en/faucet'>"
+                        "XRPL Testnet Faucet</a> to top up your funds, then try again."
                     )
                     await update.message.reply_text(
                         format_warning_message("Insufficient Funds", low_funds_message),
@@ -596,7 +616,9 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 explorer_url = f"https://testnet.xrpl.org/transactions/{tx_hash}"
                 message = format_transaction_success(tx_hash, explorer_url)
                 await update.message.reply_text(
-                    message, parse_mode=ParseMode.HTML, disable_web_page_preview=False
+                    message,
+                    parse_mode=ParseMode.HTML,
+                    disable_web_page_preview=False,
                 )
             else:
                 error = data.get("error", "Unknown error")
@@ -626,7 +648,7 @@ async def confirm_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Cancels the transaction conversation (works with /cancel or inline button)."""
+    """Cancel the transaction conversation (works with /cancel or inline button)."""
     # Support cancel via callback button
     cq_msg = None
     msg = None
@@ -634,14 +656,14 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if update.callback_query:
         try:
             await update.callback_query.answer()
-        except Exception:
-            pass
+        except Exception as e:
+            # Failed to answer callback query, not critical
+            logger.debug(f"Failed to answer callback query in cancel_handler: {e}")
         cq_msg = update.callback_query.message
     else:
         msg = update.message
 
     if context.user_data is not None:
-
         context.user_data.pop("transaction", None)
         context.user_data.pop("beneficiaries", None)
         context.user_data.pop("beneficiary_add", None)
@@ -649,26 +671,29 @@ async def cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Update nav state to main menu for consistency
         try:
             context.user_data["current_menu"] = "main_menu"
-        except Exception:
-            pass
+        except Exception as e:
+            # Failed to update navigation state, not critical
+            logger.debug(f"Failed to update user_data current_menu in cancel_handler: {e}")
 
     # Show main menu after cancellation
     try:
         if update.callback_query and cq_msg:
             await cq_msg.edit_text(
-                "❌ <b>Transaction Cancelled</b>\n\n🏠 <b>Main Menu</b>\n\nWhat would you like to do?",
+                "❌ <b>Transaction Cancelled</b>\n\n"
+                "🏠 <b>Main Menu</b>\n\nWhat would you like to do?",
                 parse_mode=ParseMode.HTML,
                 reply_markup=keyboards.main_menu(),
             )
         elif msg:
             await msg.reply_text(
-                "❌ <b>Transaction Cancelled</b>\n\n🏠 <b>Main Menu</b>\n\nWhat would you like to do?",
+                "❌ <b>Transaction Cancelled</b>\n\n"
+                "🏠 <b>Main Menu</b>\n\nWhat would you like to do?",
                 parse_mode=ParseMode.HTML,
                 reply_markup=keyboards.main_menu(),
             )
-    except Exception:
-        # Silent fallback
-        pass
+    except Exception as e:
+        # Silent fallback - failed to send cancellation message
+        logger.debug(f"Failed to send cancellation message in cancel_handler: {e}")
     return ConversationHandler.END
 
 
@@ -686,7 +711,8 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             headers = {"X-API-Key": api_key}
             response = await client.get(
-                f"{api_url}/api/v1/transaction/history/{user_id}?limit=10", headers=headers
+                f"{api_url}/api/v1/transaction/history/{user_id}?limit=10",
+                headers=headers,
             )
             response.raise_for_status()
 
@@ -723,7 +749,10 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            error_msg = "❌ <b>Not Registered</b>\n\nYou need to register first!\nUse /start to create your wallet."
+            error_msg = (
+                "❌ <b>Not Registered</b>\n\n"
+                "You need to register first!\nUse /start to create your wallet."
+            )
         else:
             error_msg = f"A server error occurred: {e.response.status_code}"
         await update.message.reply_text(error_msg, parse_mode=ParseMode.HTML)

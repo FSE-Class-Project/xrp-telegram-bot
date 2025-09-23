@@ -1,12 +1,12 @@
 # Core Dependencies
-python-telegram-bot==20.3  # Uses httpx 0.24.x
+python-telegram-bot==20.7  # Uses httpx 0.25.x
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 sqlalchemy==2.0.25
 alembic==1.13.1
 
 # XRP Ledger
-xrpl-py==2.5.0  # Compatible with httpx <0.25.0
+xrpl-py==4.3.0  # Latest version with httpx 0.25.x+ support
 
 # Security
 cryptography==41.0.7
@@ -15,10 +15,11 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 
 # Database
-psycopg[binary]==3.1.18
+#psycopg[binary]==3.1.18
+psycopg2-binary==2.9.9
 
 # API and HTTP
-httpx==0.24.1  # Works with both PTB 20.3 and xrpl-py 2.5.0
+httpx==0.25.2  # Compatible with both PTB 20.7 and xrpl-py 4.3.0
 requests==2.31.0
 
 # Rate Limiting
@@ -38,8 +39,7 @@ faker==19.13.0
 pandas==2.2.0
 
 # Development
-black==24.1.1
-flake8==7.0.0
+ruff==0.1.9
 mypy==1.8.0
 types-sqlalchemy==1.4.53.38
 

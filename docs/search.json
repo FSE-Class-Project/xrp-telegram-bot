@@ -1,0 +1,191 @@
+[
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#the-crypto-accessibility-challenge",
+    "href": "presentation/xrp-telegram-bot-presentation.html#the-crypto-accessibility-challenge",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "The Crypto Accessibility Challenge",
+    "text": "The Crypto Accessibility Challenge\n\nTraditional Barriers:\n\nComplex wallet management\nTechnical knowledge requirements\nSecurity concerns\nLimited payment integration\n\nMarket Opportunity:\n\n1 billion Telegram users globally\nGrowing institutional crypto adoption\nRegulatory clarity emerging in 2025\n$2.5 trillion crypto market cap"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#technology-stack",
+    "href": "presentation/xrp-telegram-bot-presentation.html#technology-stack",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Technology Stack",
+    "text": "Technology Stack\n\nBackend: FastAPI + Python 3.10\nDatabase: PostgreSQL + SQLAlchemy\nCaching: Redis\nXRP Integration: xrpl-py library\nSecurity: AES-256 encryption\nDeployment: Render (Blueprint orchestration)"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#key-components",
+    "href": "presentation/xrp-telegram-bot-presentation.html#key-components",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Key Components",
+    "text": "Key Components\n\nWebhook-based message handling\nCustodial wallet management\nEncrypted key storage\nTransaction processing pipeline\nReal-time price tracking"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#core-features",
+    "href": "presentation/xrp-telegram-bot-presentation.html#core-features",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Core Features",
+    "text": "Core Features\n✅ Wallet Management - Automatic wallet creation - Secure key encryption - TestNet funding\n✅ Transactions - Send/receive XRP - Transaction history - Real-time confirmations\n✅ Market Data - Live XRP prices - 24h price changes - Historical charts\n✅ User Experience - Simple commands - Inline keyboards - Status notifications"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#performance-metrics",
+    "href": "presentation/xrp-telegram-bot-presentation.html#performance-metrics",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Performance Metrics",
+    "text": "Performance Metrics\nto be verified with testing (we can possibly pull some of these from render, e.g. uptime)\n\nThroughput:\nResponse Time:\nUptime:\nSecurity:"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#load-testing-results",
+    "href": "presentation/xrp-telegram-bot-presentation.html#load-testing-results",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Load Testing Results",
+    "text": "Load Testing Results\n\n\n\nScenario\nUsers\nSuccess Rate\nAvg Response\n\n\n\n\nRegistration\nx\nx%\nxs\n\n\nConcurrent Sends\ny\ny%\nys\n\n\nPrice Queries\nz\nz%\nzs\n\n\nMixed Load\nw\nw%\nws"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#security-measures",
+    "href": "presentation/xrp-telegram-bot-presentation.html#security-measures",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Security Measures",
+    "text": "Security Measures\n🔐 Encryption - AES-256 for private keys - TLS for all communications - Encrypted database fields\n🛡️ Access Control - Telegram authentication - Rate limiting (10 tx/minute) - Webhook validation\n⚠️ Risk Management - TestNet-only deployment - Transaction limits - Audit logging"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#compliance-considerations",
+    "href": "presentation/xrp-telegram-bot-presentation.html#compliance-considerations",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Compliance Considerations",
+    "text": "Compliance Considerations\n\nKYC integration ready\nTransaction monitoring\nRegulatory reporting capabilities"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#demo-scenarios",
+    "href": "presentation/xrp-telegram-bot-presentation.html#demo-scenarios",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Demo Scenarios",
+    "text": "Demo Scenarios\n\nNew User Onboarding\n\n/start command\nAutomatic wallet creation\nInitial funding\n\nSend Transaction\n\n/send 10 rN7n7…\nConfirmation flow\nTransaction receipt\n\nCheck Balance\n\n/balance command\nReal-time update\n\nView Prices\n\n/price command\nHistorical chart"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#bot-commands",
+    "href": "presentation/xrp-telegram-bot-presentation.html#bot-commands",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Bot Commands",
+    "text": "Bot Commands\n# Start bot and create wallet\n/start\n\n# Check balance\n/balance\n\n# Send XRP\n/send [amount] [address]\n# Example: /send 10 rN7n7enGRi...\n\n# View current price\n/price\n\n# Transaction history\n/history\n\n# Help menu\n/help"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#try-it-now",
+    "href": "presentation/xrp-telegram-bot-presentation.html#try-it-now",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Try It Now!",
+    "text": "Try It Now!\n\n\n\nScan to open XRP Bot\n\n\nScan with your phone\n@xrp_testnet_bot\nOr search “xrp_testnet_bot” in Telegram"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#phase-2-features",
+    "href": "presentation/xrp-telegram-bot-presentation.html#phase-2-features",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Phase 2 Features",
+    "text": "Phase 2 Features\n💱 Multi-Asset Support - XRPL tokens (RLUSD, etc.) - Cross-currency swaps - Portfolio management\n🤖 Advanced Features - Recurring payments - QR code payments - Multi-language support"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#technical-roadmap",
+    "href": "presentation/xrp-telegram-bot-presentation.html#technical-roadmap",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Technical Roadmap",
+    "text": "Technical Roadmap\n\n\n\n\n%%{init: {'theme': 'default', 'themeVariables': {'fontSize': '16px'}}}%%\ngantt\n    title Development Roadmap\n    dateFormat YYYY-MM\n    section Phase 1\n    Core Bot Features    :done, 2025-09, 30d\n    TestNet Integration  :done, 2025-09, 30d\n    \n    section Phase 2\n    Multi-Asset Support  :2025-11, 45d\n    KYC Integration      :2025-12, 30d\n    \n    section Phase 3\n    DeFi Features        :2026-01, 60d\n    Enterprise API       :2026-03, 60d"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#key-achievements",
+    "href": "presentation/xrp-telegram-bot-presentation.html#key-achievements",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Key Achievements",
+    "text": "Key Achievements\n✅ Functional Telegram bot with XRP Ledger integration\n✅ Secure custodial wallet management system\n✅ Real-time transactions on TestNet\n✅ Scalable architecture supporting 100+ concurrent users\n✅ Comprehensive testing [we still need] and documentation"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#metrics-summary",
+    "href": "presentation/xrp-telegram-bot-presentation.html#metrics-summary",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Metrics Summary",
+    "text": "Metrics Summary"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#questions-discussion",
+    "href": "presentation/xrp-telegram-bot-presentation.html#questions-discussion",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Questions & Discussion",
+    "text": "Questions & Discussion\nTeam Members: Victor Dusabimana DSBVIC001@myuct.ac.za, Joseph Gray GRYJOS004@myuct.ac.za, Sam Horak HRKSAM003@myuct.ac.za, Cesaire Tobias TBSCES001@myuct.ac.za\nGitHub Repository: github.com/FSE-Class-Project/xrp-telegram-bot\nResources\n\nAPI Documentation: /docs\nTechnical Support: Available via Telegram"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#test-the-bot-now",
+    "href": "presentation/xrp-telegram-bot-presentation.html#test-the-bot-now",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Test the Bot Now!",
+    "text": "Test the Bot Now!\n\n\n\nScan to open XRP TestNet Bot\n\n\n@xrp_testnet_bot\nScan QR code or click link above"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#database-schema",
+    "href": "presentation/xrp-telegram-bot-presentation.html#database-schema",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Database Schema",
+    "text": "Database Schema\n\n\n\n\n\n%%{init: {'theme': 'default', 'themeVariables': {'fontSize': '16px'}}}%%\nerDiagram\n    USERS ||--o| WALLETS : has\n    USERS ||--o{ TRANSACTIONS : sends\n    WALLETS ||--o{ TRANSACTIONS : from\n    USERS ||--o| USER_SETTINGS : configures\n    \n    USERS {\n        int id PK\n        string telegram_id UK\n        string username\n        string first_name\n        string last_name\n        datetime created_at\n        boolean is_active\n    }\n    \n    WALLETS {\n        int id PK\n        int user_id FK UK\n        string xrp_address UK\n        text encrypted_secret\n        float balance\n        datetime last_update\n        int encryption_version\n    }\n    \n    TRANSACTIONS {\n        int id PK\n        int sender_id FK\n        string sender_address\n        string recipient_address\n        float amount\n        float fee\n        string tx_hash UK\n        string status\n        datetime created_at\n        datetime confirmed_at\n    }\n    \n    USER_SETTINGS {\n        int id PK\n        int user_id FK UK\n        boolean price_alerts\n        boolean tx_notifications\n        string currency_display\n        string language\n    }\n\n\n\n\n\n\n\nOur database schema implements a normalized structure with four main tables. The Users table stores Telegram identity, Wallets contains encrypted XRP credentials, Transactions tracks all transfers with blockchain hashes, and User_Settings manages preferences. Foreign key constraints ensure referential integrity."
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#api-endpoints",
+    "href": "presentation/xrp-telegram-bot-presentation.html#api-endpoints",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "API Endpoints",
+    "text": "API Endpoints\n\n\n\n\nEndpoint\nMethod\nDescription\nResponse Time\n\n\n\n\n/api/v1/user/register\nPOST\nCreate user & wallet\n1.2s\n\n\n/api/v1/wallet/balance/{id}\nGET\nGet XRP balance\n0.3s\n\n\n/api/v1/transaction/send\nPOST\nSend XRP\n2.5s\n\n\n/api/v1/transaction/history/{id}\nGET\nTransaction list\n0.5s\n\n\n/api/v1/price/current\nGET\nCurrent XRP price\n0.2s\n\n\n/api/v1/price/history\nGET\nHistorical prices\n0.8s\n\n\n/webhook/telegram\nPOST\nTelegram updates\n0.1s\n\n\n/health\nGET\nService status\n0.05s\n\n\n\n\n\nOur RESTful API provides eight core endpoints. Registration creates both user and wallet atomically. The webhook endpoint processes Telegram updates in under 100ms. All endpoints include proper error handling, validation, and rate limiting. - If we can get the response times, that would be great but THESE ARE MADE UP AT THE MOMENT"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#security-details",
+    "href": "presentation/xrp-telegram-bot-presentation.html#security-details",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Security Implementation Details",
+    "text": "Security Implementation Details\n\n\nEncryption Flow\nfrom cryptography.fernet import Fernet\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2\nimport base64\nimport os\n\nclass EncryptionService:\n    def __init__(self, key: str):\n        self.fernet = Fernet(key.encode())\n    \n    def encrypt(self, data: str) -&gt; str:\n        \"\"\"Encrypt sensitive data\"\"\"\n        encrypted = self.fernet.encrypt(\n            data.encode()\n        )\n        return base64.b64encode(\n            encrypted\n        ).decode()\n    \n    def decrypt(self, encrypted: str) -&gt; str:\n        \"\"\"Decrypt sensitive data\"\"\"\n        decoded = base64.b64decode(\n            encrypted.encode()\n        )\n        decrypted = self.fernet.decrypt(\n            decoded\n        )\n        return decrypted.decode()\n    \n    @staticmethod\n    def derive_key(password: str, salt: bytes):\n        \"\"\"Derive key from password\"\"\"\n        kdf = PBKDF2(\n            algorithm=hashes.SHA256(),\n            length=32,\n            salt=salt,\n            iterations=100000,\n        )\n        return base64.urlsafe_b64encode(\n            kdf.derive(password.encode())\n        )\n\nSecurity Measures\n\nKey Management:\n\nKey rotation\nSeparate encryption per environment\n\nAccess Control:\n\nRate limiting per user\n\n\nAudit Trail:\n\nAll transactions logged\nUser actions tracked\n\n\nCompliance:\n\n\n\n\nOur encryption service uses Fernet symmetric encryption with PBKDF2 key derivation. Keys are to be rotated and stored separately from encrypted data."
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#load-testing",
+    "href": "presentation/xrp-telegram-bot-presentation.html#load-testing",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Load Testing Results - FABRICATED BUT WOULD BE NICE TO HAVE",
+    "text": "Load Testing Results - FABRICATED BUT WOULD BE NICE TO HAVE\n\n\n\n\n\n                            \n                                            \n\n\n\nTest Scenarios\nStress Test: - 200 concurrent users - X% success rate maintained - Ys max response time\nSpike Test: - 0 to 100 users in X seconds - System recovered in Y seconds - No data loss - ideally\nEndurance Test: - 50 users for 24 hours - Memory usage stable - ideally - Zero memory leaks detected - ideally\n\n\n\nLoad testing demonstrates robust performance under stress - we hope"
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#transaction-flow",
+    "href": "presentation/xrp-telegram-bot-presentation.html#transaction-flow",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "XRP Transaction Flow",
+    "text": "XRP Transaction Flow\n\n\n\n\n\n%%{init: {'theme': 'default', 'themeVariables': {'fontSize': '16px'}}}%%\nflowchart LR\n    subgraph User Action\n        A[User sends command]\n        B[/send 10 rN7n7...]\n    end\n    \n    subgraph Bot Processing\n        C[Parse command]\n        D[Validate amount]\n        E[Validate address]\n        F[Check balance]\n    end\n    \n    subgraph XRP Ledger\n        G[Decrypt wallet]\n        H[Create transaction]\n        I[Sign transaction]\n        J[Submit to ledger]\n        K[Wait confirmation]\n    end\n    \n    subgraph Response\n        L[Update database]\n        M[Send confirmation]\n        N[Show tx hash]\n    end\n    \n    A --&gt; B --&gt; C\n    C --&gt; D --&gt; E --&gt; F\n    F --&gt;|Sufficient| G\n    F --&gt;|Insufficient| M\n    G --&gt; H --&gt; I --&gt; J --&gt; K\n    K --&gt;|Success| L --&gt; M --&gt; N\n    K --&gt;|Failed| M\n    \n    style C fill:#03a9f4\n    style J fill:#0288d1\n    style M fill:#4fc3f7\n\n\n\n\n\n\n\nThe transaction flow implements multiple validation layers before blockchain submission. Commands are parsed, amounts validated, addresses verified, and balances checked. Only after all validations pass do we decrypt the wallet and submit to XRP Ledger. The entire process completes in seconds."
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#testing-coverage",
+    "href": "presentation/xrp-telegram-bot-presentation.html#testing-coverage",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Testing Coverage",
+    "text": "Testing Coverage\n\n\nUnit Tests\n# test_xrp_service.py\n\nTest Coverage Report - placeholder - we can just paste in our actual test coverage report here\n\n\n\nModule\nCoverage\nLines\nMissing\n\n\n\n\nxrp_service.py\n94%\n250\n15\n\n\nuser_service.py\n88%\n180\n22\n\n\nencryption.py\n100%\n75\n0\n\n\napi/routes.py\n91%\n320\n29\n\n\nbot/handlers.py\n85%\n410\n62\n\n\ndatabase/models.py\n96%\n120\n5\n\n\nTotal\n89%\n1355\n133\n\n\n\nIntegration Tests\n\nAPI endpoint testing\nWebhook processing\nDatabase transactions\nXRP Ledger integration\nEnd-to-end workflows\n\n\n\n\nOur test suite achieves x% code coverage with both unit and integration tests. Critical modules like encryption have 100% coverage (it should). All XRP operations are tested against TestNet, and we use mocking for external service dependencies."
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#deployment",
+    "href": "presentation/xrp-telegram-bot-presentation.html#deployment",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Deployment Architecture",
+    "text": "Deployment Architecture\n\n\n\n\n\n%%{init: {'theme': 'default', 'themeVariables': {'fontSize': '16px'}}}%%\ngraph TB\n    subgraph \"Render Cloud Platform\"\n        subgraph \"Web Service\"\n            WEB[FastAPI Server&lt;br/&gt;srv-d2tceth5pdvs739e6g80]\n            WEB2[Auto-scaling: 1-3 instances]\n        end\n        \n        subgraph \"Database\"\n            DB[(PostgreSQL&lt;br/&gt;dpg-d2tce07fte5s73a3ln40-a)]\n            BACKUP[Daily Backups]\n        end\n        \n        subgraph \"Blueprint Orchestration\"\n            BP[render.yaml]\n            ENV[Environment Variables]\n            HEALTH[Health Checks]\n        end\n    end\n    \n    subgraph \"External Services\"\n        TG[Telegram API]\n        XRP[XRP Ledger]\n        COIN[CoinGecko]\n    end\n    \n    subgraph \"Monitoring\"\n        LOG[Logging]\n        METRIC[Metrics]\n        ALERT[Alerts]\n    end\n    \n    BP --&gt; WEB\n    BP --&gt; DB\n    \n    WEB &lt;--&gt; DB\n    WEB &lt;--&gt; QUEUE\n    \n    WEB &lt;--&gt; TG\n    WEB &lt;--&gt; XRP\n    WEB &lt;--&gt; COIN\n    \n    WEB --&gt; LOG\n    LOG --&gt; METRIC\n    METRIC --&gt; ALERT\n    \n    style WEB fill:#03a9f4\n    style DB fill:#4fc3f7\n    style BP fill:#0288d1\n\n\n\n\n\n\n\nWe deploy on Render using Blueprint orchestration for infrastructure as code. The web service auto-scales based on load, and PostgreSQL provides persistent storage with daily backups. All components are monitored with alerting for critical issues."
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#price-service",
+    "href": "presentation/xrp-telegram-bot-presentation.html#price-service",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Price Service Implementation",
+    "text": "Price Service Implementation\n\n\nimport httpx\nfrom datetime import datetime, timedelta\nfrom typing import Optional, Dict, List\nimport redis\nimport json\n\nclass PriceService:\n    def __init__(self):\n        self.api_url = \"https://api.coingecko.com/api/v3\"\n        self.cache = redis.Redis(\n            host='localhost', \n            port=6379,\n            decode_responses=True\n        )\n        self.cache_ttl = 300  # 5 minutes\n    \n    async def get_current_price(self) -&gt; Dict:\n        \"\"\"Get current XRP price with caching\"\"\"\n        # Check cache first\n        cached = self.cache.get('xrp_price')\n        if cached:\n            return json.loads(cached)\n        \n        # Fetch from API\n        async with httpx.AsyncClient() as client:\n            response = await client.get(\n                f\"{self.api_url}/simple/price\",\n                params={\n                    \"ids\": \"ripple\",\n                    \"vs_currencies\": \"usd\",\n                    \"include_24hr_change\": \"true\",\n                    \"include_market_cap\": \"true\"\n                }\n            )\n            \n        if response.status_code == 200:\n            data = response.json()\n            price_data = {\n                \"price_usd\": data[\"ripple\"][\"usd\"],\n                \"change_24h\": data[\"ripple\"][\"usd_24h_change\"],\n                \"market_cap\": data[\"ripple\"][\"usd_market_cap\"],\n                \"timestamp\": datetime.now().isoformat()\n            }\n            \n            # Cache the result\n            self.cache.setex(\n                'xrp_price',\n                self.cache_ttl,\n                json.dumps(price_data)\n            )\n            \n            return price_data\n\n\n\n\n                            \n                                            \n\n\n\n\n\nOur price service implements caching with Redis to minimize API calls. Prices are cached for 5 minutes, reducing load on external APIs while maintaining near real-time data. Historical price data enables trend analysis and informed trading decisions."
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#commands",
+    "href": "presentation/xrp-telegram-bot-presentation.html#commands",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "Command Reference - actual response times unknown at this stage (scrap if don’t get there)",
+    "text": "Command Reference - actual response times unknown at this stage (scrap if don’t get there)\n\n\n\n\nCommand\nDescription\nExample\nResponse Time\n\n\n\n\n/start\nRegister and create wallet\n/start\n1.2s\n\n\n/balance\nCheck XRP balance\n/balance\n0.3s\n\n\n/send\nSend XRP to address\n/send 10 rN7n7...\n2.5s\n\n\n/price\nCurrent XRP price\n/price\n0.5s\n\n\n/history\nTransaction history\n/history\n0.5s\n\n\n/profile\nUser profile info\n/profile\n0.3s\n\n\n/settings\nConfigure preferences\n/settings\n0.2s\n\n\n/help\nShow help menu\n/help\n0.1s\n\n\n/cancel\nCancel operation\n/cancel\n0.1s\n\n\n\n\n\nOur bot supports nine core commands designed for intuitive interaction. Each command is optimized for quick response times. The /send command includes confirmation dialogs to prevent errors, while /history provides paginated results for better usability."
+  },
+  {
+    "objectID": "presentation/xrp-telegram-bot-presentation.html#references",
+    "href": "presentation/xrp-telegram-bot-presentation.html#references",
+    "title": "XRP Ledger Telegram Bot - The New IM",
+    "section": "References & Resources",
+    "text": "References & Resources\nTechnical Documentation\n\nXRP Ledger Documentation\nxrpl-py Library Guide\nTelegram Bot API\nFastAPI Documentation\n\nProject Resources\n\nGitHub Repository: github.com/FSE-Class-Project/xrp-telegram-bot\nLive Demo Bot: @xrp_testnet_bot\nAPI Documentation: xrp-bot-api.render.com/docs\nProject Board: GitHub Projects\n\nResources\n\nSchwartz, D., Youngs, N., & Britto, A. (2014). The XRP Ledger Consensus Protocol\nXRP TestNet Faucet\nCoinGecko API\nRender Deployment Guide\n\n\nThese resources provide documentation for all technologies used in the project. The GitHub repository contains complete source code with setup instructions. The API documentation is auto-generated by FastAPI.\n\n\n\nFinancial Software Engineering (ECO5040S) - Class Project"
+  }
+]

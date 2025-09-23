@@ -15,8 +15,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def ensure_message(func: F) -> F:
-    """
-    Decorator to ensure update.message exists before processing.
+    """Ensure update.message exists before processing.
+
     Prevents None attribute errors in handlers.
     """
 
@@ -31,9 +31,7 @@ def ensure_message(func: F) -> F:
 
 
 def ensure_callback_query(func: F) -> F:
-    """
-    Decorator to ensure update.callback_query exists.
-    """
+    """Ensure update.callback_query exists."""
 
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
@@ -51,17 +49,19 @@ async def safe_reply_text(
     parse_mode: str | None = ParseMode.MARKDOWN_V2,
     **kwargs,
 ) -> Message | None:
-    """
-    Safely reply to a message with proper error handling.
+    """Safely reply to a message with proper error handling.
 
     Args:
+    ----
         message: The message to reply to
         text: The text to send
         parse_mode: Parse mode for formatting
         **kwargs: Additional arguments for reply_text
 
     Returns:
+    -------
         The sent message or None if failed
+
     """
     if not message:
         logger.error("Cannot reply to None message")
@@ -80,14 +80,16 @@ async def safe_reply_text(
 
 
 def escape_markdown_v2(text: str) -> str:
-    """
-    Escape special characters for Telegram's MarkdownV2 format.
+    """Escape special characters for Telegram's MarkdownV2 format.
 
     Args:
+    ----
         text: Text to escape
 
     Returns:
+    -------
         Escaped text safe for MarkdownV2
+
     """
     # Characters that need escaping in MarkdownV2
     escape_chars = [

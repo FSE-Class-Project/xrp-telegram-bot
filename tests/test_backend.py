@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 
 import pytest
@@ -9,15 +10,15 @@ from backend.services.user_service import UserService
 
 
 class TestUserService:
-    """Test user management service"""
+    """Test user management service."""
 
     @pytest.fixture
     def test_db(self):
-        """Create test database session"""
+        """Create test database session."""
         engine = create_engine("sqlite:///:memory:")
         Base.metadata.create_all(engine)
-        SessionLocal = sessionmaker(bind=engine)
-        db = SessionLocal()
+        session_local = sessionmaker(bind=engine)
+        db = session_local()
         try:
             yield db
         finally:
@@ -25,12 +26,12 @@ class TestUserService:
 
     @pytest.fixture
     def user_service(self):
-        """Create an instance of the user service"""
+        """Create an instance of the user service."""
         return UserService()
 
     @pytest.mark.asyncio
     async def test_create_user(self, user_service, test_db):
-        """Test user creation with wallet"""
+        """Test user creation with wallet."""
         with patch("backend.services.xrp_service.XRPService.create_wallet") as mock_wallet:
             mock_wallet.return_value = ("rTestAddress123", "encrypted_secret")
 
@@ -49,7 +50,7 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_duplicate_user_returns_existing(self, user_service, test_db):
-        """Test that creating duplicate user returns existing"""
+        """Test that creating duplicate user returns existing."""
         # Patch the wallet creation as it's not the focus of this test
         with patch("backend.services.xrp_service.XRPService.create_wallet") as mock_wallet:
             mock_wallet.return_value = ("rTestAddress1", "secret1")
@@ -75,7 +76,7 @@ class TestUserService:
         assert user1.id == user2.id
 
     def test_get_user_by_telegram_id(self, user_service, test_db):
-        """Test user retrieval by Telegram ID"""
+        """Test user retrieval by Telegram ID."""
         # Create user first
         user_to_add = User(telegram_id="999999999", telegram_username="get_user")
         test_db.add(user_to_add)
@@ -88,12 +89,14 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_send_xrp_validation(self, user_service, test_db):
-        """Test send XRP validation logic"""
+        """Test send XRP validation logic."""
         # Create sender with wallet
         sender = User(
             telegram_id="111111111",
             wallet=Wallet(
-                xrp_address="rSenderAddress", encrypted_secret="encrypted", balance=100.0
+                xrp_address="rSenderAddress",
+                encrypted_secret=os.getenv("TEST_SECRET", "test_encrypted_secret"),
+                balance=100.0,
             ),
         )
         test_db.add(sender)
@@ -101,7 +104,10 @@ class TestUserService:
 
         # Test invalid recipient address
         result = await user_service.send_xrp(
-            db=test_db, sender=sender, recipient_address="invalid_address", amount=10.0
+            db=test_db,
+            sender=sender,
+            recipient_address="invalid_address",
+            amount=10.0,
         )
 
         assert result["success"] is False

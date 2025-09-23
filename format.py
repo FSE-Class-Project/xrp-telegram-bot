@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""
-Cross-platform code formatting script using your project's tools
-Works with your existing pyproject.toml configuration
+"""Cross-platform code formatting script using your project's tools.
+
+Works with your existing pyproject.toml configuration.
 """
 
 import subprocess
@@ -17,26 +17,25 @@ RESET = "\033[0m"
 
 
 def run_command(cmd, check=True):
-    """Run a command and return the result"""
+    """Run a command and return the result."""
     try:
-        result = subprocess.run(cmd, shell=True, check=check, capture_output=True, text=True)
+        result = subprocess.run(cmd, shell=True, check=check, capture_output=True, text=True)  # noqa: S602
         return result.returncode == 0, result.stdout, result.stderr
     except subprocess.CalledProcessError as e:
         return False, e.stdout, e.stderr
 
 
 def check_tool(tool_name):
-    """Check if a tool is installed"""
+    """Check if a tool is installed."""
     cmd = f"{sys.executable} -m pip show {tool_name}"
     success, _, _ = run_command(cmd, check=False)
     return success
 
 
 def install_tools():
-    """Install formatting tools if missing"""
+    """Install formatting tools if missing."""
     tools = {
-        "black": "black>=24.1.1",
-        "ruff": "ruff>=0.1.9",  # Using ruff instead of flake8/isort
+        "ruff": "ruff>=0.1.9",  # Using ruff for linting and formatting
     }
 
     missing = []
@@ -56,7 +55,7 @@ def install_tools():
 
 
 def format_code():
-    """Format Python code with Black and Ruff (using your pyproject.toml settings)"""
+    """Format Python code with Ruff (using your pyproject.toml settings)."""
     directories = ["backend", "bot", "tests"]
     existing_dirs = [d for d in directories if Path(d).exists()]
 
@@ -66,34 +65,28 @@ def format_code():
 
     print(f"{BLUE}=== Code Formatting Tool ==={RESET}")
     print("Using configuration from pyproject.toml")
-    print("  • Black line-length: 100")
-    print("  • Ruff for linting and import sorting")
+    print("  • Ruff line-length: 100")
+    print("  • Ruff for formatting, linting and import sorting")
     print(f"Directories to format: {', '.join(existing_dirs)}\n")
 
     # Check and install tools if needed
     if not install_tools():
         return False
 
-    # Run Black with your config (line-length=100 from pyproject.toml)
-    print(f"{YELLOW}Running Black formatter...{RESET}")
-    black_cmd = f"{sys.executable} -m black {' '.join(existing_dirs)}"
-    success, stdout, stderr = run_command(black_cmd, check=False)
+    # Run Ruff formatter first
+    print(f"{YELLOW}Running Ruff formatter...{RESET}")
+    ruff_format_cmd = f"{sys.executable} -m ruff format {' '.join(existing_dirs)}"
+    success, stdout, stderr = run_command(ruff_format_cmd, check=False)
 
-    if success or "reformatted" in stdout:
-        print(f"{GREEN}✓ Black formatting complete{RESET}")
-        if "reformatted" in stdout:
-            # Show which files were reformatted
-            for line in stdout.split("\n"):
-                if "reformatted" in line:
-                    print(f"  {line}")
+    if success:
+        print(f"{GREEN}✓ Ruff formatting complete{RESET}")
+        if stdout.strip():
+            print(stdout)
     else:
-        if "No Python files are present to be formatted" in stderr:
-            print(f"{YELLOW}! No Python files found to format{RESET}")
-        else:
-            print(f"{RED}✗ Black formatting failed{RESET}")
-            print(stderr)
+        print(f"{RED}✗ Ruff formatting failed{RESET}")
+        print(stderr)
 
-    # Run Ruff for linting and import sorting (replaces flake8 + isort)
+    # Run Ruff for linting and import sorting
     print(f"\n{YELLOW}Running Ruff (linting + import sorting)...{RESET}")
 
     # First, fix what can be auto-fixed
@@ -145,7 +138,7 @@ def format_code():
 
 
 def check_ci_compliance():
-    """Check if code will pass CI checks"""
+    """Check if code will pass CI checks."""
     print(f"\n{BLUE}=== CI Compliance Check ==={RESET}")
 
     directories = ["backend", "bot", "tests"]
@@ -153,16 +146,16 @@ def check_ci_compliance():
 
     all_pass = True
 
-    # Check Black formatting
-    print(f"\n{YELLOW}Checking Black formatting...{RESET}")
-    black_check = f"{sys.executable} -m black --check {' '.join(existing_dirs)}"
-    success, stdout, _ = run_command(black_check, check=False)
+    # Check Ruff formatting
+    print(f"\n{YELLOW}Checking Ruff formatting...{RESET}")
+    ruff_format_check = f"{sys.executable} -m ruff format --check {' '.join(existing_dirs)}"
+    success, stdout, _ = run_command(ruff_format_check, check=False)
 
     if success:
-        print(f"{GREEN}✓ Black formatting OK{RESET}")
+        print(f"{GREEN}✓ Ruff formatting OK{RESET}")
     else:
-        print(f"{RED}✗ Black formatting issues found{RESET}")
-        print(f"  Run: black {' '.join(existing_dirs)}")
+        print(f"{RED}✗ Ruff formatting issues found{RESET}")
+        print(f"  Run: ruff format {' '.join(existing_dirs)}")
         all_pass = False
 
     # Check Ruff
@@ -179,7 +172,7 @@ def check_ci_compliance():
 
 
 def main():
-    """Main entry point"""
+    """Execute the main entry point."""
     # Check if we're in the right directory
     if not Path("requirements.txt").exists() or not Path("pyproject.toml").exists():
         print(f"{RED}Error: Not in project root directory!{RESET}")
@@ -210,7 +203,7 @@ def main():
         print("\nNext steps:")
         print("1. Review changes: git diff")
         print("2. Stage changes: git add .")
-        print("3. Commit: git commit -m 'fix: Apply Black formatting (line-length=100)'")
+        print("3. Commit: git commit -m 'fix: Apply Ruff formatting (line-length=100)'")
         print("4. Push: git push origin dev/ces")
     else:
         print(f"\n{RED}Formatting encountered issues{RESET}")

@@ -1,10 +1,16 @@
 """Encryption utilities for secure data storage."""
 
+from __future__ import annotations
+
 import base64
 import os
 
 from cryptography.fernet import Fernet
+from dotenv import load_dotenv
+import os
 
+# Explicitly load the development env file
+load_dotenv(".env.development")
 
 class EncryptionService:
     """Service for encrypting/decrypting sensitive data."""
@@ -13,8 +19,10 @@ class EncryptionService:
         """Initialize with encryption key.
 
         Args:
+        ----
             key: Encryption key as string, bytes, or None.
                  If None, will use env variable or generate new.
+
         """
         if key is not None:
             # Convert to bytes if needed

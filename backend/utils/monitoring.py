@@ -1,6 +1,4 @@
-"""
-Monitoring, logging, and observability utilities
-"""
+"""Monitoring, logging, and observability utilities."""
 
 from __future__ import annotations
 
@@ -22,8 +20,12 @@ SqlalchemyIntegration = None
 
 try:
     import sentry_sdk as _sentry_sdk
-    from sentry_sdk.integrations.fastapi import FastApiIntegration as _FastApiIntegration
-    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration as _SqlalchemyIntegration
+    from sentry_sdk.integrations.fastapi import (
+        FastApiIntegration as _FastApiIntegration,
+    )
+    from sentry_sdk.integrations.sqlalchemy import (
+        SqlalchemyIntegration as _SqlalchemyIntegration,
+    )
 
     sentry_sdk = _sentry_sdk
     FastApiIntegration = _FastApiIntegration
@@ -38,7 +40,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 # Configure structured logging
 class StructuredLogger:
-    """Structured logging for better observability"""
+    """Structured logging for better observability."""
 
     def __init__(self, name: str):
         self.logger = logging.getLogger(name)
@@ -51,7 +53,7 @@ class StructuredLogger:
             self.logger.addHandler(handler)
 
     class JsonFormatter(logging.Formatter):
-        """JSON log formatter"""
+        """JSON log formatter."""
 
         def format(self, record: logging.LogRecord) -> str:
             log_data: dict[str, Any] = {
@@ -77,7 +79,7 @@ class StructuredLogger:
             return json.dumps(log_data)
 
     def log(self, level: str, message: str, **kwargs: Any) -> None:
-        """Log with extra fields"""
+        """Log with extra fields."""
         log_level = getattr(logging, level.upper(), logging.INFO)
         if kwargs:
             # Create a LogAdapter or use extra parameter properly
@@ -104,7 +106,7 @@ logger = StructuredLogger(__name__)
 
 # Metrics collection
 class MetricsCollector:
-    """Collect and track application metrics"""
+    """Collect and track application metrics."""
 
     def __init__(self):
         self.metrics: dict[str, dict[str, Any]] = {
@@ -115,10 +117,14 @@ class MetricsCollector:
         }
 
     def record_request(self, endpoint: str, method: str, status_code: int, duration: float) -> None:
-        """Record API request metrics"""
+        """Record API request metrics."""
         key = f"{method}_{endpoint}"
         if key not in self.metrics["requests"]:
-            self.metrics["requests"][key] = {"count": 0, "total_duration": 0, "status_codes": {}}
+            self.metrics["requests"][key] = {
+                "count": 0,
+                "total_duration": 0,
+                "status_codes": {},
+            }
 
         self.metrics["requests"][key]["count"] += 1
         self.metrics["requests"][key]["total_duration"] += duration
@@ -129,7 +135,7 @@ class MetricsCollector:
         self.metrics["requests"][key]["status_codes"][status_key] += 1
 
     def record_transaction(self, amount: float, success: bool, duration: float) -> None:
-        """Record XRP transaction metrics"""
+        """Record XRP transaction metrics."""
         date_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         if date_key not in self.metrics["transactions"]:
@@ -150,7 +156,7 @@ class MetricsCollector:
         self.metrics["transactions"][date_key]["total_duration"] += duration
 
     def record_error(self, error_type: str, endpoint: str | None = None) -> None:
-        """Record error metrics"""
+        """Record error metrics."""
         if error_type not in self.metrics["errors"]:
             self.metrics["errors"][error_type] = {"count": 0, "endpoints": {}}
 
@@ -162,12 +168,20 @@ class MetricsCollector:
             self.metrics["errors"][error_type]["endpoints"][endpoint] += 1
 
     def get_metrics(self) -> dict[str, Any]:
-        """Get current metrics snapshot"""
-        return {"timestamp": datetime.now(timezone.utc).isoformat(), "metrics": self.metrics}
+        """Get current metrics snapshot."""
+        return {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metrics": self.metrics,
+        }
 
     def reset_metrics(self) -> None:
-        """Reset metrics (useful for periodic reporting)"""
-        self.metrics = {"requests": {}, "transactions": {}, "errors": {}, "performance": {}}
+        """Reset metrics (useful for periodic reporting)."""
+        self.metrics = {
+            "requests": {},
+            "transactions": {},
+            "errors": {},
+            "performance": {},
+        }
 
 
 # Global metrics collector
@@ -176,7 +190,7 @@ metrics = MetricsCollector()
 
 # Performance monitoring decorator
 def monitor_performance(operation_name: str) -> Callable[[F], F]:
-    """Decorator to monitor function performance"""
+    """Monitor function performance."""
 
     def decorator(func: F) -> F:
         if asyncio.iscoroutinefunction(func):
@@ -247,10 +261,17 @@ def monitor_performance(operation_name: str) -> Callable[[F], F]:
     return decorator
 
 
-def filter_sensitive_data(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
-    """Filter sensitive data from Sentry events"""
+def filter_sensitive_data(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:  # noqa: ARG001
+    """Filter sensitive data from Sentry events."""
     # Remove sensitive fields
-    sensitive_fields = ["password", "secret", "token", "api_key", "private_key", "seed"]
+    sensitive_fields = [
+        "password",
+        "secret",
+        "token",
+        "api_key",
+        "private_key",
+        "seed",
+    ]
 
     def remove_sensitive(data: Any) -> Any:
         if isinstance(data, dict):
@@ -282,7 +303,7 @@ def filter_sensitive_data(event: dict[str, Any], hint: dict[str, Any]) -> dict[s
 
 # Initialize Sentry for error tracking
 def init_sentry(dsn: str | None = None, environment: str = "production") -> None:
-    """Initialize Sentry error tracking"""
+    """Initialize Sentry error tracking."""
     if not SENTRY_AVAILABLE or sentry_sdk is None:
         logger.warning("Sentry SDK not installed, skipping initialization")
         return
@@ -319,11 +340,11 @@ def init_sentry(dsn: str | None = None, environment: str = "production") -> None
 
 # Health check utilities
 class HealthChecker:
-    """System health checking"""
+    """System health checking."""
 
     @staticmethod
     async def check_database(db_session: Any) -> dict[str, Any]:
-        """Check database health"""
+        """Check database health."""
         try:
             # Import inside function to avoid circular imports
             from sqlalchemy import text
@@ -335,13 +356,16 @@ class HealthChecker:
 
             return {"status": "healthy", "response_time": response_time}
         except ImportError:
-            return {"status": "unhealthy", "error": "SQLAlchemy not properly installed"}
+            return {
+                "status": "unhealthy",
+                "error": "SQLAlchemy not properly installed",
+            }
         except Exception as e:
             return {"status": "unhealthy", "error": str(e)}
 
     @staticmethod
     async def check_xrp_connection() -> dict[str, Any]:
-        """Check XRP Ledger connection"""
+        """Check XRP Ledger connection."""
         try:
             # Import inside function to avoid circular imports
             from xrpl.models.requests import ServerInfo
@@ -351,7 +375,7 @@ class HealthChecker:
             # Simple server_info request
             start_time = time.time()
             # Instantiate the ServerInfo model instead of using a dict
-            response = xrp_service.client.request(ServerInfo())
+            response = await xrp_service.client.request(ServerInfo())
             response_time = time.time() - start_time
 
             if response.is_successful():
@@ -364,16 +388,21 @@ class HealthChecker:
                 return {
                     "status": "degraded",
                     "error": "Connection established but unhealthy",
-                    "details": response.result.get("error_message") or response.result,
+                    "details": response.result.get("error_message")
+                    if hasattr(response, "result") and response.result
+                    else "Unknown error",
                 }
         except ImportError as e:
-            return {"status": "unhealthy", "error": f"XRP service not available: {str(e)}"}
+            return {
+                "status": "unhealthy",
+                "error": f"XRP service not available: {str(e)}",
+            }
         except Exception as e:
             return {"status": "unhealthy", "error": str(e)}
 
     @staticmethod
     async def check_telegram_bot() -> dict[str, Any]:
-        """Check Telegram bot status"""
+        """Check Telegram bot status."""
         try:
             # Import config inside function
             from backend.config import settings
@@ -386,15 +415,21 @@ class HealthChecker:
                     "token_length": len(settings.TELEGRAM_BOT_TOKEN),
                 }
             else:
-                return {"status": "not_configured", "error": "TELEGRAM_BOT_TOKEN not set"}
+                return {
+                    "status": "not_configured",
+                    "error": "TELEGRAM_BOT_TOKEN not set",
+                }
         except ImportError:
-            return {"status": "error", "error": "Backend configuration not available"}
+            return {
+                "status": "error",
+                "error": "Backend configuration not available",
+            }
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
     @staticmethod
     async def get_full_health_status(db_session: Any) -> dict[str, Any]:
-        """Get comprehensive health status"""
+        """Get comprehensive health status."""
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "services": {

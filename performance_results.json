@@ -1,0 +1,504 @@
+{
+  "signups": [
+    {
+      "success": true,
+      "user_id": "820535068",
+      "response_time": 31.626620531082153,
+      "status_code": 201,
+      "data": {
+        "user_id": 385,
+        "telegram_id": "820535068",
+        "xrp_address": "rwqWyQkXYgkPtnxUBLJEcjBrCjJYxB7bQU",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:33:31.029354"
+    },
+    {
+      "success": true,
+      "user_id": "441394693",
+      "response_time": 19.232245683670044,
+      "status_code": 201,
+      "data": {
+        "user_id": 381,
+        "telegram_id": "441394693",
+        "xrp_address": "rJZrurDbKkUN8RdLz4DCmiT7E1X3cS1XXK",
+        "balance": "0.0"
+      },
+      "timestamp": "2025-09-21T15:33:19.793511"
+    },
+    {
+      "success": true,
+      "user_id": "479166790",
+      "response_time": 29.331457376480103,
+      "status_code": 201,
+      "data": {
+        "user_id": 388,
+        "telegram_id": "479166790",
+        "xrp_address": "rh9ju9oKYm29wwto3PseiDtQ2qK9tHnTyj",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:33:31.031356"
+    },
+    {
+      "success": true,
+      "user_id": "403018092",
+      "response_time": 16.954846382141113,
+      "status_code": 201,
+      "data": {
+        "user_id": 387,
+        "telegram_id": "403018092",
+        "xrp_address": "rEuT3dYgpS87QcvcBK2CDsdTcLPkk2GMKx",
+        "balance": "0.0"
+      },
+      "timestamp": "2025-09-21T15:33:19.794512"
+    },
+    {
+      "success": true,
+      "user_id": "102652301",
+      "response_time": 27.04629683494568,
+      "status_code": 201,
+      "data": {
+        "user_id": 384,
+        "telegram_id": "102652301",
+        "xrp_address": "rUoGzeV5p8ec75Jy42dL3PEn8tanRct53G",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:33:31.027354"
+    },
+    {
+      "success": true,
+      "user_id": "140410579",
+      "response_time": 25.915401935577393,
+      "status_code": 201,
+      "data": {
+        "user_id": 382,
+        "telegram_id": "140410579",
+        "xrp_address": "rLJho1gudeotUDmPUBwQBMe9W5ZP6QN2L7",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:33:31.032356"
+    },
+    {
+      "success": true,
+      "user_id": "695325775",
+      "response_time": 24.658799171447754,
+      "status_code": 201,
+      "data": {
+        "user_id": 386,
+        "telegram_id": "695325775",
+        "xrp_address": "rQK9AZV5csEWfdgFfKe8XDH3ewTVuA9RUr",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:33:30.915896"
+    },
+    {
+      "success": true,
+      "user_id": "619480320",
+      "response_time": 23.64040470123291,
+      "status_code": 201,
+      "data": {
+        "user_id": 383,
+        "telegram_id": "619480320",
+        "xrp_address": "rnp7nZVpBc8BuyZuQZPHz35HGmZ9FsVPpb",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:33:31.029354"
+    },
+    {
+      "success": true,
+      "user_id": "384010923",
+      "response_time": 31.268882513046265,
+      "status_code": 201,
+      "data": {
+        "user_id": 389,
+        "telegram_id": "384010923",
+        "xrp_address": "rsowvFzbpFha3CJMd5cF9v9SeyJvasiBpt",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:35:39.633934"
+    },
+    {
+      "success": true,
+      "user_id": "870107080",
+      "response_time": 18.97691798210144,
+      "status_code": 201,
+      "data": {
+        "user_id": 393,
+        "telegram_id": "870107080",
+        "xrp_address": "rHy4gbuibErLvi4EWLuyGZjXGvGaQFKBad",
+        "balance": "0.0"
+      },
+      "timestamp": "2025-09-21T15:35:28.479519"
+    },
+    {
+      "success": true,
+      "user_id": "701422563",
+      "response_time": 28.99748182296753,
+      "status_code": 201,
+      "data": {
+        "user_id": 396,
+        "telegram_id": "701422563",
+        "xrp_address": "ra5ZjRe5L6g9ww26vfXV89A93UDsS58nC2",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:35:39.631934"
+    },
+    {
+      "success": true,
+      "user_id": "901725533",
+      "response_time": 27.856032133102417,
+      "status_code": 201,
+      "data": {
+        "user_id": 390,
+        "telegram_id": "901725533",
+        "xrp_address": "rNoGZ2FL6bWScmo1XrXNwNH989GkbiHG5h",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:35:39.627935"
+    },
+    {
+      "success": true,
+      "user_id": "899370387",
+      "response_time": 15.568578958511353,
+      "status_code": 201,
+      "data": {
+        "user_id": 395,
+        "telegram_id": "899370387",
+        "xrp_address": "r33Pk5mr49u97EMmMHkDTn3Tdc8K2f9b28",
+        "balance": "0.0"
+      },
+      "timestamp": "2025-09-21T15:35:28.474518"
+    },
+    {
+      "success": true,
+      "user_id": "983066522",
+      "response_time": 25.578675508499146,
+      "status_code": 201,
+      "data": {
+        "user_id": 394,
+        "telegram_id": "983066522",
+        "xrp_address": "rGwD2yeAbE1AxmvcQt3au8m7ntkJPDb5HD",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:35:39.633934"
+    },
+    {
+      "success": true,
+      "user_id": "847165748",
+      "response_time": 24.434444904327393,
+      "status_code": 201,
+      "data": {
+        "user_id": 391,
+        "telegram_id": "847165748",
+        "xrp_address": "rp2hE3R5FwMu8VRu171RhFRWLAVX94cEBv",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:35:39.628935"
+    },
+    {
+      "success": true,
+      "user_id": "244507730",
+      "response_time": 23.30614137649536,
+      "status_code": 201,
+      "data": {
+        "user_id": 392,
+        "telegram_id": "244507730",
+        "xrp_address": "rwSfsHo3pB5pAfCf9guSD6PTSKVusQM82v",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:35:39.630933"
+    },
+    {
+      "success": true,
+      "user_id": "624238372",
+      "response_time": 23.514868021011353,
+      "status_code": 201,
+      "data": {
+        "user_id": 404,
+        "telegram_id": "624238372",
+        "xrp_address": "rnqUpifxUiDk151Z3BYxzx6s36v9v8pAR5",
+        "balance": "0.0"
+      },
+      "timestamp": "2025-09-21T15:37:30.378358"
+    },
+    {
+      "success": true,
+      "user_id": "907806121",
+      "response_time": 33.668757915496826,
+      "status_code": 201,
+      "data": {
+        "user_id": 398,
+        "telegram_id": "907806121",
+        "xrp_address": "rsSg3Xw1L62YBZZWahWNWxoVm3buth7EXP",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:37:41.867999"
+    },
+    {
+      "success": true,
+      "user_id": "202054648",
+      "response_time": 32.287962913513184,
+      "status_code": 201,
+      "data": {
+        "user_id": 402,
+        "telegram_id": "202054648",
+        "xrp_address": "rUKsWqaTWPGE3T4QceHyDuw9bnSRspmUs9",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:37:41.862996"
+    },
+    {
+      "success": true,
+      "user_id": "979349650",
+      "response_time": 30.76176929473877,
+      "status_code": 201,
+      "data": {
+        "user_id": 399,
+        "telegram_id": "979349650",
+        "xrp_address": "rfBTFFdvV2VNzq7tph69ko5GLXubxsCoV6",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:37:41.868999"
+    },
+    {
+      "success": true,
+      "user_id": "847859004",
+      "response_time": 29.49397850036621,
+      "status_code": 201,
+      "data": {
+        "user_id": 400,
+        "telegram_id": "847859004",
+        "xrp_address": "rM3bdca7eE38H2LqPZdMCqgEKHwk3ABDp5",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:37:41.863993"
+    },
+    {
+      "success": true,
+      "user_id": "817551085",
+      "response_time": 28.104915142059326,
+      "status_code": 201,
+      "data": {
+        "user_id": 401,
+        "telegram_id": "817551085",
+        "xrp_address": "rMtHgBuagf37z8jSQ6iSkubvhbybsneLKR",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:37:41.869998"
+    },
+    {
+      "success": true,
+      "user_id": "607520097",
+      "response_time": 26.883999824523926,
+      "status_code": 201,
+      "data": {
+        "user_id": 397,
+        "telegram_id": "607520097",
+        "xrp_address": "rnM41oRyxYBF1Jn7Hr64pbY2mmgwsHwMyE",
+        "balance": "10.0"
+      },
+      "timestamp": "2025-09-21T15:37:41.864993"
+    },
+    {
+      "success": true,
+      "user_id": "482407308",
+      "response_time": 14.158246040344238,
+      "status_code": 201,
+      "data": {
+        "user_id": 403,
+        "telegram_id": "482407308",
+        "xrp_address": "rpiKkiiwatBnH93fo4JZGn1zeHFt2CyhPC",
+        "balance": "0.0"
+      },
+      "timestamp": "2025-09-21T15:37:30.407761"
+    }
+  ],
+  "transactions": [
+    {
+      "success": true,
+      "from_id": "695325775",
+      "to_address": "rJZrurDbKkUN8RdLz4DCmiT7E1X3cS1XXK",
+      "amount": 1.75,
+      "response_time": 78.45543599128723,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:34:51.498284"
+    },
+    {
+      "success": true,
+      "from_id": "820535068",
+      "to_address": "rLJho1gudeotUDmPUBwQBMe9W5ZP6QN2L7",
+      "amount": 1.4,
+      "response_time": 78.02221035957336,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:34:52.200212"
+    },
+    {
+      "success": true,
+      "from_id": "140410579",
+      "to_address": "rEuT3dYgpS87QcvcBK2CDsdTcLPkk2GMKx",
+      "amount": 2.29,
+      "response_time": 76.18324184417725,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:34:51.498284"
+    },
+    {
+      "success": true,
+      "from_id": "479166790",
+      "to_address": "rEuT3dYgpS87QcvcBK2CDsdTcLPkk2GMKx",
+      "amount": 1.76,
+      "response_time": 75.0499279499054,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:34:51.498284"
+    },
+    {
+      "success": true,
+      "from_id": "619480320",
+      "to_address": "rQK9AZV5csEWfdgFfKe8XDH3ewTVuA9RUr",
+      "amount": 1.75,
+      "response_time": 74.8878710269928,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:34:52.469966"
+    },
+    {
+      "success": true,
+      "from_id": "384010923",
+      "to_address": "rp2hE3R5FwMu8VRu171RhFRWLAVX94cEBv",
+      "amount": 2.0,
+      "response_time": 72.73816990852356,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:36:54.382924"
+    },
+    {
+      "success": true,
+      "from_id": "901725533",
+      "to_address": "ra5ZjRe5L6g9ww26vfXV89A93UDsS58nC2",
+      "amount": 1.74,
+      "response_time": 71.7300124168396,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:36:54.516456"
+    },
+    {
+      "success": true,
+      "from_id": "701422563",
+      "to_address": "rp2hE3R5FwMu8VRu171RhFRWLAVX94cEBv",
+      "amount": 1.69,
+      "response_time": 70.6360194683075,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:36:54.564231"
+    },
+    {
+      "success": true,
+      "from_id": "244507730",
+      "to_address": "r33Pk5mr49u97EMmMHkDTn3Tdc8K2f9b28",
+      "amount": 1.68,
+      "response_time": 69.45111799240112,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:36:54.516456"
+    },
+    {
+      "success": true,
+      "from_id": "847165748",
+      "to_address": "rNoGZ2FL6bWScmo1XrXNwNH989GkbiHG5h",
+      "amount": 2.05,
+      "response_time": 68.36030387878418,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:36:54.563235"
+    },
+    {
+      "success": true,
+      "from_id": "607520097",
+      "to_address": "rUKsWqaTWPGE3T4QceHyDuw9bnSRspmUs9",
+      "amount": 2.32,
+      "response_time": 81.23863410949707,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:39:05.123770"
+    },
+    {
+      "success": true,
+      "from_id": "817551085",
+      "to_address": "rnM41oRyxYBF1Jn7Hr64pbY2mmgwsHwMyE",
+      "amount": 2.05,
+      "response_time": 79.73070740699768,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:39:04.846153"
+    },
+    {
+      "success": true,
+      "from_id": "847859004",
+      "to_address": "rnM41oRyxYBF1Jn7Hr64pbY2mmgwsHwMyE",
+      "amount": 2.1,
+      "response_time": 78.70368361473083,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:39:05.035874"
+    },
+    {
+      "success": true,
+      "from_id": "202054648",
+      "to_address": "rsSg3Xw1L62YBZZWahWNWxoVm3buth7EXP",
+      "amount": 1.55,
+      "response_time": 77.54493021965027,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:39:05.125771"
+    },
+    {
+      "success": true,
+      "from_id": "907806121",
+      "to_address": "rfBTFFdvV2VNzq7tph69ko5GLXubxsCoV6",
+      "amount": 2.16,
+      "response_time": 76.24062466621399,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:39:05.123770"
+    }
+  ],
+  "balance_checks": [
+    {
+      "success": true,
+      "user_id": "820535068",
+      "response_time": 3.5046374797821045,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:34:55.975601"
+    },
+    {
+      "success": true,
+      "user_id": "140410579",
+      "response_time": 3.5862033367156982,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:35:00.283951"
+    },
+    {
+      "success": true,
+      "user_id": "102652301",
+      "response_time": 3.4733338356018066,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:35:05.156979"
+    },
+    {
+      "success": true,
+      "user_id": "140410579",
+      "response_time": 3.484194040298462,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:36:58.049419"
+    },
+    {
+      "success": true,
+      "user_id": "140410579",
+      "response_time": 4.457777738571167,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:37:03.544378"
+    },
+    {
+      "success": true,
+      "user_id": "102652301",
+      "response_time": 3.7490243911743164,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:39:08.875795"
+    },
+    {
+      "success": true,
+      "user_id": "607520097",
+      "response_time": 3.681196928024292,
+      "status_code": 200,
+      "timestamp": "2025-09-21T15:39:14.246823"
+    }
+  ]
+}

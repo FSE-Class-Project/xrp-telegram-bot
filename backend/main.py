@@ -1,8 +1,11 @@
-"""Main FastAPI application with integrated Telegram webhook support"""
+"""Main FastAPI application with integrated Telegram webhook support."""
+
+from __future__ import annotations
 
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import cast
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -36,12 +39,37 @@ telegram_app_instance = None
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Manage application lifecycle"""
+async def lifespan(app: FastAPI):  # noqa: ARG001
+    """Manage application lifecycle."""
     global telegram_app_instance
 
     # Initialize settings first
     initialize_settings()
+
+    # Initialize Sentry for error tracking (production)
+    if settings.SENTRY_DSN and settings.ENVIRONMENT == "production":
+        try:
+            from .utils.monitoring import init_sentry
+
+            init_sentry(
+                settings.SENTRY_DSN,
+                settings.SENTRY_ENVIRONMENT or settings.ENVIRONMENT,
+            )
+            logger.info("✅ Sentry error tracking initialized")
+        except Exception as e:
+            logger.error(f"⚠️ Sentry initialization failed: {e}")
+
+    # Initialize Redis cache service
+    try:
+        from .services.cache_service import get_cache_service
+
+        cache = get_cache_service()
+        if cache.enabled:
+            logger.info("✅ Redis cache service initialized successfully")
+        else:
+            logger.warning("⚠️ Redis cache service running in degraded mode")
+    except Exception as e:
+        logger.error(f"⚠️ Cache service initialization failed: {e}")
 
     # Startup
     logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
@@ -50,6 +78,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"🌐 API URL: {settings.API_URL}")
     logger.info(f"💾 Database: {settings.DATABASE_URL[:30]}...")
     logger.info(f"🪙 XRP Network: {settings.XRP_NETWORK}")
+    if settings.REDIS_URL:
+        logger.info(f"🔴 Redis: {settings.REDIS_URL[:30]}...")
+    if settings.SENTRY_DSN:
+        logger.info("🐛 Sentry: Configured for error tracking")
 
     # Initialize database engine and schema
     try:
@@ -138,7 +170,11 @@ async def lifespan(app: FastAPI):
                         else None
                     ),
                     drop_pending_updates=True,
-                    allowed_updates=["message", "callback_query", "inline_query"],
+                    allowed_updates=[
+                        "message",
+                        "callback_query",
+                        "inline_query",
+                    ],
                 )
                 logger.info(f"✅ Webhook set to: {webhook_url}")
 
@@ -183,7 +219,10 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title=settings.APP_NAME, version=settings.APP_VERSION, debug=settings.DEBUG, lifespan=lifespan
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    debug=settings.DEBUG,
+    lifespan=lifespan,
 )
 
 # Add CORS middleware with environment-specific configuration
@@ -201,7 +240,12 @@ if settings.ENVIRONMENT == "production":
         allow_origins=allowed_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Idempotency-Key"],
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-API-Key",
+            "X-Idempotency-Key",
+        ],
     )
 else:
     # Development: Permissive CORS
@@ -219,10 +263,49 @@ if settings.ENVIRONMENT == "production":
 else:
     rate_limits = ["200/minute", "2000/hour"]
 
-setup_rate_limiting(app, default_limits=rate_limits)
+setup_rate_limiting(app, default_limits=cast(list, rate_limits))
 
 # Add idempotency middleware
 add_idempotency_middleware(app)
+
+
+# Add monitoring middleware
+@app.middleware("http")
+async def monitoring_middleware(request: Request, call_next):
+    """Middleware for monitoring and metrics collection."""
+    import time
+
+    from .utils.monitoring import metrics
+
+    start_time = time.time()
+
+    try:
+        response = await call_next(request)
+        duration = time.time() - start_time
+
+        # Record request metrics
+        metrics.record_request(
+            endpoint=str(request.url.path),
+            method=request.method,
+            status_code=response.status_code,
+            duration=duration,
+        )
+
+        # Add performance headers for monitoring
+        response.headers["X-Process-Time"] = str(duration)
+        response.headers["X-Service-Version"] = settings.APP_VERSION
+
+        return response
+
+    except Exception as e:
+        duration = time.time() - start_time
+
+        # Record error metrics
+        metrics.record_error(error_type=type(e).__name__, endpoint=str(request.url.path))
+
+        # Re-raise the exception
+        raise
+
 
 # Include API routes
 app.include_router(router)
@@ -232,18 +315,19 @@ app.include_router(settings_router)
 
 # Exception handler
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler"""
+async def global_exception_handler(request: Request, exc: Exception):  # noqa: ARG001
+    """Global exception handler."""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
-        status_code=500, content={"detail": str(exc) if settings.DEBUG else "Internal server error"}
+        status_code=500,
+        content={"detail": str(exc) if settings.DEBUG else "Internal server error"},
     )
 
 
 # Root endpoint
 @app.get("/")
 async def root():
-    """Root endpoint"""
+    """Root endpoint."""
     return {
         "message": "XRP Telegram Bot API",
         "version": settings.APP_VERSION,
@@ -260,7 +344,7 @@ async def root():
 # Health check endpoint for Render
 @app.get("/health")
 async def health():
-    """Health check endpoint for monitoring"""
+    """Health check endpoint for monitoring."""
     return {
         "status": "healthy",
         "service": settings.APP_NAME,
@@ -269,12 +353,63 @@ async def health():
     }
 
 
+# Comprehensive health check endpoint
+@app.get("/api/v1/health")
+async def detailed_health():
+    """Detailed health check endpoint."""
+    from .database.connection import get_db
+    from .utils.monitoring import HealthChecker
+
+    # Get database session for health checks
+    db_gen = get_db()
+    db = next(db_gen)
+
+    try:
+        # Get comprehensive health status
+        health_status = await HealthChecker.get_full_health_status(db)
+
+        # Add Redis cache status
+        try:
+            from .services.cache_service import get_cache_service
+
+            cache = get_cache_service()
+            health_status["services"]["redis"] = cache.health_check()
+        except Exception as e:
+            health_status["services"]["redis"] = {
+                "connected": False,
+                "error": str(e),
+            }
+
+        # Add Sentry status
+        health_status["services"]["sentry"] = {
+            "configured": bool(settings.SENTRY_DSN),
+            "environment": settings.SENTRY_ENVIRONMENT,
+        }
+
+        # Determine overall status
+        services = health_status["services"]
+        overall_status = "healthy"
+
+        # Check if any critical services are down
+        if services["database"]["status"] == "unhealthy":
+            overall_status = "unhealthy"
+        elif services["xrp_ledger"]["status"] == "unhealthy" or not services["redis"]["connected"]:
+            overall_status = "degraded"
+
+        health_status["overall_status"] = overall_status
+
+        return health_status
+
+    finally:
+        db.close()
+
+
 # Webhook test endpoint (development/debugging only)
 if settings.DEBUG:
 
     @app.get("/webhook/info")
     async def webhook_info():
-        """Get current webhook configuration (debug only)"""
+        """Get current webhook configuration (debug only)."""
         if not telegram_app_instance:
             return {"error": "Telegram bot not initialized"}
 
