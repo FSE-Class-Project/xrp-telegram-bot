@@ -104,6 +104,9 @@ class XRPTransactionMonitor:
                 logger.info(
                     f"✅ Subscribed to {len(addresses)} wallet addresses with transaction stream"
                 )
+                # Log the actual addresses for debugging
+                for addr in addresses:
+                    logger.info(f"   📍 Monitoring: {addr}")
             else:
                 logger.error(f"Failed to subscribe to wallets: {response.result}")
 
@@ -144,11 +147,16 @@ class XRPTransactionMonitor:
             raise RuntimeError(msg)
 
         logger.info("🔄 Listening for incoming XRP transactions...")
+        message_count = 0
 
         try:
             async for message in self.client:
                 if not self.running:
                     break
+
+                message_count += 1
+                if message_count % 10 == 0:  # Log every 10 messages
+                    logger.info(f"Processed {message_count} WebSocket messages")
 
                 try:
                     await self._process_transaction_message(message)
@@ -158,16 +166,33 @@ class XRPTransactionMonitor:
             logger.info("Transaction monitoring cancelled")
         except Exception as e:
             logger.error(f"Error in transaction listener: {e}", exc_info=True)
+            # Try to reconnect on connection errors
+            if "connection" in str(e).lower() or "websocket" in str(e).lower():
+                logger.info("Attempting to reconnect WebSocket...")
+                await self.stop()
+                await asyncio.sleep(5)  # Wait before reconnecting
+                await self.start()
 
     async def _process_transaction_message(self, message: dict[str, Any]) -> None:
         """Process an incoming transaction message from XRP Ledger."""
         try:
+            # Log ALL incoming messages for debugging
+            logger.debug(f"Received WebSocket message: {message.get('type', 'unknown')}")
+
             # Check if this is a transaction message
             if message.get("type") != "transaction":
+                # Log non-transaction messages for debugging
+                if message.get("type"):
+                    logger.debug(f"Ignoring non-transaction message: {message.get('type')}")
                 return
 
             transaction = message.get("transaction", {})
             meta = message.get("meta", {})
+
+            # Log transaction details for debugging
+            tx_type = transaction.get("TransactionType")
+            tx_result = meta.get("TransactionResult")
+            logger.info(f"Processing transaction: {tx_type} - {tx_result}")
 
             # Only process successful Payment transactions
             if (
