@@ -176,7 +176,8 @@ class XRPTransactionMonitor:
 
             # Extract transaction details
             destination = transaction.get("Destination")
-            amount = transaction.get("Amount")
+            # Try DeliverMax first (newer transactions), then fallback to Amount
+            amount = transaction.get("DeliverMax") or transaction.get("Amount")
             sender = transaction.get("Account")
             tx_hash = transaction.get("hash")
 
