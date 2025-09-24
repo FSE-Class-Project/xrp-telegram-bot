@@ -240,6 +240,7 @@ def format_balance_info(
         fiat_value: Fiat currency value
         fiat_currency: Fiat currency code
         last_updated: Last update timestamp
+        timezone_code: Timezone code for formatting timestamps
 
     Returns:
     -------

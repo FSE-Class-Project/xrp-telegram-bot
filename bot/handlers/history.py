@@ -371,15 +371,15 @@ async def transaction_details(update: Update, context: ContextTypes.DEFAULT_TYPE
                 fee = float(tx.get("fee", 0) or 0)
                 status_title = escape_html(tx.get("status", "Unknown").title())
                 sender_address = f"<code>{escape_html(tx.get('sender_address', 'N/A'))}</code>"
-                recipient_address = f"<code>{escape_html(tx.get('recipient_address', 'N/A'))}</code>"
+                recipient_address = (
+                    f"<code>{escape_html(tx.get('recipient_address', 'N/A'))}</code>"
+                )
                 tx_hash_value = f"<code>{escape_html(tx.get('hash', 'N/A'))}</code>"
                 ledger_index = escape_html(str(tx.get("ledger_index", "N/A")))
 
                 created_display = format_datetime_for_user(tx.get("timestamp"), timezone_code)
                 if not created_display:
-                    created_display = (
-                        str(tx.get("timestamp", "N/A")).replace("T", " ")[:19]
-                    )
+                    created_display = str(tx.get("timestamp", "N/A")).replace("T", " ")[:19]
                 created_display = escape_html(created_display)
 
                 confirmed_display = None
@@ -389,9 +389,9 @@ async def transaction_details(update: Update, context: ContextTypes.DEFAULT_TYPE
                         timezone_code,
                     )
                     if not confirmed_display:
-                        confirmed_display = (
-                            str(tx.get("confirmed_at", "N/A")).replace("T", " ")[:19]
-                        )
+                        confirmed_display = str(tx.get("confirmed_at", "N/A")).replace("T", " ")[
+                            :19
+                        ]
                     confirmed_display = escape_html(confirmed_display)
 
                 time_section = (
