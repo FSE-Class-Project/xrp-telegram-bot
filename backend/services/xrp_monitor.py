@@ -176,8 +176,10 @@ class XRPTransactionMonitor:
     async def _process_transaction_message(self, message: dict[str, Any]) -> None:
         """Process an incoming transaction message from XRP Ledger."""
         try:
-            # Only process transaction messages
-            if message.get("type") != "transaction":
+            # Log all message types for debugging
+            msg_type = message.get("type")
+            if msg_type != "transaction":
+                logger.debug(f"Skipping non-transaction message type: {msg_type}")
                 return
 
             transaction = message.get("transaction", {})
@@ -185,13 +187,23 @@ class XRPTransactionMonitor:
 
             # Skip if no transaction data
             if not transaction or not meta:
+                logger.debug("Skipping message with no transaction or meta data")
                 return
 
             tx_type = transaction.get("TransactionType")
             tx_result = meta.get("TransactionResult")
+            tx_hash = transaction.get("hash")
+
+            # Log all transaction processing attempts
+            logger.info(f"Processing transaction: {tx_hash} - {tx_result}")
 
             # Only process successful Payment transactions
-            if tx_type != "Payment" or tx_result != "tesSUCCESS":
+            if tx_type != "Payment":
+                logger.debug(f"Skipping non-Payment transaction type: {tx_type}")
+                return
+
+            if tx_result != "tesSUCCESS":
+                logger.debug(f"Skipping unsuccessful transaction: {tx_result}")
                 return
 
             # Extract transaction details
@@ -199,10 +211,17 @@ class XRPTransactionMonitor:
             # Try DeliverMax first (newer transactions), then fallback to Amount
             amount = transaction.get("DeliverMax") or transaction.get("Amount")
             sender = transaction.get("Account")
-            tx_hash = transaction.get("hash")
+
+            logger.debug(
+                f"Transaction details - From: {sender}, To: {destination}, Amount: {amount}"
+            )
 
             # Skip if destination is not one of our monitored addresses
             if destination not in self.subscribed_addresses:
+                logger.debug(
+                    f"Destination {destination} not in monitored addresses: "
+                    f"{list(self.subscribed_addresses)}"
+                )
                 return
 
             # Convert amount from drops to XRP (if it's a string)
@@ -237,21 +256,33 @@ class XRPTransactionMonitor:
         tx_hash: str,
     ) -> None:
         """Send a notification to the user about an incoming XRP payment."""
+        logger.info(f"🔔 Attempting to notify user for payment to {recipient_address}")
+
         db = get_db_session()
         try:
             # Find the user who owns this wallet
             wallet = db.query(Wallet).filter(Wallet.xrp_address == recipient_address).first()
 
-            if not wallet or not wallet.user:
-                logger.warning(f"No user found for wallet address {recipient_address}")
+            if not wallet:
+                logger.warning(f"❌ No wallet found for address {recipient_address}")
+                return
+
+            if not wallet.user:
+                logger.warning(f"❌ No user associated with wallet {recipient_address}")
                 return
 
             user = wallet.user
+            logger.info(f"📱 Found user {user.telegram_id} for wallet {recipient_address}")
 
             # Check if user has notifications enabled
             if user.settings and not user.settings.transaction_notifications:
-                logger.debug(f"User {user.telegram_id} has transaction notifications disabled")
+                logger.info(f"🔕 User {user.telegram_id} has transaction notifications disabled")
                 return
+
+            if not user.settings:
+                logger.info(
+                    f"⚙️ User {user.telegram_id} has no settings, notifications enabled by default"
+                )
 
             # Format the notification message
             message = (
@@ -262,6 +293,8 @@ class XRPTransactionMonitor:
                 f"<b>Transaction:</b> <code>{tx_hash}</code>\n\n"
                 f"🎉 Your wallet balance has been updated!"
             )
+
+            logger.info(f"📤 Sending notification to user {user.telegram_id}")
 
             # Send notification using the appropriate method for the environment
             await self._send_notification_to_user(user.telegram_id, message)
@@ -279,7 +312,7 @@ class XRPTransactionMonitor:
                 logger.debug(f"Updated cached balance for {recipient_address}: {new_balance} XRP")
 
         except Exception as e:
-            logger.error(f"Error notifying user of incoming payment: {e}", exc_info=True)
+            logger.error(f"❌ Error notifying user of incoming payment: {e}", exc_info=True)
             db.rollback()
         finally:
             db.close()
@@ -290,13 +323,18 @@ class XRPTransactionMonitor:
             # Check if we're in webhook mode (production) or polling mode (development)
             from ..main import telegram_app_instance
 
+            logger.info(f"🤖 Telegram app instance available: {telegram_app_instance is not None}")
+
             if telegram_app_instance:
                 # Production/webhook mode - use the existing app instance
+                logger.info(f"📱 Using webhook mode to send message to {telegram_id}")
                 await telegram_app_instance.bot.send_message(
                     chat_id=int(telegram_id), text=message, parse_mode="HTML"
                 )
+                logger.info("✅ Message sent successfully via webhook mode")
             else:
                 # Development/polling mode - create a temporary bot instance
+                logger.info(f"🔄 Using polling mode to send message to {telegram_id}")
                 from telegram import Bot
 
                 bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
@@ -306,11 +344,14 @@ class XRPTransactionMonitor:
                     await bot.send_message(
                         chat_id=int(telegram_id), text=message, parse_mode="HTML"
                     )
+                    logger.info("✅ Message sent successfully via polling mode")
                 finally:
                     await bot.shutdown()
 
         except Exception as e:
-            logger.error(f"Failed to send notification to user {telegram_id}: {e}")
+            logger.error(
+                f"❌ Failed to send notification to user {telegram_id}: {e}", exc_info=True
+            )
             raise
 
 
