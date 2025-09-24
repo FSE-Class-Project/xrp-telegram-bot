@@ -12,6 +12,7 @@ from ..utils.formatting import (
     escape_html,
     format_error_message,
 )
+from ..utils.timezones import TIMEZONE_DESCRIPTION_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +344,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 price_alerts_enabled = settings_data.get("price_alerts", False)
                 two_factor_enabled = settings_data.get("two_factor_enabled", False)
                 currency_display = settings_data.get("currency_display", "USD")
+                timezone_value = settings_data.get("timezone", "UTC")
 
                 username_text = (
                     f"@{escape_html(display_username)}"
@@ -354,6 +356,9 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
                 created_text = escape_html(created_formatted)
                 currency_text = escape_html(str(currency_display))
+                timezone_text = escape_html(
+                    TIMEZONE_DESCRIPTION_MAP.get(timezone_value, timezone_value)
+                )
 
                 message = (
                     "👤 <b>Your Profile</b>\n\n"
@@ -371,6 +376,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     f"• Price Alerts: {'✅' if price_alerts_enabled else '❌'}\n"
                     f"• TX Notifications: {'✅' if notifications_enabled else '❌'}\n"
                     f"• Currency: {currency_text}\n"
+                    f"• Timezone: {timezone_text}\n"
                     f"• 2FA: {'✅' if two_factor_enabled else '❌'}\n\n"
                     "<i>Manage your settings and preferences below.</i>"
                 )

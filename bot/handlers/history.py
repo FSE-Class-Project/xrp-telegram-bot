@@ -2,7 +2,6 @@
 """Transaction history handlers with pagination."""
 
 import logging
-from datetime import datetime
 from typing import Any
 
 import httpx
@@ -10,9 +9,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from ..utils.formatting import (
-    escape_html,
-    format_error_message,
+from ..utils.formatting import escape_html, format_error_message
+from ..utils.timezones import (
+    TIMEZONE_DESCRIPTION_MAP,
+    format_datetime_for_user,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,23 @@ async def show_transaction_history(
 
         async with httpx.AsyncClient() as client:
             headers = {"X-API-Key": api_key}
+
+            timezone_code = "UTC"
+            try:
+                settings_response = await client.get(
+                    f"{api_url}/api/v1/user/settings/{user.id}",
+                    headers=headers,
+                    timeout=10.0,
+                )
+                if settings_response.status_code == 200:
+                    settings_data = settings_response.json()
+                    timezone_code = settings_data.get("timezone", "UTC")
+            except Exception as settings_error:  # pragma: no cover
+                logger.warning("Could not fetch user settings: %s", settings_error)
+
+            if context.user_data is not None:
+                context.user_data["timezone"] = timezone_code
+
             response = await client.get(
                 f"{api_url}/api/v1/transaction/history/{user.id}?limit={limit}&offset={offset}",
                 headers=headers,
@@ -81,7 +98,13 @@ You haven't made any transactions yet. Start by sending some XRP!
 
                 else:
                     # Format transactions
-                    message = format_transaction_history(transactions, page, total_count, limit)
+                    message = format_transaction_history(
+                        transactions,
+                        page,
+                        total_count,
+                        limit,
+                        timezone_code,
+                    )
                     keyboard = create_history_pagination_keyboard(page, total_count, limit)
 
             else:
@@ -134,16 +157,24 @@ async def history_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 def format_transaction_history(
-    transactions: list[dict[str, Any]], page: int, total_count: int, limit: int
+    transactions: list[dict[str, Any]],
+    page: int,
+    total_count: int,
+    limit: int,
+    timezone_code: str = "UTC",
 ) -> str:
     """Format transaction history for display."""
     start_index = page * limit + 1
     end_index = min((page + 1) * limit, total_count)
 
+    timezone_label = TIMEZONE_DESCRIPTION_MAP.get(timezone_code, timezone_code)
+
     message = f"""
 📊 <b>Transaction History</b>
 
 <b>Showing {start_index}-{end_index} of {total_count} transactions</b>
+
+🕒 Timezone: {escape_html(timezone_label)}
 
 """
 
@@ -161,14 +192,14 @@ def format_transaction_history(
 
         # Format timestamp
         timestamp = tx.get("timestamp")
-        if timestamp:
-            try:
-                dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-                formatted_time = dt.strftime("%m/%d %H:%M")
-            except (ValueError, TypeError):
-                formatted_time = timestamp[:16].replace("T", " ")
-        else:
-            formatted_time = "Unknown"
+        formatted_time = format_datetime_for_user(
+            timestamp,
+            timezone_code,
+            "%Y-%m-%d %H:%M %Z",
+        )
+        if not formatted_time:
+            formatted_time = str(timestamp).replace("T", " ")[:19] if timestamp else "Unknown"
+        formatted_time = escape_html(formatted_time)
 
         # Format transaction
         amount = tx.get("amount", 0)
@@ -316,34 +347,76 @@ async def transaction_details(update: Update, context: ContextTypes.DEFAULT_TYPE
             if response.status_code == 200:
                 tx = response.json()
 
-                # Format detailed transaction view
-                message = f"""
-🔍 <b>Transaction Details</b>
+                timezone_code = "UTC"
+                if context.user_data is not None and context.user_data.get("timezone"):
+                    timezone_code = context.user_data["timezone"]
+                else:
+                    try:
+                        settings_response = await client.get(
+                            f"{api_url}/api/v1/user/settings/{user.id}",
+                            headers=headers,
+                            timeout=10.0,
+                        )
+                        if settings_response.status_code == 200:
+                            settings_data = settings_response.json()
+                            timezone_code = settings_data.get("timezone", "UTC")
+                            if context.user_data is not None:
+                                context.user_data["timezone"] = timezone_code
+                    except Exception as settings_error:  # pragma: no cover
+                        logger.warning("Failed to fetch timezone for details: %s", settings_error)
 
-<b>Basic Info:</b>
-💰 Amount: {tx.get("amount", 0):.6f} XRP
-💸 Fee: {tx.get("fee", 0):.6f} XRP
-📊 Status: {tx.get("status", "Unknown").title()}
+                timezone_label = TIMEZONE_DESCRIPTION_MAP.get(timezone_code, timezone_code)
 
-<b>Addresses:</b>
-📤 From: <code>{tx.get("sender_address", "N/A")}</code>
-📥 To: <code>{tx.get("recipient_address", "N/A")}</code>
+                amount = float(tx.get("amount", 0) or 0)
+                fee = float(tx.get("fee", 0) or 0)
+                status_title = escape_html(tx.get("status", "Unknown").title())
+                sender_address = f"<code>{escape_html(tx.get('sender_address', 'N/A'))}</code>"
+                recipient_address = f"<code>{escape_html(tx.get('recipient_address', 'N/A'))}</code>"
+                tx_hash_value = f"<code>{escape_html(tx.get('hash', 'N/A'))}</code>"
+                ledger_index = escape_html(str(tx.get("ledger_index", "N/A")))
 
-<b>Network Info:</b>
-🏷️ Hash: <code>{tx.get("hash", "N/A")}</code>
-🔗 Ledger: {tx.get("ledger_index", "N/A")}
-
-<b>Timing:</b>
-⏰ Created: {tx.get("timestamp", "N/A")[:19].replace("T", " ")}
-{
-                    (
-                        f"✅ Confirmed: {tx.get('confirmed_at', 'N/A')[:19].replace('T', ' ')}"
-                        if tx.get("confirmed_at")
-                        else "⏳ Pending confirmation"
+                created_display = format_datetime_for_user(tx.get("timestamp"), timezone_code)
+                if not created_display:
+                    created_display = (
+                        str(tx.get("timestamp", "N/A")).replace("T", " ")[:19]
                     )
-                }
+                created_display = escape_html(created_display)
 
-"""
+                confirmed_display = None
+                if tx.get("confirmed_at"):
+                    confirmed_display = format_datetime_for_user(
+                        tx.get("confirmed_at"),
+                        timezone_code,
+                    )
+                    if not confirmed_display:
+                        confirmed_display = (
+                            str(tx.get("confirmed_at", "N/A")).replace("T", " ")[:19]
+                        )
+                    confirmed_display = escape_html(confirmed_display)
+
+                time_section = (
+                    f"✅ Confirmed: {confirmed_display}"
+                    if confirmed_display
+                    else "⏳ Pending confirmation"
+                )
+
+                message = (
+                    "🔍 <b>Transaction Details</b>\n\n"
+                    "<b>Basic Info:</b>\n"
+                    f"💰 Amount: {amount:.6f} XRP\n"
+                    f"💸 Fee: {fee:.6f} XRP\n"
+                    f"📊 Status: {status_title}\n\n"
+                    "<b>Addresses:</b>\n"
+                    f"📤 From: {sender_address}\n"
+                    f"📥 To: {recipient_address}\n\n"
+                    "<b>Network Info:</b>\n"
+                    f"🏷️ Hash: {tx_hash_value}\n"
+                    f"🔗 Ledger: {ledger_index}\n\n"
+                    "<b>Timing:</b>\n"
+                    f"🕒 Timezone: {escape_html(timezone_label)}\n"
+                    f"⏰ Created: {created_display}\n"
+                    f"{time_section}\n"
+                )
 
                 if tx.get("status") == "failed" and tx.get("error"):
                     message += f"\n❌ <b>Error:</b> {escape_html(tx['error'])}"

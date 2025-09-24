@@ -25,6 +25,14 @@ from .schemas import ErrorDetail, ErrorResponse
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_TIMEZONES: tuple[str, ...] = (
+    "UTC",
+    "Africa/Johannesburg",
+    "Europe/London",
+    "America/New_York",
+    "Asia/Tokyo",
+)
+
 
 # Error handling utilities for settings
 def create_settings_error_response(
@@ -56,6 +64,7 @@ class SettingsResponse(BaseModel):
     price_alerts: bool = False
     transaction_notifications: bool = True
     currency_display: str = "USD"
+    timezone: str = "UTC"
     language: str = "en"
     two_factor_enabled: bool = False
     pin_code: str | None = None
@@ -69,6 +78,10 @@ class SettingsUpdate(BaseModel):
     price_alerts: bool | None = None
     transaction_notifications: bool | None = None
     currency_display: str | None = Field(None, pattern="^(USD|EUR|GBP|ZAR|JPY|BTC|ETH)$")
+    timezone: str | None = Field(
+        None,
+        pattern="^(UTC|Africa/Johannesburg|Europe/London|America/New_York|Asia/Tokyo)$",
+    )
     language: str | None = Field(None, pattern="^(en|es|fr|de|pt|zh|ja)$")
     two_factor_enabled: bool | None = None
     pin_code: str | None = Field(None, min_length=4, max_length=8)
@@ -136,6 +149,7 @@ async def get_user_settings(
             price_alerts=settings.price_alerts,
             transaction_notifications=settings.transaction_notifications,
             currency_display=settings.currency_display,
+            timezone=settings.timezone or "UTC",
             language=settings.language,
             two_factor_enabled=settings.two_factor_enabled,
             pin_code="****" if settings.pin_code else None,  # Mask PIN
@@ -193,6 +207,13 @@ async def update_user_settings(
 
         for field, value in update_data.items():
             if hasattr(settings, field):
+                if field == "timezone" and value not in SUPPORTED_TIMEZONES:
+                    raise create_settings_error_response(
+                        "Invalid timezone selection",
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        field="timezone",
+                        code="INVALID_TIMEZONE",
+                    )
                 # Handle PIN code encryption if needed
                 if field == "pin_code" and value:
                     # In a real implementation, you'd hash/encrypt the PIN
@@ -212,6 +233,7 @@ async def update_user_settings(
             price_alerts=settings.price_alerts,
             transaction_notifications=settings.transaction_notifications,
             currency_display=settings.currency_display,
+            timezone=settings.timezone or "UTC",
             language=settings.language,
             two_factor_enabled=settings.two_factor_enabled,
             pin_code="****" if settings.pin_code else None,
@@ -287,6 +309,7 @@ async def toggle_user_setting(
             price_alerts=settings.price_alerts,
             transaction_notifications=settings.transaction_notifications,
             currency_display=settings.currency_display,
+            timezone=settings.timezone or "UTC",
             language=settings.language,
             two_factor_enabled=settings.two_factor_enabled,
             pin_code="****" if settings.pin_code else None,
@@ -363,6 +386,7 @@ async def export_user_data(
                 "price_alerts": user.settings.price_alerts,
                 "transaction_notifications": user.settings.transaction_notifications,
                 "currency_display": user.settings.currency_display,
+                "timezone": user.settings.timezone or "UTC",
                 "language": user.settings.language,
                 "two_factor_enabled": user.settings.two_factor_enabled,
                 "has_pin": user.settings.pin_code is not None,

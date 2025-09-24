@@ -54,6 +54,7 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             settings_json = settings_resp.json() if settings_resp.status_code == 200 else {}
             currency = settings_json.get("currency_display", "USD").upper()
+            timezone_code = settings_json.get("timezone", "UTC")
 
             # Get current price (multi-currency supported by backend)
             price_response = await client.get(f"{api_url}/api/v1/price/current", headers=headers)
@@ -82,6 +83,8 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 available=available_balance,
                 fiat_value=display_value,
                 fiat_currency=currency,
+                last_updated=balance_data.get("last_updated"),
+                timezone_code=timezone_code,
             )
 
             # Add funding guidance if needed
