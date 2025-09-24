@@ -35,10 +35,13 @@ class XRPTransactionMonitor:
 
         try:
             logger.info("Starting XRP transaction monitor...")
+            logger.info(f"🌐 XRP Network: {settings.XRP_NETWORK}")
+            logger.info(f"🔗 WebSocket URL: {settings.XRP_WEBSOCKET_URL}")
 
             # Connect to XRP Ledger WebSocket
             self.client = AsyncWebsocketClient(settings.XRP_WEBSOCKET_URL)
             await self.client.open()
+            logger.info("✅ WebSocket connection established")
 
             # Subscribe to all user wallet addresses
             await self._subscribe_to_user_wallets()
@@ -50,7 +53,7 @@ class XRPTransactionMonitor:
             self._monitor_task = asyncio.create_task(self._listen_for_transactions())
 
         except Exception as e:
-            logger.error(f"❌ Failed to start XRP transaction monitor: {e}")
+            logger.error(f"❌ Failed to start XRP transaction monitor: {e}", exc_info=True)
             await self.stop()
             raise
 
@@ -147,16 +150,32 @@ class XRPTransactionMonitor:
             raise RuntimeError(msg)
 
         logger.info("🔄 Listening for incoming XRP transactions...")
+        logger.info(
+            f"📍 Monitoring {len(self.subscribed_addresses)} addresses: "
+            f"{list(self.subscribed_addresses)}"
+        )
         message_count = 0
+        last_heartbeat = 0
 
         try:
             async for message in self.client:
                 if not self.running:
+                    logger.info("🛑 Monitor stop requested, breaking out of message loop")
                     break
 
                 message_count += 1
-                if message_count % 10 == 0:  # Log every 10 messages
-                    logger.info(f"Processed {message_count} WebSocket messages")
+
+                # Log every message for debugging purposes
+                msg_type = message.get("type", "unknown")
+                # Log first 5 messages and every 10th
+                if message_count <= 5 or message_count % 10 == 0:
+                    logger.info(f"📨 Message #{message_count}: type={msg_type}")
+
+                # Log heartbeat messages less frequently
+                if msg_type == "ledgerClosed":
+                    last_heartbeat += 1
+                    if last_heartbeat % 50 == 0:  # Every 50 ledger closes
+                        logger.info(f"💓 Heartbeat: {last_heartbeat} ledgers processed")
 
                 try:
                     await self._process_transaction_message(message)

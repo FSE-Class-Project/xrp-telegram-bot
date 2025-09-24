@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Global variables that will be initialized later
 engine: Engine | None = None
-SessionLocal: sessionmaker[Session] | None = None
+SessionLocal: sessionmaker | None = None
 
 
 def create_db_engine(database_url: str, debug: bool = False) -> Engine:

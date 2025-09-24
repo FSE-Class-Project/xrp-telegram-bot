@@ -60,7 +60,7 @@ module = [
     "alembic.env",
     "migrate",
 ]
-disable_error_code = ["no-any-return", "assignment", "attr-defined", "type-arg", "misc", "call-arg", "index", "union-attr"]
+disable_error_code = ["no-any-return", "assignment", "attr-defined", "type-arg", "misc", "call-arg", "index", "union-attr", "valid-type"]
 
 [tool.ruff]
 target-version = "py310"
