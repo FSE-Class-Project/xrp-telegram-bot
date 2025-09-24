@@ -963,6 +963,16 @@ async def send_transaction(
         if tx_record:
             await tx_idempotency.link_transaction_to_idempotency(idempotency_record, tx_record)
 
+    # Send notification to recipient if they are a user in our system
+    if result["success"]:
+        await _notify_transaction_recipient(
+            db=db,
+            recipient_address=transaction.to_address,
+            sender_address=sender.wallet.xrp_address,
+            amount=float(transaction.amount),
+            tx_hash=result.get("tx_hash"),
+        )
+
     return TransactionApiResponse(
         success=result["success"],
         tx_hash=result.get("tx_hash"),
@@ -1237,3 +1247,83 @@ async def refresh_wallet_monitoring(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to refresh wallet monitoring",
         ) from e
+
+
+async def _notify_transaction_recipient(
+    db: Session,
+    recipient_address: str,
+    sender_address: str,
+    amount: float,
+    tx_hash: str | None,
+) -> None:
+    """Send notification to transaction recipient if they are a user in our system."""
+    try:
+        from ..database.models import Wallet
+
+        # Find the recipient wallet
+        recipient_wallet = db.query(Wallet).filter(Wallet.xrp_address == recipient_address).first()
+
+        if not recipient_wallet:
+            logger.debug(f"No wallet found for recipient address {recipient_address}")
+            return
+
+        if not recipient_wallet.user:
+            logger.debug(f"No user associated with wallet {recipient_address}")
+            return
+
+        recipient_user = recipient_wallet.user
+
+        # Check if user has notifications enabled
+        if recipient_user.settings and not recipient_user.settings.transaction_notifications:
+            logger.debug(
+                f"User {recipient_user.telegram_id} has transaction notifications disabled"
+            )
+            return
+
+        # Format the notification message
+        message = (
+            f"💰 <b>Incoming XRP Payment</b>\n\n"
+            f"<b>Amount:</b> {amount:.6f} XRP\n"
+            f"<b>From:</b> <code>{sender_address}</code>\n"
+            f"<b>To:</b> <code>{recipient_address}</code>\n"
+        )
+
+        if tx_hash:
+            message += f"<b>Transaction:</b> <code>{tx_hash}</code>\n"
+
+        message += "\n🎉 Your wallet balance has been updated!"
+
+        # Send notification using the Telegram bot
+        await _send_notification_to_user(recipient_user.telegram_id, message)
+
+        logger.info(f"Notification sent to user {recipient_user.telegram_id} for incoming payment")
+
+    except Exception as e:
+        logger.error(f"Error notifying transaction recipient: {e}", exc_info=True)
+
+
+async def _send_notification_to_user(telegram_id: str, message: str) -> None:
+    """Send notification to user via Telegram bot."""
+    try:
+        from ..main import telegram_app_instance
+
+        if telegram_app_instance:
+            # Production/webhook mode - use the existing app instance
+            await telegram_app_instance.bot.send_message(
+                chat_id=int(telegram_id), text=message, parse_mode="HTML"
+            )
+        else:
+            # Development/polling mode - create a temporary bot instance
+            from telegram import Bot
+
+            bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+
+            try:
+                await bot.initialize()
+                await bot.send_message(chat_id=int(telegram_id), text=message, parse_mode="HTML")
+            finally:
+                await bot.shutdown()
+
+    except Exception as e:
+        logger.error(f"Failed to send notification to user {telegram_id}: {e}", exc_info=True)
+        raise

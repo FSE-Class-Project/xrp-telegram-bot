@@ -17,7 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import (
-    DeclarativeBase,
+    declarative_base,
     relationship,
 )
 
@@ -26,10 +26,7 @@ if TYPE_CHECKING:
     pass
 
 
-class Base(DeclarativeBase):
-    """Base class for all database models."""
-
-    pass
+Base = declarative_base()
 
 
 # Base class for all models
