@@ -175,6 +175,13 @@ class UserSettingsDict(TypedDict):
     price_alerts: bool
     transaction_notifications: bool
     currency_display: Literal["USD", "EUR", "GBP", "ZAR", "JPY", "BTC", "ETH"]
+    timezone: Literal[
+        "UTC",
+        "Africa/Johannesburg",
+        "Europe/London",
+        "America/New_York",
+        "Asia/Tokyo",
+    ]
     language: Literal["en", "es", "fr", "de", "pt", "zh"]
     two_factor_enabled: bool
 
