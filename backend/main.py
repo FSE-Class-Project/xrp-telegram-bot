@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import cast
+from typing import Any, cast
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -162,7 +162,7 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
                 webhook_url = f"{settings.API_URL}/webhook/{settings.TELEGRAM_BOT_TOKEN}"
 
             if webhook_url:
-                webhook_kwargs = {
+                webhook_kwargs: dict[str, Any] = {
                     "url": webhook_url,
                     "drop_pending_updates": True,
                     "allowed_updates": [

@@ -8,7 +8,13 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from ..utils.formatting import (
+    escape_html,
     format_error_message,
+)
+from ..utils.timezones import (
+    TIMEZONE_CHOICES,
+    TIMEZONE_DESCRIPTION_MAP,
+    TIMEZONE_LABEL_MAP,
 )
 
 logger = logging.getLogger(__name__)
@@ -186,6 +192,74 @@ Select your preferred currency for displaying XRP values:
         await query.answer("An error occurred", show_alert=True)
 
 
+async def timezone_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle timezone selection settings."""
+    query = update.callback_query
+    if not query:
+        return
+
+    await query.answer()
+    user_id = query.from_user.id
+
+    try:
+        api_url = context.bot_data.get("api_url", "http://localhost:8000")
+        api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
+
+        settings_data = await fetch_user_settings(api_url, api_key, user_id)
+
+        if settings_data:
+            current_timezone = settings_data.get("timezone", "UTC")
+            current_description = TIMEZONE_DESCRIPTION_MAP.get(current_timezone, current_timezone)
+
+            message_lines = [
+                "🕒 <b>Timezone Settings</b>",
+                "",
+                f"<b>Current Timezone:</b> {escape_html(str(current_description))}",
+                "",
+                "Choose the timezone used for timestamps and summaries:",
+            ]
+
+            for _, label, description in TIMEZONE_CHOICES:
+                message_lines.append(f"• {escape_html(label)} - {escape_html(description)}")
+
+            message = "\n".join(message_lines)
+
+            keyboard: list[list[InlineKeyboardButton]] = []
+            for i in range(0, len(TIMEZONE_CHOICES), 2):
+                row: list[InlineKeyboardButton] = []
+                for j in range(2):
+                    if i + j < len(TIMEZONE_CHOICES):
+                        code, label, _ = TIMEZONE_CHOICES[i + j]
+                        prefix = "✅ " if code == current_timezone else ""
+                        row.append(
+                            InlineKeyboardButton(
+                                f"{prefix}{label}",
+                                callback_data=f"set_timezone_{code}",
+                            )
+                        )
+                keyboard.append(row)
+
+            keyboard.append(
+                [
+                    InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
+                    InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
+                ]
+            )
+
+            if query.message:
+                await query.message.edit_text(
+                    message,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+        else:
+            await query.answer("Could not load timezone settings", show_alert=True)
+
+    except Exception as e:
+        logger.error(f"Error in timezone_settings: {e}")
+        await query.answer("An error occurred", show_alert=True)
+
+
 async def security_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle security settings."""
     query = update.callback_query
@@ -315,6 +389,34 @@ async def set_currency(update: Update, context: ContextTypes.DEFAULT_TYPE, curre
         await query.answer("An error occurred", show_alert=True)
 
 
+async def set_timezone(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, timezone_value: str
+) -> None:
+    """Set timezone preference."""
+    query = update.callback_query
+    if not query:
+        return
+
+    user_id = query.from_user.id
+
+    try:
+        api_url = context.bot_data.get("api_url", "http://localhost:8000")
+        api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
+
+        success = await update_user_setting(api_url, api_key, user_id, "timezone", timezone_value)
+
+        if success:
+            label = TIMEZONE_LABEL_MAP.get(timezone_value, timezone_value)
+            await query.answer(f"Timezone set to {label}!", show_alert=True)
+            await timezone_settings(update, context)
+        else:
+            await query.answer("Failed to update timezone", show_alert=True)
+
+    except Exception as e:
+        logger.error(f"Error setting timezone to {timezone_value}: {e}")
+        await query.answer("An error occurred", show_alert=True)
+
+
 async def fetch_user_settings(api_url: str, api_key: str, user_id: int) -> dict[str, Any] | None:
     """Fetch user settings from API."""
     try:
@@ -375,6 +477,8 @@ def format_settings_menu(settings_data: dict[str, Any]) -> str:
     price_alerts = settings_data.get("price_alerts", False)
     tx_notifications = settings_data.get("transaction_notifications", True)
     currency = settings_data.get("currency_display", "USD")
+    timezone_code = settings_data.get("timezone", "UTC")
+    timezone_display = TIMEZONE_DESCRIPTION_MAP.get(timezone_code, timezone_code)
     language = settings_data.get("language", "en")
     two_factor = settings_data.get("two_factor_enabled", False)
     has_pin = settings_data.get("pin_code") is not None
@@ -388,6 +492,7 @@ def format_settings_menu(settings_data: dict[str, Any]) -> str:
 
 <b>Display:</b>
 💱 Currency: {currency}
+🕒 Timezone: {timezone_display}
 🌐 Language: {language.upper()}
 
 <b>Security:</b>
@@ -407,13 +512,14 @@ def create_settings_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton("💱 Currency", callback_data="currency_settings"),
             ],
             [
+                InlineKeyboardButton("🕒 Timezone", callback_data="timezone_settings"),
                 InlineKeyboardButton("🔐 Security", callback_data="security_settings"),
-                InlineKeyboardButton("🌐 Language", callback_data="language_settings"),
             ],
             [
+                InlineKeyboardButton("🌐 Language", callback_data="language_settings"),
                 InlineKeyboardButton("📊 Export Data", callback_data="export_data"),
-                InlineKeyboardButton("🗑️ Delete Account", callback_data="delete_account"),
             ],
+            [InlineKeyboardButton("🗑️ Delete Account", callback_data="delete_account")],
             [
                 InlineKeyboardButton("🔙 Back", callback_data="profile"),
                 InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),

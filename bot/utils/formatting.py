@@ -1,10 +1,11 @@
 """Telegram HTML formatting utilities for safe and consistent message formatting."""
 
 import html
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from ..constants import ACCOUNT_RESERVE, FAUCET_AMOUNT
+from .timezones import format_datetime_for_user
 
 
 def escape_html(text: str) -> str:
@@ -226,7 +227,8 @@ def format_balance_info(
     available: Decimal | float | str,
     fiat_value: Decimal | float | str,
     fiat_currency: str = "USD",
-    last_updated: datetime | None = None,
+    last_updated: datetime | str | None = None,
+    timezone_code: str = "UTC",
 ) -> str:
     """Format balance information with consistent styling.
 
@@ -238,6 +240,7 @@ def format_balance_info(
         fiat_value: Fiat currency value
         fiat_currency: Fiat currency code
         last_updated: Last update timestamp
+        timezone_code: Timezone code for formatting timestamps
 
     Returns:
     -------
@@ -257,12 +260,14 @@ def format_balance_info(
         "📈 <b>Value:</b> " + formatted_fiat + "\n\n"
     )
 
-    if last_updated:
-        timestamp = last_updated.strftime("%Y-%m-%d %H:%M:%S UTC")
-        message += "<i>Last updated: " + timestamp + "</i>"
-    else:
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-        message += "<i>Last updated: " + timestamp + "</i>"
+    timestamp = format_datetime_for_user(last_updated, timezone_code)
+    if not timestamp:
+        fallback_dt = datetime.now(timezone.utc)
+        timestamp = format_datetime_for_user(fallback_dt, timezone_code) or fallback_dt.strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
+
+    message += "<i>Last updated: " + escape_html(timestamp) + "</i>"
 
     return message
 

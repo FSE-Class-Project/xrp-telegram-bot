@@ -17,7 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import (
-    DeclarativeBase,
+    declarative_base,
     relationship,
 )
 
@@ -26,10 +26,7 @@ if TYPE_CHECKING:
     pass
 
 
-class Base(DeclarativeBase):
-    """Base class for all database models."""
-
-    pass
+Base = declarative_base()
 
 
 # Base class for all models
@@ -284,6 +281,7 @@ class UserSettings(Base):
 
     # Display preferences
     currency_display = Column(String(10), default="USD", nullable=False)
+    timezone = Column(String(50), default="UTC", nullable=False)
     language = Column(String(10), default="en", nullable=False)
 
     # Security

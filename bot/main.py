@@ -177,6 +177,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         elif menu_id in (
             "notification_settings",
             "currency_settings",
+            "timezone_settings",
             "security_settings",
             "language_settings",
             "export_data",
@@ -189,12 +190,15 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
                 language_settings,
                 notification_settings,
                 security_settings,
+                timezone_settings,
             )
 
             if menu_id == "notification_settings":
                 await notification_settings(update, context)
             elif menu_id == "currency_settings":
                 await currency_settings(update, context)
+            elif menu_id == "timezone_settings":
+                await timezone_settings(update, context)
             elif menu_id == "security_settings":
                 await security_settings(update, context)
             elif menu_id == "language_settings":
@@ -299,6 +303,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         (
             "notification_",
             "currency_",
+            "timezone_",
             "security_",
             "language_",
             "export_",
@@ -316,6 +321,8 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             notification_settings,
             security_settings,
             set_currency,
+            set_timezone,
+            timezone_settings,
             toggle_setting,
         )
 
@@ -327,6 +334,10 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             push_if_forward("currency_settings")
             await currency_settings(update, context)
             user_data["current_menu"] = "currency_settings"
+        elif data == "timezone_settings":
+            push_if_forward("timezone_settings")
+            await timezone_settings(update, context)
+            user_data["current_menu"] = "timezone_settings"
         elif data == "security_settings":
             push_if_forward("security_settings")
             await security_settings(update, context)
@@ -349,6 +360,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         elif data.startswith("set_currency_"):
             currency = data[13:]
             await set_currency(update, context, currency)
+        elif data.startswith("set_timezone_"):
+            timezone_value = data[len("set_timezone_") :]
+            await set_timezone(update, context, timezone_value)
     elif data == "settings":
         push_if_forward("settings")
         await settings_command(update, context)
