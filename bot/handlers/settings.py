@@ -20,7 +20,6 @@ from ..utils.timezones import (
 logger = logging.getLogger(__name__)
 
 
-
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /settings command and settings menu navigation."""
     # Handle both message and callback query
@@ -220,7 +219,7 @@ async def timezone_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 "Choose the timezone used for timestamps and summaries:",
             ]
 
-            for code, label, description in TIMEZONE_CHOICES:
+            for _, label, description in TIMEZONE_CHOICES:
                 message_lines.append(f"• {escape_html(label)} - {escape_html(description)}")
 
             message = "\n".join(message_lines)
@@ -390,7 +389,9 @@ async def set_currency(update: Update, context: ContextTypes.DEFAULT_TYPE, curre
         await query.answer("An error occurred", show_alert=True)
 
 
-async def set_timezone(update: Update, context: ContextTypes.DEFAULT_TYPE, timezone_value: str) -> None:
+async def set_timezone(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, timezone_value: str
+) -> None:
     """Set timezone preference."""
     query = update.callback_query
     if not query:

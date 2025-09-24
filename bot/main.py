@@ -189,8 +189,8 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
                 export_data,
                 language_settings,
                 notification_settings,
-                timezone_settings,
                 security_settings,
+                timezone_settings,
             )
 
             if menu_id == "notification_settings":
@@ -319,9 +319,9 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             export_data,
             language_settings,
             notification_settings,
-            set_timezone,
             security_settings,
             set_currency,
+            set_timezone,
             timezone_settings,
             toggle_setting,
         )

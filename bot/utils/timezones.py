@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from typing import Any
 
 try:  # Python >=3.9 ships with zoneinfo
     from zoneinfo import ZoneInfo
 except ImportError:  # pragma: no cover - fallback for very old runtimes
-    ZoneInfo = None  # type: ignore[assignment]
+    ZoneInfo = None  # type: ignore[misc, assignment]
 
 TIMEZONE_CHOICES: list[tuple[str, str, str]] = [
     ("UTC", "UTC", "UTC (Coordinated Universal Time)"),
@@ -24,7 +25,6 @@ TIMEZONE_DESCRIPTION_MAP = {code: description for code, _, description in TIMEZO
 
 def _get_zoneinfo(timezone_code: str) -> Any:
     """Return ZoneInfo for the given timezone code with UTC fallback."""
-
     if ZoneInfo is None:
         return None
 
@@ -36,7 +36,6 @@ def _get_zoneinfo(timezone_code: str) -> Any:
 
 def parse_datetime(value: datetime | str | None) -> datetime | None:
     """Parse incoming datetime value allowing ISO strings and aware objects."""
-
     if value is None:
         return None
 
@@ -62,7 +61,6 @@ def parse_datetime(value: datetime | str | None) -> datetime | None:
 
 def to_local_datetime(value: datetime | str | None, timezone_code: str = "UTC") -> datetime | None:
     """Convert a datetime or ISO string to the user's timezone."""
-
     dt_value = parse_datetime(value)
     if dt_value is None:
         return None
@@ -83,7 +81,6 @@ def format_datetime_for_user(
     fmt: str = "%Y-%m-%d %H:%M:%S %Z",
 ) -> str | None:
     """Format a datetime/ISO string into the user's timezone using the given format."""
-
     localized = to_local_datetime(value, timezone_code)
     if localized is None:
         return None
