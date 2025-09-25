@@ -219,7 +219,10 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     # Determine if this is an in-place action
     is_refresh = (
-        data.startswith("refresh_") or data.startswith("history_page_") or data in ("page_info",)
+        data.startswith("refresh_")
+        or data.startswith("history_page_")
+        or data.startswith("market_stats:")
+        or data in ("page_info",)
     )
 
     # Before navigating forward, push current menu onto stack
@@ -293,7 +296,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         except Exception:
             await history_command(update, context)
         user_data["current_menu"] = "history"
-    elif data == "market_stats":
+    elif data.startswith("market_stats"):
         push_if_forward("market_stats")
         from .handlers.price import market_stats_callback
 

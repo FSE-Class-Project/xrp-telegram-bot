@@ -24,7 +24,12 @@ from bot.handlers.account import handle_username_update
 
 # Import bot modules for testing
 from bot.handlers.start import handle_import_wallet, start_command
-from bot.utils.formatting import escape_html, format_error_message, format_xrp_amount
+from bot.utils.formatting import (
+    escape_html,
+    format_error_message,
+    format_price_heatmap,
+    format_xrp_amount,
+)
 
 
 # Test fixtures and utilities
@@ -722,3 +727,40 @@ async def test_unit_message_handler_precedence_issue(telegram_update_factory, mo
 
         # Verify state was cleared after successful update
         assert "awaiting_username_update" not in mock_context.user_data
+
+
+def test_format_price_heatmap_renders_segments():
+    """Heatmap formatter should include emojis, legend, and price stats."""
+
+    heatmap_data = {
+        "label": "1 Year",
+        "segments": [
+            {"emoji": "🟩", "start_timestamp": "2020-03-01T00:00:00+00:00", "end_timestamp": "2020-03-08T00:00:00+00:00"},
+            {"emoji": "🟥", "start_timestamp": "2020-03-08T00:00:00+00:00", "end_timestamp": "2020-03-15T00:00:00+00:00"},
+            {"emoji": "🟨", "start_timestamp": "2020-03-15T00:00:00+00:00", "end_timestamp": "2020-03-22T00:00:00+00:00"},
+        ],
+        "resolution": "weekly",
+        "segment_count": 3,
+        "start_price": 0.5,
+        "end_price": 0.55,
+        "overall_change_percent": 10.0,
+        "range_start": "2020-03-01T00:00:00+00:00",
+        "range_end": "2020-03-22T00:00:00+00:00",
+        "legend": {"up": "> 0", "flat": "~0", "down": "< 0"},
+    }
+
+    message = format_price_heatmap(heatmap_data, "USD")
+
+    assert "🟩🟥🟨" in message
+    assert "📈 <b>XRP Heatmap" in message
+    assert "Legend —" in message
+    assert "$" in message
+    assert "(+10.00%)" in message
+
+
+def test_format_price_heatmap_handles_empty_segments():
+    """Formatter should handle missing data gracefully."""
+
+    message = format_price_heatmap({"label": "1 Year", "segments": []}, "USD")
+    assert "Data unavailable" in message
+    assert "Segments: 0" in message

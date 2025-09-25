@@ -3,6 +3,7 @@
 import html
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import Any
 
 from ..constants import ACCOUNT_RESERVE, FAUCET_AMOUNT
 from .timezones import format_datetime_for_user
@@ -387,3 +388,111 @@ def format_funding_instructions(balance: Decimal | float | str, is_mainnet: bool
             )
 
     return ""  # No funding message needed
+
+
+def _parse_iso_datetime(value: datetime | str | None) -> datetime | None:
+    """Parse ISO8601 values into timezone-aware UTC datetimes."""
+
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str):
+        try:
+            normalized = value.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+    else:
+        return None
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def format_price_heatmap(heatmap_data: dict[str, Any], currency: str = "USD") -> str:
+    """Format emoji heatmap data for Telegram display."""
+
+    currency_code = (currency or "USD").upper()
+    title = escape_html(str(heatmap_data.get("label") or heatmap_data.get("timeframe") or "Price Heatmap"))
+    segments = heatmap_data.get("segments", [])
+    segment_count = len(segments)
+
+    emojis = "".join(str(segment.get("emoji", "🟨")) for segment in segments)
+    if emojis:
+        chunk_size = 12
+        heatmap_lines = [emojis[i : i + chunk_size] for i in range(0, len(emojis), chunk_size)]
+        heatmap_block = "\n".join(heatmap_lines)
+    else:
+        heatmap_block = "Data unavailable right now. Try another timeframe."
+
+    start_dt = _parse_iso_datetime(heatmap_data.get("range_start"))
+    end_dt = _parse_iso_datetime(heatmap_data.get("range_end"))
+    resolution = str(heatmap_data.get("resolution", "daily"))
+    resolution_lookup = {
+        "hourly": "Hourly",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+    }
+    resolution_label = resolution_lookup.get(resolution.lower())
+    if not resolution_label:
+        normalized = resolution.replace("-", " ")
+        resolution_label = normalized.title()
+        if resolution.lower() == "3-day":
+            resolution_label = "3-day"
+
+    range_line = ""
+    if start_dt and end_dt:
+        if resolution.lower() == "hourly":
+            fmt = "%d %b %H:%M"
+        else:
+            fmt = "%d %b %Y"
+        start_str = start_dt.strftime(fmt)
+        end_str = end_dt.strftime(fmt)
+        range_line = f"🗓 {escape_html(start_str)} → {escape_html(end_str)} UTC"
+
+    start_price = Decimal(str(heatmap_data.get("start_price", 0) or 0))
+    end_price = Decimal(str(heatmap_data.get("end_price", 0) or 0))
+    overall_change = float(heatmap_data.get("overall_change_percent", 0.0) or 0.0)
+
+    stats_lines: list[str] = []
+    if segment_count > 0:
+        formatted_start = escape_html(format_currency_amount(start_price, currency_code))
+        formatted_end = escape_html(format_currency_amount(end_price, currency_code))
+        stats_lines.append(f"Start: {formatted_start}")
+        stats_lines.append(
+            f"Now: {formatted_end} ({overall_change:+.2f}%)" if overall_change else f"Now: {formatted_end}"
+        )
+
+    legend = heatmap_data.get("legend", {})
+    legend_line = (
+        "Legend — "
+        f"🟩 {escape_html(str(legend.get('up', '> +0.5%')))} | "
+        f"🟨 {escape_html(str(legend.get('flat', '±0.5%')))} | "
+        f"🟥 {escape_html(str(legend.get('down', '< -0.5%')))}"
+    )
+
+    lines: list[str] = [f"📈 <b>XRP Heatmap — {title}</b>"]
+
+    meta_parts: list[str] = []
+    if range_line:
+        meta_parts.append(range_line)
+    meta_parts.append(f"🧭 Resolution: {escape_html(resolution_label)} • Segments: {segment_count}")
+    if meta_parts:
+        lines.append("")
+        lines.extend(meta_parts)
+
+    lines.append("")
+    lines.append(heatmap_block)
+
+    if stats_lines:
+        lines.append("")
+        lines.extend(stats_lines)
+
+    lines.append("")
+    lines.append(legend_line)
+
+    if heatmap_data.get("from_cache"):
+        lines.append("\n📡 <i>Cached data</i>")
+
+    return "\n".join(lines)
