@@ -94,7 +94,7 @@ class Keyboards:
         active = (active_timeframe or "").upper()
 
         def label(tf: str) -> str:
-            return f"• {tf}" if tf == active else tf
+            return f"✅ {tf}" if tf == active else tf
 
         keyboard = [
             [
