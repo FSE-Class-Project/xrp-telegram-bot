@@ -65,13 +65,12 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 if resp.status_code == 200:
                     currency = str(resp.json().get("currency_display", "USD")).upper()
 
-        # Fetch price data with market stats
+        # Fetch price data (includes market stats)
         price_data = await fetch_price_data(api_url, api_key)
-        market_data = await fetch_market_stats(api_url, api_key)
 
         if price_data:
             # Format and send price message with enhanced data
-            message = format_enhanced_price_message(price_data, market_data, currency)
+            message = format_enhanced_price_message(price_data, None, currency)
 
             await reply_func(
                 message,
@@ -132,23 +131,6 @@ async def fetch_price_data(api_url: str, api_key: str) -> dict[str, Any] | None:
         logger.error(f"Unexpected error fetching price: {e}")
         return None
 
-
-async def fetch_market_stats(api_url: str, api_key: str) -> dict[str, Any] | None:
-    """Fetch market statistics from API."""
-    try:
-        async with httpx.AsyncClient() as client:
-            headers = {"X-API-Key": api_key}
-            response = await client.get(
-                f"{api_url}/api/v1/price/market-stats",
-                headers=headers,
-                timeout=httpx.Timeout(10.0),
-            )
-            if response.status_code == 200:
-                result = response.json()
-                return result if isinstance(result, dict) else None
-    except Exception as e:
-        logger.error(f"Error fetching market stats: {e}")
-    return None
 
 
 async def fetch_price_heatmap(
@@ -335,9 +317,8 @@ async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_T
         api_url = context.bot_data.get("api_url", "http://localhost:8000")
         api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
 
-        # Fetch updated price data
+        # Fetch updated price data (includes market stats)
         price_data = await fetch_price_data(api_url, api_key)
-        market_data = await fetch_market_stats(api_url, api_key)
         # Get user currency
         currency = "USD"
         user_id = query.from_user.id
@@ -353,7 +334,7 @@ async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_T
 
         if price_data and query.message:
             # Update the existing message
-            message = format_enhanced_price_message(price_data, market_data, currency)
+            message = format_enhanced_price_message(price_data, None, currency)
 
             await query.message.edit_text(
                 text=message,
