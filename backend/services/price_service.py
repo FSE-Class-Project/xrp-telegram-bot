@@ -18,11 +18,41 @@ FLAT_THRESHOLD = 0.5
 
 
 TIMEFRAME_CONFIG: dict[str, dict[str, Any]] = {
-    "1D": {"days": 1, "max_segments": 24, "label": "1 Day", "resolution": "hourly", "interval": "hourly"},
-    "7D": {"days": 7, "max_segments": 7, "label": "7 Days", "resolution": "daily", "interval": "daily"},
-    "30D": {"days": 30, "max_segments": 30, "label": "30 Days", "resolution": "daily", "interval": "daily"},
-    "90D": {"days": 90, "max_segments": 30, "label": "90 Days", "resolution": "3-day", "interval": "daily"},
-    "1Y": {"days": 365, "max_segments": 52, "label": "1 Year", "resolution": "weekly", "interval": "daily"},
+    "1D": {
+        "days": 1,
+        "max_segments": 24,
+        "label": "1 Day",
+        "resolution": "hourly",
+        "interval": "hourly",
+    },
+    "7D": {
+        "days": 7,
+        "max_segments": 7,
+        "label": "7 Days",
+        "resolution": "daily",
+        "interval": "daily",
+    },
+    "30D": {
+        "days": 30,
+        "max_segments": 30,
+        "label": "30 Days",
+        "resolution": "daily",
+        "interval": "daily",
+    },
+    "90D": {
+        "days": 90,
+        "max_segments": 30,
+        "label": "90 Days",
+        "resolution": "3-day",
+        "interval": "daily",
+    },
+    "1Y": {
+        "days": 365,
+        "max_segments": 52,
+        "label": "1 Year",
+        "resolution": "weekly",
+        "interval": "daily",
+    },
 }
 
 
@@ -194,8 +224,14 @@ class PriceService:
                     response.raise_for_status()
                 except httpx.HTTPStatusError as exc:
                     # Some intervals require paid tiers—retry without the interval hint if applicable.
-                    if not use_range_endpoint and params.pop("interval", None) and exc.response.status_code in {400, 401, 403}:
-                        retry_resp = await client.get(url, params=params, headers=headers, timeout=10.0)
+                    if (
+                        not use_range_endpoint
+                        and params.pop("interval", None)
+                        and exc.response.status_code in {400, 401, 403}
+                    ):
+                        retry_resp = await client.get(
+                            url, params=params, headers=headers, timeout=10.0
+                        )
                         retry_resp.raise_for_status()
                         response = retry_resp
                     else:
@@ -348,7 +384,9 @@ class PriceService:
         end_idx = indices[-1]
         start_price = price_points[start_idx][1]
         end_price = price_points[end_idx][1]
-        overall_change = 0.0 if start_price == 0 else ((end_price - start_price) / start_price) * 100
+        overall_change = (
+            0.0 if start_price == 0 else ((end_price - start_price) / start_price) * 100
+        )
 
         return {
             "timeframe": tf_key,
@@ -360,7 +398,9 @@ class PriceService:
             "start_price": round(start_price, 6),
             "end_price": round(end_price, 6),
             "overall_change_percent": round(overall_change, 2),
-            "range_start": datetime.fromtimestamp(price_points[start_idx][0] / 1000, tz=timezone.utc),
+            "range_start": datetime.fromtimestamp(
+                price_points[start_idx][0] / 1000, tz=timezone.utc
+            ),
             "range_end": datetime.fromtimestamp(price_points[end_idx][0] / 1000, tz=timezone.utc),
             "from_cache": history.get("from_cache", False),
             "legend": {

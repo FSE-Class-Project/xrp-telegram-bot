@@ -735,9 +735,21 @@ def test_format_price_heatmap_renders_segments():
     heatmap_data = {
         "label": "1 Year",
         "segments": [
-            {"emoji": "🟩", "start_timestamp": "2020-03-01T00:00:00+00:00", "end_timestamp": "2020-03-08T00:00:00+00:00"},
-            {"emoji": "🟥", "start_timestamp": "2020-03-08T00:00:00+00:00", "end_timestamp": "2020-03-15T00:00:00+00:00"},
-            {"emoji": "🟨", "start_timestamp": "2020-03-15T00:00:00+00:00", "end_timestamp": "2020-03-22T00:00:00+00:00"},
+            {
+                "emoji": "🟩",
+                "start_timestamp": "2020-03-01T00:00:00+00:00",
+                "end_timestamp": "2020-03-08T00:00:00+00:00",
+            },
+            {
+                "emoji": "🟥",
+                "start_timestamp": "2020-03-08T00:00:00+00:00",
+                "end_timestamp": "2020-03-15T00:00:00+00:00",
+            },
+            {
+                "emoji": "🟨",
+                "start_timestamp": "2020-03-15T00:00:00+00:00",
+                "end_timestamp": "2020-03-22T00:00:00+00:00",
+            },
         ],
         "resolution": "weekly",
         "segment_count": 3,

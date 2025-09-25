@@ -413,7 +413,9 @@ def format_price_heatmap(heatmap_data: dict[str, Any], currency: str = "USD") ->
     """Format emoji heatmap data for Telegram display."""
 
     currency_code = (currency or "USD").upper()
-    title = escape_html(str(heatmap_data.get("label") or heatmap_data.get("timeframe") or "Price Heatmap"))
+    title = escape_html(
+        str(heatmap_data.get("label") or heatmap_data.get("timeframe") or "Price Heatmap")
+    )
     segments = heatmap_data.get("segments", [])
     segment_count = len(segments)
 
@@ -461,7 +463,9 @@ def format_price_heatmap(heatmap_data: dict[str, Any], currency: str = "USD") ->
         formatted_end = escape_html(format_currency_amount(end_price, currency_code))
         stats_lines.append(f"Start: {formatted_start}")
         stats_lines.append(
-            f"Now: {formatted_end} ({overall_change:+.2f}%)" if overall_change else f"Now: {formatted_end}"
+            f"Now: {formatted_end} ({overall_change:+.2f}%)"
+            if overall_change
+            else f"Now: {formatted_end}"
         )
 
     legend = heatmap_data.get("legend", {})

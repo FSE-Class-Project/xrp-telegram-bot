@@ -1214,7 +1214,9 @@ async def get_price_heatmap(
         service = PriceService()
         timeframe_key = timeframe.strip().upper()
         currency_clean = currency.strip().lower()
-        heatmap_data = await service.get_price_heatmap(timeframe=timeframe_key, currency=currency_clean)
+        heatmap_data = await service.get_price_heatmap(
+            timeframe=timeframe_key, currency=currency_clean
+        )
 
         segments = [
             HeatmapSegment(
