@@ -3,14 +3,25 @@ import logging
 from typing import Any
 
 import httpx
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from ..keyboards.menus import keyboards
 from ..utils.formatting import (
     format_error_message,
+    format_price_heatmap,
 )
+
+HEATMAP_TIMEFRAMES = {"1D", "7D", "30D", "90D", "1Y"}
+TIMEFRAME_LABELS = {
+    "1D": "1 Day",
+    "7D": "7 Days",
+    "30D": "30 Days",
+    "90D": "90 Days",
+    "1Y": "1 Year",
+}
+DEFAULT_HEATMAP_TIMEFRAME = "30D"
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +151,32 @@ async def fetch_market_stats(api_url: str, api_key: str) -> dict[str, Any] | Non
     return None
 
 
+async def fetch_price_heatmap(
+    api_url: str, api_key: str, timeframe: str, currency: str
+) -> dict[str, Any] | None:
+    """Fetch price heatmap data from backend."""
+    try:
+        async with httpx.AsyncClient() as client:
+            headers = {"X-API-Key": api_key}
+            response = await client.get(
+                f"{api_url}/api/v1/price/heatmap",
+                headers=headers,
+                params={"timeframe": timeframe.upper(), "currency": currency.upper()},
+                timeout=httpx.Timeout(10.0),
+            )
+            if response.status_code == 200:
+                result = response.json()
+                return result if isinstance(result, dict) else None
+            logger.error(
+                "Heatmap API returned status %s for timeframe %s",
+                response.status_code,
+                timeframe,
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Error fetching heatmap data: {e}")
+    return None
+
+
 def format_enhanced_price_message(
     price_data: dict[str, Any],
     market_data: dict[str, Any] | None = None,
@@ -218,70 +255,63 @@ def format_enhanced_price_message(
 
 
 async def market_stats_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle market statistics callback."""
+    """Render the XRP price heatmap with timeframe toggles."""
     query = update.callback_query
     if not query:
         return
 
-    await query.answer("Loading market statistics...")
+    data = query.data or ""
+    timeframe = DEFAULT_HEATMAP_TIMEFRAME
+    if data.startswith("market_stats:"):
+        candidate = data.split(":", 1)[1].upper()
+        if candidate in HEATMAP_TIMEFRAMES:
+            timeframe = candidate
+    elif data == "market_stats":
+        timeframe = DEFAULT_HEATMAP_TIMEFRAME
+
+    await query.answer(f"Loading {timeframe} heatmap…")
 
     try:
         api_url = context.bot_data.get("api_url", "http://localhost:8000")
         api_key = context.bot_data.get("api_key", "dev-bot-api-key-change-in-production")
 
-        # Fetch comprehensive market data
-        async with httpx.AsyncClient() as client:
-            headers = {"X-API-Key": api_key}
-            response = await client.get(
-                f"{api_url}/api/v1/price/market-stats",
-                headers=headers,
-                timeout=10.0,
+        # Resolve user currency preference
+        currency = "USD"
+        user_id = query.from_user.id if query.from_user else None
+        if user_id:
+            async with httpx.AsyncClient() as client:
+                headers = {"X-API-Key": api_key}
+                resp = await client.get(
+                    f"{api_url}/api/v1/user/settings/{user_id}",
+                    headers=headers,
+                    timeout=10.0,
+                )
+                if resp.status_code == 200:
+                    currency = str(resp.json().get("currency_display", "USD")).upper()
+
+        heatmap_data = await fetch_price_heatmap(api_url, api_key, timeframe, currency)
+
+        fallback_payload = {
+            "timeframe": timeframe,
+            "label": TIMEFRAME_LABELS.get(timeframe, timeframe),
+            "segments": [],
+            "resolution": "daily",
+        }
+
+        message = format_price_heatmap(heatmap_data or fallback_payload, currency)
+
+        keyboard = keyboards.heatmap_menu(timeframe)
+
+        if query.message:
+            await query.message.edit_text(
+                message,
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboard,
             )
 
-            if response.status_code == 200:
-                data = response.json()
-
-                message = f"""
-📈 <b>XRP Market Statistics</b>
-
-<b>Rankings:</b>
-🏆 Market Cap Rank: #{data.get("market_cap_rank", "N/A")}
-💰 Market Cap: ${data.get("market_cap_usd", 0):,.0f}
-
-<b>Price Movement:</b>
-📈 24h Change: {data.get("price_change_percentage_24h", 0):+.2f}%
-📅 7d Change: {data.get("price_change_percentage_7d", 0):+.2f}%
-📆 30d Change: {data.get("price_change_percentage_30d", 0):+.2f}%
-
-<b>All-Time Records:</b>
-🚀 ATH: ${data.get("ath", 0):.4f}
-📉 ATL: ${data.get("atl", 0):.6f}
-
-<b>Supply:</b>
-🔄 Circulating: {data.get("circulating_supply", 0):,.0f}
-🎯 Total: {data.get("total_supply", 0):,.0f}
-🔒 Max: {data.get("max_supply", 0):,.0f}
-"""
-
-                keyboard = InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton("🔙 Back", callback_data="back"),
-                            InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
-                        ]
-                    ]
-                )
-
-                if query.message:
-                    await query.message.edit_text(
-                        message, parse_mode=ParseMode.HTML, reply_markup=keyboard
-                    )
-            else:
-                await query.answer("Failed to load market data", show_alert=True)
-
-    except Exception as e:
-        logger.error(f"Error in market_stats_callback: {e}")
-        await query.answer("An error occurred", show_alert=True)
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Error in market_stats_callback: {e}", exc_info=True)
+        await query.answer("Unable to load heatmap", show_alert=True)
 
 
 async def price_refresh_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

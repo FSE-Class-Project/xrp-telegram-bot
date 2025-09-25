@@ -122,7 +122,7 @@ Python-Telegram-Bot, and deployed on Render.
 3. **Environment setup**
 
    ```bash
-   cp .env.example .env
+   cp .env.example .env.development
    # Edit .env with your configuration
    ```
 

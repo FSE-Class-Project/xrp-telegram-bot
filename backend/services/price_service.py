@@ -14,6 +14,48 @@ from .cache_service import get_cache_service
 logger = logging.getLogger(__name__)
 
 
+FLAT_THRESHOLD = 0.5
+
+
+TIMEFRAME_CONFIG: dict[str, dict[str, Any]] = {
+    "1D": {
+        "days": 1,
+        "max_segments": 24,
+        "label": "1 Day",
+        "resolution": "hourly",
+        "interval": "hourly",
+    },
+    "7D": {
+        "days": 7,
+        "max_segments": 7,
+        "label": "7 Days",
+        "resolution": "daily",
+        "interval": "daily",
+    },
+    "30D": {
+        "days": 30,
+        "max_segments": 30,
+        "label": "30 Days",
+        "resolution": "daily",
+        "interval": "daily",
+    },
+    "90D": {
+        "days": 90,
+        "max_segments": 30,
+        "label": "90 Days",
+        "resolution": "3-day",
+        "interval": "daily",
+    },
+    "1Y": {
+        "days": 365,
+        "max_segments": 52,
+        "label": "1 Year",
+        "resolution": "weekly",
+        "interval": "daily",
+    },
+}
+
+
 class PriceService:
     """Service for fetching and caching XRP price data."""
 
@@ -112,7 +154,12 @@ class PriceService:
                 "source": "coingecko",
             }
 
-    async def get_price_history(self, days: int = 7, currency: str = "usd") -> dict[str, Any]:
+    async def get_price_history(
+        self,
+        days: int | str = 7,
+        currency: str = "usd",
+        interval: str | None = None,
+    ) -> dict[str, Any]:
         """Get XRP price history.
 
         Args:
@@ -126,7 +173,7 @@ class PriceService:
 
         """
         # Check cache for this specific timeframe
-        cache_key = f"price:xrp:history:{days}d_{currency}"
+        cache_key = f"price:xrp:history:{days}_{currency}"
         cached_history = self.cache.cache.get_json(cache_key)
 
         if cached_history and isinstance(cached_history, dict):
@@ -135,19 +182,60 @@ class PriceService:
 
         try:
             async with httpx.AsyncClient() as client:
-                url = f"{self.api_url}/coins/ripple/market_chart"
-                params = {
-                    "vs_currency": currency,
-                    "days": str(days),
-                    "interval": "daily" if days > 1 else "hourly",
-                }
+                use_range_endpoint = isinstance(days, (int, float)) and days > 365
+
+                if use_range_endpoint:
+                    url = f"{self.api_url}/coins/ripple/market_chart/range"
+                else:
+                    url = f"{self.api_url}/coins/ripple/market_chart"
+                currency_code = str(currency).lower()
+                if use_range_endpoint:
+                    now_ts = int(datetime.now(timezone.utc).timestamp())
+                    start_ts = now_ts - int(float(days) * 86400)
+                    params = {
+                        "vs_currency": currency_code,
+                        "from": str(start_ts),
+                        "to": str(now_ts),
+                    }
+                else:
+                    params = {
+                        "vs_currency": currency_code,
+                        "days": str(days),
+                    }
+
+                # Determine interval preference for CoinGecko, but allow fallback if unauthorized
+                effective_interval = None
+                if not use_range_endpoint:
+                    effective_interval = interval or (
+                        "hourly" if isinstance(days, (int, float)) and days <= 1 else "daily"
+                    )
+                    if days == "max":
+                        effective_interval = None
+
+                    if effective_interval:
+                        params["interval"] = effective_interval
 
                 headers = {}
                 if self.api_key:
                     headers["x-cg-demo-api-key"] = self.api_key
 
-                response = await client.get(url, params=params, headers=headers, timeout=10.0)
-                response.raise_for_status()
+                try:
+                    response = await client.get(url, params=params, headers=headers, timeout=10.0)
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    # Some intervals require paid tiers—retry without the interval hint if applicable.
+                    if (
+                        not use_range_endpoint
+                        and params.pop("interval", None)
+                        and exc.response.status_code in {400, 401, 403}
+                    ):
+                        retry_resp = await client.get(
+                            url, params=params, headers=headers, timeout=10.0
+                        )
+                        retry_resp.raise_for_status()
+                        response = retry_resp
+                    else:
+                        raise
 
                 data = response.json()
 
@@ -175,6 +263,153 @@ class PriceService:
                 "days": days,
                 "currency": currency,
             }
+
+    @staticmethod
+    def _determine_emoji(change_percent: float) -> str:
+        """Map change percentage to heatmap emoji."""
+        if change_percent > FLAT_THRESHOLD:
+            return "🟩"
+        if change_percent < -FLAT_THRESHOLD:
+            return "🟥"
+        return "🟨"
+
+    @staticmethod
+    def _downsample_indices(total_points: int, max_segments: int) -> list[int]:
+        """Return indices to sample price points for heatmap generation."""
+        if total_points <= 1:
+            return [0]
+        if total_points <= max_segments + 1:
+            return list(range(total_points))
+
+        step = (total_points - 1) / max_segments
+        indices: list[int] = [0]
+
+        for i in range(1, max_segments):
+            idx = int(i * step)
+            if idx <= indices[-1]:
+                idx = indices[-1] + 1
+            if idx >= total_points:
+                idx = total_points - 1
+            indices.append(idx)
+
+        if indices[-1] != total_points - 1:
+            indices.append(total_points - 1)
+
+        # Ensure strictly increasing sequence and cap length
+        cleaned: list[int] = [indices[0]]
+        for idx in indices[1:]:
+            next_idx = idx
+            if next_idx <= cleaned[-1]:
+                next_idx = cleaned[-1] + 1
+            if next_idx >= total_points:
+                next_idx = total_points - 1
+            if next_idx > cleaned[-1]:
+                cleaned.append(next_idx)
+
+        if cleaned[-1] != total_points - 1:
+            cleaned.append(total_points - 1)
+
+        return cleaned
+
+    async def get_price_heatmap(self, timeframe: str, currency: str = "usd") -> dict[str, Any]:
+        """Generate emoji heatmap data for XRP price changes."""
+        tf_key = timeframe.upper()
+        config = TIMEFRAME_CONFIG.get(tf_key)
+        if not config:
+            raise ValueError(f"Unsupported timeframe: {timeframe}")
+
+        history = await self.get_price_history(
+            days=config["days"],
+            currency=currency,
+            interval=config.get("interval"),
+        )
+
+        raw_prices = history.get("prices", [])
+        price_points: list[tuple[int, float]] = []
+        for entry in raw_prices:
+            if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+                continue
+            try:
+                price_points.append((int(entry[0]), float(entry[1])))
+            except (TypeError, ValueError):
+                continue
+
+        price_points.sort(key=lambda item: item[0])
+
+        if len(price_points) < 2:
+            return {
+                "timeframe": tf_key,
+                "label": config["label"],
+                "currency": currency.lower(),
+                "resolution": config.get("resolution", "daily"),
+                "segments": [],
+                "segment_count": 0,
+                "start_price": price_points[0][1] if price_points else 0.0,
+                "end_price": price_points[-1][1] if price_points else 0.0,
+                "overall_change_percent": 0.0,
+                "range_start": None,
+                "range_end": None,
+                "from_cache": history.get("from_cache", False),
+                "legend": {
+                    "up": "> +0.5%",
+                    "flat": "±0.5%",
+                    "down": "< -0.5%",
+                },
+                "last_updated": datetime.now(timezone.utc),
+            }
+
+        indices = self._downsample_indices(len(price_points), config["max_segments"])
+        segments: list[dict[str, Any]] = []
+
+        for start_idx, end_idx in zip(indices, indices[1:]):
+            if start_idx == end_idx:
+                continue
+            start_ts, start_price = price_points[start_idx]
+            end_ts, end_price = price_points[end_idx]
+            if start_price == 0:
+                change_percent = 0.0
+            else:
+                change_percent = ((end_price - start_price) / start_price) * 100
+
+            segments.append(
+                {
+                    "start_timestamp": datetime.fromtimestamp(start_ts / 1000, tz=timezone.utc),
+                    "end_timestamp": datetime.fromtimestamp(end_ts / 1000, tz=timezone.utc),
+                    "change_percent": round(change_percent, 2),
+                    "emoji": self._determine_emoji(change_percent),
+                }
+            )
+
+        start_idx = indices[0]
+        end_idx = indices[-1]
+        start_price = price_points[start_idx][1]
+        end_price = price_points[end_idx][1]
+        overall_change = (
+            0.0 if start_price == 0 else ((end_price - start_price) / start_price) * 100
+        )
+
+        return {
+            "timeframe": tf_key,
+            "label": config["label"],
+            "currency": currency.lower(),
+            "resolution": config.get("resolution", "daily"),
+            "segments": segments,
+            "segment_count": len(segments),
+            "start_price": round(start_price, 6),
+            "end_price": round(end_price, 6),
+            "overall_change_percent": round(overall_change, 2),
+            "range_start": datetime.fromtimestamp(
+                price_points[start_idx][0] / 1000, tz=timezone.utc
+            ),
+            "range_end": datetime.fromtimestamp(price_points[end_idx][0] / 1000, tz=timezone.utc),
+            "from_cache": history.get("from_cache", False),
+            "legend": {
+                "up": "> +0.5%",
+                "flat": "±0.5%",
+                "down": "< -0.5%",
+            },
+            "last_updated": datetime.now(timezone.utc),
+        }
 
     def calculate_price_change(
         self, current_price: float, previous_price: float

@@ -1,5 +1,7 @@
 import os
+from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -9,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from backend.database.models import Base, Beneficiary, Transaction, User, Wallet
+from backend.services.price_service import PriceService
 from backend.services.user_service import UserService
 from backend.services.xrp_service import XRPService
 
@@ -283,3 +286,85 @@ class TestDatabaseModels:
         # Note: SQLite may convert to float, so check approximate equality
         assert abs(float(retrieved_wallet.balance) - 123.456789) < 0.000001
         # The important thing is that high precision is handled gracefully
+
+
+class DummyCacheBackend:
+    """In-memory cache backend for heatmap tests."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, Any] = {}
+
+    def get_json(self, key: str) -> Any:
+        return self.store.get(key)
+
+    def set_json(self, key: str, value: Any, ttl: int | None = None) -> bool:  # noqa: ARG002
+        self.store[key] = value
+        return True
+
+
+class DummyCacheService:
+    """Mimic cache service used by price service without Redis."""
+
+    def __init__(self) -> None:
+        self.cache = DummyCacheBackend()
+
+    def get_xrp_price(self) -> dict[str, Any] | None:
+        return None
+
+    def set_xrp_price(self, price_data: dict[str, Any]) -> bool:  # noqa: ARG002
+        return False
+
+
+class TestPriceServiceHeatmap:
+    """Validate heatmap generation from price service."""
+
+    @pytest.mark.asyncio
+    async def test_heatmap_generation_downsamples(self, monkeypatch):
+        """Heatmap response should downsample data and return emojis."""
+
+        from backend.services import price_service as price_service_module
+
+        dummy_cache = DummyCacheService()
+        monkeypatch.setattr(price_service_module, "get_cache_service", lambda: dummy_cache)
+
+        base_ts = 1_700_000_000_000
+        sample_prices = [[base_ts + i * 86_400_000, 0.5 + (i * 0.01)] for i in range(61)]
+
+        class DummyResponse:
+            status_code = 200
+
+            def __init__(self, payload: dict[str, Any]):
+                self._payload = payload
+
+            def json(self) -> dict[str, Any]:
+                return self._payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+        class DummyAsyncClient:
+            def __init__(self, *args, **kwargs):  # noqa: D401, ANN002, ANN003
+                pass
+
+            async def __aenter__(self) -> "DummyAsyncClient":
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb) -> bool:  # noqa: D401, ANN001
+                return False
+
+            async def get(self, *args, **kwargs) -> DummyResponse:  # noqa: D401, ANN002, ANN003
+                payload = {"prices": sample_prices, "market_caps": [], "total_volumes": []}
+                return DummyResponse(payload)
+
+        monkeypatch.setattr(price_service_module.httpx, "AsyncClient", DummyAsyncClient)
+
+        service = PriceService()
+        heatmap = await service.get_price_heatmap("30D", currency="usd")
+
+        assert heatmap["segment_count"] == len(heatmap["segments"])
+        assert heatmap["segment_count"] <= 30
+        assert heatmap["segments"]
+        assert all(segment["emoji"] == "🟩" for segment in heatmap["segments"])
+        assert isinstance(heatmap["range_start"], datetime)
+        assert isinstance(heatmap["range_end"], datetime)
+        assert heatmap["overall_change_percent"] > 0
