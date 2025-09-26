@@ -309,6 +309,34 @@ class PriceInfo(BaseModel):
     last_updated: datetime
 
 
+class HeatmapSegment(BaseModel):
+    """Price heatmap segment representation."""
+
+    start_timestamp: datetime
+    end_timestamp: datetime
+    change_percent: float
+    emoji: str
+
+
+class PriceHeatmapResponse(BaseModel):
+    """Emoji heatmap response payload."""
+
+    timeframe: str
+    label: str
+    currency: str
+    resolution: str
+    segment_count: int
+    segments: list[HeatmapSegment]
+    start_price: float
+    end_price: float
+    overall_change_percent: float
+    range_start: datetime | None = None
+    range_end: datetime | None = None
+    last_updated: datetime
+    from_cache: bool = False
+    legend: dict[str, str]
+
+
 class TransactionHistoryItem(BaseModel):
     """Transaction history item model."""
 
@@ -1153,6 +1181,81 @@ async def get_current_price(request: Request, response: Response) -> PriceInfo: 
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Price service temporarily unavailable",
         ) from e
+
+
+@router.get(
+    "/price/heatmap",
+    response_model=PriceHeatmapResponse,
+    responses={
+        200: {"description": "Heatmap generated"},
+        400: {"description": "Invalid timeframe supplied"},
+        503: {"description": "Heatmap generation unavailable"},
+    },
+)
+@limiter.limit("20/minute")
+async def get_price_heatmap(
+    request: Request,  # noqa: ARG001 - required for limiter key
+    response: Response,  # noqa: ARG001 - mutated by slowapi for headers
+    timeframe: str = Query(
+        "30D",
+        pattern=r"^(1D|7D|30D|90D|1Y|5Y)$",
+        description="Timeframe identifier for the heatmap",
+    ),
+    currency: str = Query(
+        "USD",
+        pattern=r"^[A-Za-z]{3,5}$",
+        description="Quote currency (e.g. USD, EUR, GBP)",
+    ),
+) -> PriceHeatmapResponse:
+    """Return emoji heatmap data for XRP price performance."""
+    try:
+        from ..services.price_service import PriceService
+
+        service = PriceService()
+        timeframe_key = timeframe.strip().upper()
+        currency_clean = currency.strip().lower()
+        heatmap_data = await service.get_price_heatmap(
+            timeframe=timeframe_key, currency=currency_clean
+        )
+
+        segments = [
+            HeatmapSegment(
+                start_timestamp=segment["start_timestamp"],
+                end_timestamp=segment["end_timestamp"],
+                change_percent=segment["change_percent"],
+                emoji=segment["emoji"],
+            )
+            for segment in heatmap_data.get("segments", [])
+            if segment.get("start_timestamp") and segment.get("end_timestamp")
+        ]
+
+        return PriceHeatmapResponse(
+            timeframe=heatmap_data.get("timeframe", timeframe_key),
+            label=heatmap_data.get("label", timeframe_key),
+            currency=heatmap_data.get("currency", currency_clean).upper(),
+            resolution=heatmap_data.get("resolution", "daily"),
+            segment_count=len(segments),
+            segments=segments,
+            start_price=float(heatmap_data.get("start_price", 0.0)),
+            end_price=float(heatmap_data.get("end_price", 0.0)),
+            overall_change_percent=float(heatmap_data.get("overall_change_percent", 0.0)),
+            range_start=heatmap_data.get("range_start"),
+            range_end=heatmap_data.get("range_end"),
+            last_updated=heatmap_data.get("last_updated", datetime.now(timezone.utc)),
+            from_cache=bool(heatmap_data.get("from_cache", False)),
+            legend=heatmap_data.get(
+                "legend",
+                {"up": "> +0.5%", "flat": "±0.5%", "down": "< -0.5%"},
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"Heatmap generation failed: {exc}")
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Heatmap service temporarily unavailable",
+        ) from exc
 
 
 @router.get(

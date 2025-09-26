@@ -286,6 +286,8 @@ async def security_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 🔢 PIN Protection: {"✅ Enabled" if has_pin else "❌ Disabled"}
 🛡️ Two-Factor Auth: {"✅ Enabled" if two_factor else "❌ Disabled"}
 
+<i>🚧 PIN and Two-Factor protections are currently under development.</i>
+
 <i>Enhance your wallet security with additional protection layers.</i>
 
 ⚠️ <b>Important:</b> These features add extra security but may slow down transactions.
@@ -617,6 +619,8 @@ async def export_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 message = f"""
 📊 <b>Data Export</b>
 
+<i>🚧 Downloads are coming soon — this feature is still in development.</i>
+
 Your data export has been prepared:
 
 <b>Profile:</b>
@@ -630,17 +634,11 @@ Your data export has been prepared:
 • Account settings (JSON)
 • Complete profile data (JSON)
 
-<i>Your data is ready for download. Contact support to receive your export file.</i>
+Your data is ready for download. Contact support to receive your export file.
 """
 
                 keyboard = InlineKeyboardMarkup(
                     [
-                        [
-                            InlineKeyboardButton(
-                                "📞 Contact Support",
-                                callback_data="contact_support",
-                            )
-                        ],
                         [
                             InlineKeyboardButton("🔙 Back to Settings", callback_data="back"),
                             InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu"),
