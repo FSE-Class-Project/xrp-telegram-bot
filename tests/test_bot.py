@@ -731,7 +731,6 @@ async def test_unit_message_handler_precedence_issue(telegram_update_factory, mo
 
 def test_format_price_heatmap_renders_segments():
     """Heatmap formatter should include emojis, legend, and price stats."""
-
     heatmap_data = {
         "label": "1 Year",
         "segments": [
@@ -772,7 +771,6 @@ def test_format_price_heatmap_renders_segments():
 
 def test_format_price_heatmap_handles_empty_segments():
     """Formatter should handle missing data gracefully."""
-
     message = format_price_heatmap({"label": "1 Year", "segments": []}, "USD")
     assert "Data unavailable" in message
     assert "Segments: 0" in message

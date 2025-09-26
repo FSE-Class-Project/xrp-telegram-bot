@@ -132,7 +132,6 @@ async def fetch_price_data(api_url: str, api_key: str) -> dict[str, Any] | None:
         return None
 
 
-
 async def fetch_price_heatmap(
     api_url: str, api_key: str, timeframe: str, currency: str
 ) -> dict[str, Any] | None:

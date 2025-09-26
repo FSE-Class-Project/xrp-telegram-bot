@@ -321,7 +321,6 @@ class TestPriceServiceHeatmap:
     @pytest.mark.asyncio
     async def test_heatmap_generation_downsamples(self, monkeypatch):
         """Heatmap response should downsample data and return emojis."""
-
         from backend.services import price_service as price_service_module
 
         dummy_cache = DummyCacheService()
@@ -352,7 +351,7 @@ class TestPriceServiceHeatmap:
             async def __aexit__(self, exc_type, exc, tb) -> bool:  # noqa: D401, ANN001
                 return False
 
-            async def get(self, *args, **kwargs) -> DummyResponse:  # noqa: D401, ANN002, ANN003
+            async def get(self, *args, **kwargs) -> DummyResponse:  # noqa: D401, ANN002, ANN003, ARG002
                 payload = {"prices": sample_prices, "market_caps": [], "total_volumes": []}
                 return DummyResponse(payload)
 
