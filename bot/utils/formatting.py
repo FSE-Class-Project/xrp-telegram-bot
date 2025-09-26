@@ -392,7 +392,6 @@ def format_funding_instructions(balance: Decimal | float | str, is_mainnet: bool
 
 def _parse_iso_datetime(value: datetime | str | None) -> datetime | None:
     """Parse ISO8601 values into timezone-aware UTC datetimes."""
-
     if isinstance(value, datetime):
         dt = value
     elif isinstance(value, str):
@@ -411,7 +410,6 @@ def _parse_iso_datetime(value: datetime | str | None) -> datetime | None:
 
 def format_price_heatmap(heatmap_data: dict[str, Any], currency: str = "USD") -> str:
     """Format emoji heatmap data for Telegram display."""
-
     currency_code = (currency or "USD").upper()
     title = escape_html(
         str(heatmap_data.get("label") or heatmap_data.get("timeframe") or "Price Heatmap")
